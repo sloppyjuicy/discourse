@@ -31,7 +31,7 @@ class CssColorValidator
   end
 
   def valid_value?(val)
-    val =~ /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/ || COLORS.include?(val&.downcase)
+    val =~ /^#(\h{3}){1,2}$/i || COLORS.include?(val&.downcase)
   end
 
   def error_message

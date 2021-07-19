@@ -23,7 +23,7 @@ export default Component.extend({
   }),
 
   normalize(color) {
-    if (/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) {
+    if (/^#?([0-9a-f]{3}){1,2}$/i.test(color)) {
       if (!color.startsWith("#")) {
         color = "#" + color;
       }
