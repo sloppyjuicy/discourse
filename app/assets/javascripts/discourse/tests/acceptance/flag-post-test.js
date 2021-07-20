@@ -17,10 +17,10 @@ async function openFlagModal() {
   await click(".topic-post:first-child button.create-flag");
 }
 
-function keyDown(element, keyCode, modifier) {
+function pressEnter(element, modifier) {
   const event = document.createEvent("Event");
   event.initEvent("keydown", true, true);
-  event.keyCode = 13;
+  event.key = "Enter";
   event[modifier] = true;
   run(() => element.dispatchEvent(event));
 }
@@ -158,14 +158,14 @@ acceptance("flagging", function (needs) {
     await openFlagModal();
 
     const modal = query("#discourse-modal");
-    keyDown(modal, 13, "ctrlKey");
+    pressEnter(modal, "ctrlKey");
     assert.ok(
       exists("#discourse-modal:visible"),
       "The modal wasn't closed because the accept button was disabled"
     );
 
     await click("#radio_inappropriate"); // this enables the accept button
-    keyDown(modal, 13, "ctrlKey");
+    pressEnter(modal, "ctrlKey");
     assert.ok(!exists("#discourse-modal:visible"), "The modal was closed");
   });
 
@@ -174,14 +174,14 @@ acceptance("flagging", function (needs) {
     await openFlagModal();
 
     const modal = query("#discourse-modal");
-    keyDown(modal, 13, "metaKey");
+    pressEnter(modal, "metaKey");
     assert.ok(
       exists("#discourse-modal:visible"),
       "The modal wasn't closed because the accept button was disabled"
     );
 
     await click("#radio_inappropriate"); // this enables the accept button
-    keyDown(modal, 13, "ctrlKey");
+    pressEnter(modal, "ctrlKey");
     assert.ok(!exists("#discourse-modal:visible"), "The modal was closed");
   });
 });

@@ -66,24 +66,20 @@ async function keyboardHelper(value, target, selector) {
   if (value === "selectAll") {
     // special casing the only one not working with triggerEvent
     const event = jQuery.Event("keydown");
-    event.keyCode = 65;
+    event.key = "A";
     event.metaKey = true;
     target.trigger(event);
   } else {
     const mapping = {
-      enter: { keyCode: 13 },
-      backspace: { keyCode: 8 },
-      escape: { keyCode: 27 },
-      down: { keyCode: 40 },
-      up: { keyCode: 38 },
-      tab: { keyCode: 9 },
+      enter: { key: "Enter" },
+      backspace: { key: "Backspace" },
+      escape: { key: "Escape" },
+      down: { key: "ArrowDown" },
+      up: { key: "ArrowUp" },
+      tab: { key: "Tab" },
     };
 
-    await triggerEvent(
-      target[0],
-      "keydown",
-      mapping[value] || { keyCode: value.charCodeAt(0) }
-    );
+    await triggerEvent(target[0], "keydown", mapping[value] || { key: value });
   }
 }
 

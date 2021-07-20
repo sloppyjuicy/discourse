@@ -102,7 +102,7 @@ acceptance("Composer", function (needs) {
     const event = document.createEvent("Event");
     event.initEvent("keydown", true, true);
     event[mac ? "metaKey" : "ctrlKey"] = true;
-    event.keyCode = 66;
+    event.key = "B";
 
     run(() => textarea.dispatchEvent(event));
 
