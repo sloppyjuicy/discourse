@@ -1,24 +1,31 @@
 import Controller, { inject as controller } from "@ember/controller";
-import { alias, sort } from "@ember/object/computed";
-import GrantBadgeController from "discourse/mixins/grant-badge-controller";
-import I18n from "I18n";
-import bootbox from "bootbox";
-import discourseComputed from "discourse-common/utils/decorators";
+import { action } from "@ember/object";
+import { alias, empty, sort } from "@ember/object/computed";
 import { next } from "@ember/runloop";
+import { service } from "@ember/service";
 import { popupAjaxError } from "discourse/lib/ajax-error";
+import discourseComputed from "discourse/lib/decorators";
+import { grantableBadges } from "discourse/lib/grant-badge-utils";
+import UserBadge from "discourse/models/user-badge";
+import { i18n } from "discourse-i18n";
+import AdminUser from "admin/models/admin-user";
 
-export default Controller.extend(GrantBadgeController, {
-  adminUser: controller(),
-  user: alias("adminUser.model"),
-  userBadges: alias("model"),
-  allBadges: alias("badges"),
-  sortedBadges: sort("model", "badgeSortOrder"),
+export default class AdminUserBadgesController extends Controller {
+  @service dialog;
+  @controller adminUser;
 
-  init() {
-    this._super(...arguments);
+  @alias("adminUser.model") user;
+  @alias("model") userBadges;
+  @alias("badges") allBadges;
+  @sort("model", "badgeSortOrder") sortedBadges;
+  @empty("availableBadges") noAvailableBadges;
 
-    this.badgeSortOrder = ["granted_at:desc"];
-  },
+  badgeSortOrder = ["granted_at:desc"];
+
+  @discourseComputed("allBadges.[]", "userBadges.[]")
+  availableBadges() {
+    return grantableBadges(this.get("allBadges"), this.get("userBadges"));
+  }
 
   @discourseComputed("model", "model.[]", "model.expandedBadges.[]")
   groupedBadges() {
@@ -49,59 +56,63 @@ export default Controller.extend(GrantBadgeController, {
       let result = {
         badge: badges[0].badge,
         granted_at: lastGranted,
-        badges: badges,
+        badges,
         count: badges.length,
         grouped: true,
       };
 
       expanded.push(result);
     });
+    expanded.forEach((badgeGroup) => {
+      const user = badgeGroup.granted_by;
+      if (user) {
+        badgeGroup.granted_by = AdminUser.create(user);
+      }
+    });
 
     return expanded.sortBy("granted_at").reverse();
-  },
+  }
 
-  actions: {
-    expandGroup: function (userBadge) {
-      const model = this.model;
-      model.set("expandedBadges", model.get("expandedBadges") || []);
-      model.get("expandedBadges").pushObject(userBadge.badge.id);
-    },
+  @action
+  expandGroup(userBadge) {
+    const model = this.model;
+    model.set("expandedBadges", model.get("expandedBadges") || []);
+    model.get("expandedBadges").pushObject(userBadge.badge.id);
+  }
 
-    grantBadge() {
-      this.grantBadge(
-        this.selectedBadgeId,
-        this.get("user.username"),
-        this.badgeReason
-      ).then(
-        () => {
-          this.set("badgeReason", "");
-          next(() => {
-            // Update the selected badge ID after the combobox has re-rendered.
-            const newSelectedBadge = this.grantableBadges[0];
-            if (newSelectedBadge) {
-              this.set("selectedBadgeId", newSelectedBadge.get("id"));
-            }
-          });
-        },
-        function (error) {
-          popupAjaxError(error);
-        }
-      );
-    },
-
-    revokeBadge(userBadge) {
-      return bootbox.confirm(
-        I18n.t("admin.badges.revoke_confirm"),
-        I18n.t("no_value"),
-        I18n.t("yes_value"),
-        (result) => {
-          if (result) {
-            userBadge.revoke().then(() => {
-              this.model.removeObject(userBadge);
-            });
+  @action
+  performGrantBadge() {
+    UserBadge.grant(
+      this.selectedBadgeId,
+      this.get("user.username"),
+      this.badgeReason
+    ).then(
+      (newBadge) => {
+        this.set("badgeReason", "");
+        this.userBadges.pushObject(newBadge);
+        next(() => {
+          // Update the selected badge ID after the combobox has re-rendered.
+          const newSelectedBadge = this.availableBadges[0];
+          if (newSelectedBadge) {
+            this.set("selectedBadgeId", newSelectedBadge.get("id"));
           }
-        }
-      );
-    },
-  },
-});
+        });
+      },
+      function (error) {
+        popupAjaxError(error);
+      }
+    );
+  }
+
+  @action
+  revokeBadge(userBadge) {
+    return this.dialog.yesNoConfirm({
+      message: i18n("admin.badges.revoke_confirm"),
+      didConfirm: () => {
+        return userBadge.revoke().then(() => {
+          this.model.removeObject(userBadge);
+        });
+      },
+    });
+  }
+}

@@ -1,4 +1,5 @@
 import renderTag from "discourse/lib/render-tag";
+import { i18n } from "discourse-i18n";
 
 let callbacks = null;
 let priorities = null;
@@ -15,6 +16,11 @@ export function addTagsHtmlCallback(callback, options) {
 
   priorities.splice(i, 0, priority);
   callbacks.splice(i, 0, callback);
+}
+
+export function clearTagsHtmlCallbacks() {
+  callbacks = null;
+  priorities = null;
 }
 
 export default function (topic, params) {
@@ -51,11 +57,18 @@ export default function (topic, params) {
   }
 
   if (customHtml || (tags && tags.length > 0)) {
-    buffer = "<div class='discourse-tags'>";
+    buffer = `<div class='discourse-tags' role='list'
+                aria-label=${i18n("tagging.tags")}>`;
     if (tags) {
       for (let i = 0; i < tags.length; i++) {
         buffer +=
-          renderTag(tags[i], { isPrivateMessage, tagsForUser, tagName }) + " ";
+          renderTag(tags[i], {
+            description:
+              topic.tags_descriptions && topic.tags_descriptions[tags[i]],
+            isPrivateMessage,
+            tagsForUser,
+            tagName,
+          }) + "";
       }
     }
 

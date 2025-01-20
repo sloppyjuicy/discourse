@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require_relative '../mixins/github_body'
+require_relative "../mixins/github_body"
+require_relative "../mixins/github_auth_header"
 
 module Onebox
   module Engine
@@ -9,12 +10,13 @@ module Onebox
       include LayoutSupport
       include JSON
       include Onebox::Mixins::GithubBody
+      include Onebox::Mixins::GithubAuthHeader
 
-      matches_regexp(/^https?:\/\/(?:www\.)?(?:(?:\w)+\.)?(github)\.com(?:\/)?(?:.)*\/commit\//)
+      matches_regexp(%r{^https?://(?:www\.)?(?:(?:\w)+\.)?(github)\.com(?:/)?(?:.)*/commit/})
       always_https
 
       def url
-        "https://api.github.com/repos/#{match[:owner]}/#{match[:repository]}/commits/#{match[:sha]}"
+        "https://api.github.com/repos/#{match[:org]}/#{match[:repository]}/commits/#{match[:sha]}"
       end
 
       private
@@ -22,27 +24,31 @@ module Onebox
       def match
         return @match if defined?(@match)
 
-        @match = @url.match(%{github\.com/(?<owner>[^/]+)/(?<repository>[^/]+)/commit/(?<sha>[^/]+)})
-        @match ||= @url.match(%{github\.com/(?<owner>[^/]+)/(?<repository>[^/]+)/pull/(?<pr>[^/]+)/commit/(?<sha>[^/]+)})
+        @match = @url.match(%{github\.com/(?<org>[^/]+)/(?<repository>[^/]+)/commit/(?<sha>[^/]+)})
+        @match ||=
+          @url.match(
+            %{github\.com/(?<org>[^/]+)/(?<repository>[^/]+)/pull/(?<pr>[^/]+)/commit/(?<sha>[^/]+)},
+          )
 
         @match
       end
 
       def data
-        result = raw.clone
+        result = raw(github_auth_header(match[:org])).clone
 
-        lines = result['commit']['message'].split("\n")
-        result['title'] = lines.first
-        result['body'], result['excerpt'] = compute_body(lines[1..lines.length].join("\n"))
+        lines = result["commit"]["message"].split("\n")
+        result["title"] = lines.first
+        result["body"], result["excerpt"] = compute_body(lines[1..lines.length].join("\n"))
 
-        committed_at = Time.parse(result['commit']['author']['date'])
-        result['committed_at'] = committed_at.strftime("%I:%M%p - %d %b %y %Z")
-        result['committed_at_date'] = committed_at.strftime("%F")
-        result['committed_at_time'] = committed_at.strftime("%T")
+        committed_at = Time.parse(result["commit"]["committer"]["date"])
+        result["committed_at"] = committed_at.strftime("%I:%M%p - %d %b %y %Z")
+        result["committed_at_date"] = committed_at.strftime("%F")
+        result["committed_at_time"] = committed_at.strftime("%T")
 
-        result['link'] = link
+        result["link"] = link
         ulink = URI(link)
-        result['domain'] = "#{ulink.host}/#{ulink.path.split('/')[1]}/#{ulink.path.split('/')[2]}"
+        result["domain"] = "#{ulink.host}/#{ulink.path.split("/")[1]}/#{ulink.path.split("/")[2]}"
+        result["i18n"] = { committed: I18n.t("onebox.github.committed") }
 
         result
       end

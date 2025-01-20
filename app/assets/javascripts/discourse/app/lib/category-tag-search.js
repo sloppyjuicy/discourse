@@ -1,12 +1,13 @@
-import { cancel, later } from "@ember/runloop";
-import { CANCELLED_STATUS } from "discourse/lib/autocomplete";
-import Category from "discourse/models/category";
+import { cancel } from "@ember/runloop";
 import { Promise } from "rsvp";
+import { ajax } from "discourse/lib/ajax";
+import { CANCELLED_STATUS } from "discourse/lib/autocomplete";
 import { SEPARATOR } from "discourse/lib/category-hashtags";
+import discourseDebounce from "discourse/lib/debounce";
+import { isTesting } from "discourse/lib/environment";
+import discourseLater from "discourse/lib/later";
 import { TAG_HASHTAG_POSTFIX } from "discourse/lib/tag-hashtags";
-import discourseDebounce from "discourse-common/lib/debounce";
-import getURL from "discourse-common/lib/get-url";
-import { isTesting } from "discourse-common/config/environment";
+import Category from "discourse/models/category";
 
 let cache = {};
 let cacheTime;
@@ -18,59 +19,52 @@ function updateCache(term, results) {
   return results;
 }
 
+function searchFunc(q, limit, cats, resultFunc) {
+  oldSearch = ajax("/tags/filter/search", {
+    data: { limit, q },
+  });
+
+  let returnVal = CANCELLED_STATUS;
+
+  oldSearch
+    .then((r) => {
+      const categoryNames = cats.map((c) => c.model.get("name"));
+
+      const tags = r.results.map((tag) => {
+        tag.text = categoryNames.includes(tag.text)
+          ? `${tag.text}${TAG_HASHTAG_POSTFIX}`
+          : tag.text;
+        return tag;
+      });
+
+      returnVal = cats.concat(tags);
+    })
+    .finally(() => {
+      oldSearch = null;
+      resultFunc(returnVal);
+    });
+}
+
 function searchTags(term, categories, limit) {
   return new Promise((resolve) => {
     let clearPromise = isTesting()
       ? null
-      : later(() => {
+      : discourseLater(() => {
           resolve(CANCELLED_STATUS);
         }, 5000);
 
-    const debouncedSearch = (q, cats, resultFunc) => {
-      discourseDebounce(
-        this,
-        function () {
-          oldSearch = $.ajax(getURL("/tags/filter/search"), {
-            type: "GET",
-            data: { limit: limit, q },
-          });
-
-          let returnVal = CANCELLED_STATUS;
-
-          oldSearch
-            .then((r) => {
-              const categoryNames = cats.map((c) => c.model.get("name"));
-
-              const tags = r.results.map((tag) => {
-                const tagName = tag.text;
-
-                return {
-                  name: tagName,
-                  text: categoryNames.includes(tagName)
-                    ? `${tagName}${TAG_HASHTAG_POSTFIX}`
-                    : tagName,
-                  count: tag.count,
-                };
-              });
-
-              returnVal = cats.concat(tags);
-            })
-            .always(() => {
-              oldSearch = null;
-              resultFunc(returnVal);
-            });
-        },
-        q,
-        cats,
-        resultFunc,
-        300
-      );
-    };
-
-    debouncedSearch(term, categories, (result) => {
-      cancel(clearPromise);
-      resolve(updateCache(term, result));
-    });
+    discourseDebounce(
+      this,
+      searchFunc,
+      term,
+      limit,
+      categories,
+      (result) => {
+        cancel(clearPromise);
+        resolve(updateCache(term, result));
+      },
+      300
+    );
   });
 }
 

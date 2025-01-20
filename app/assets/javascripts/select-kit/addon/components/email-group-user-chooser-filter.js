@@ -1,12 +1,16 @@
-import MultiSelectFilterComponent from "select-kit/components/multi-select/multi-select-filter";
 import { action } from "@ember/object";
+import { classNames } from "@ember-decorators/component";
+import MultiSelectFilterComponent from "select-kit/components/multi-select/multi-select-filter";
 
-export default MultiSelectFilterComponent.extend({
-  classNames: ["email-group-user-chooser-filter"],
-
+@classNames("email-group-user-chooser-filter")
+export default class EmailGroupUserChooserFilter extends MultiSelectFilterComponent {
   @action
   onPaste(event) {
-    const data = event.originalEvent.clipboardData;
+    if (this.selectKit.options.maximum === 1) {
+      return;
+    }
+
+    const data = event?.clipboardData;
 
     if (!data) {
       return;
@@ -31,5 +35,5 @@ export default MultiSelectFilterComponent.extend({
 
       return false;
     }
-  },
-});
+  }
+}

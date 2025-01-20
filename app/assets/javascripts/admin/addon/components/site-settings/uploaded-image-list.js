@@ -1,16 +1,19 @@
 import Component from "@ember/component";
-import showModal from "discourse/lib/show-modal";
+import { action } from "@ember/object";
+import { service } from "@ember/service";
+import UploadedImageListModal from "admin/components/modal/uploaded-image-list";
 
-export default Component.extend({
-  actions: {
-    showUploadModal({ value, setting }) {
-      showModal("admin-uploaded-image-list", {
-        admin: true,
+export default class UploadedImageList extends Component {
+  @service modal;
+
+  @action
+  showUploadModal({ value, setting }) {
+    this.modal.show(UploadedImageListModal, {
+      model: {
         title: `admin.site_settings.${setting.setting}.title`,
-        model: { value, setting },
-      }).setProperties({
-        save: (v) => this.set("value", v),
-      });
-    },
-  },
-});
+        changeValue: (v) => this.set("value", v),
+        value,
+      },
+    });
+  }
+}

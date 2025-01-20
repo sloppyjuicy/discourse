@@ -1,14 +1,13 @@
+import { click, visit } from "@ember/test-helpers";
+import { test } from "qunit";
 import {
   acceptance,
-  count,
-  exists,
   fakeTime,
+  loggedInUser,
   queryAll,
 } from "discourse/tests/helpers/qunit-helpers";
-import { click, visit } from "@ember/test-helpers";
 import selectKit from "discourse/tests/helpers/select-kit-helper";
-import { test } from "qunit";
-import I18n from "I18n";
+import { i18n } from "discourse-i18n";
 
 acceptance("User notification schedule", function (needs) {
   needs.user();
@@ -16,15 +15,13 @@ acceptance("User notification schedule", function (needs) {
   test("the schedule interface is hidden until enabled", async function (assert) {
     await visit("/u/eviltrout/preferences/notifications");
 
-    assert.ok(
-      !exists(".notification-schedule-table"),
-      "notification schedule is hidden"
-    );
+    assert
+      .dom(".notification-schedule-table")
+      .doesNotExist("notification schedule is hidden");
     await click(".control-group.notification-schedule input");
-    assert.ok(
-      exists(".notification-schedule-table"),
-      "notification schedule is visible"
-    );
+    assert
+      .dom(".notification-schedule-table")
+      .exists("notification schedule is visible");
   });
 
   test("By default every day is selected 8:00am - 5:00pm", async function (assert) {
@@ -40,22 +37,22 @@ acceptance("User notification schedule", function (needs) {
       "Saturday",
       "Sunday",
     ].forEach((day) => {
-      assert.equal(
+      assert.strictEqual(
         selectKit(`.day.${day} .starts-at .combobox`).header().label(),
         "8:00 AM",
         "8am is selected"
       );
-      assert.equal(
+      assert.strictEqual(
         selectKit(`.day.${day} .starts-at .combobox`).header().value(),
         "480",
         "8am is 480"
       );
-      assert.equal(
+      assert.strictEqual(
         selectKit(`.day.${day} .ends-at .combobox`).header().label(),
         "5:00 PM",
         "5am is selected"
       );
-      assert.equal(
+      assert.strictEqual(
         selectKit(`.day.${day} .ends-at .combobox`).header().value(),
         "1020",
         "5pm is 1020"
@@ -70,21 +67,19 @@ acceptance("User notification schedule", function (needs) {
     await selectKit(".day.Monday .combobox").expand();
     await selectKit(".day.Monday .combobox").selectRowByValue(-1);
 
-    assert.equal(
+    assert.strictEqual(
       selectKit(".day.Monday .starts-at .combobox").header().value(),
       "-1",
       "set monday input to none"
     );
-    assert.equal(
+    assert.strictEqual(
       selectKit(".day.Monday .starts-at .combobox").header().label(),
       "None",
       "set monday label to none"
     );
-    assert.equal(
-      count(".day.Monday .select-kit.single-select"),
-      1,
-      "The end time input is hidden"
-    );
+    assert
+      .dom(".day.Monday .select-kit.single-select")
+      .exists({ count: 1 }, "the end time input is hidden");
   });
 
   test("If start time is after end time, end time gets bumped 30 minutes past start time", async function (assert) {
@@ -96,15 +91,15 @@ acceptance("User notification schedule", function (needs) {
       "1350"
     );
 
-    assert.equal(
+    assert.strictEqual(
       selectKit(".day.Tuesday .ends-at .combobox").header().value(),
       "1380",
       "End time is 30 past start time"
     );
 
     await selectKit(".day.Tuesday .ends-at .combobox").expand();
-    assert.ok(
-      !selectKit(".day.Tuesday .ends-at .combobox").rowByValue(1350).exists(),
+    assert.false(
+      selectKit(".day.Tuesday .ends-at .combobox").rowByValue(1350).exists(),
       "End time options are limited to + 30 past start time"
     );
   });
@@ -115,7 +110,7 @@ acceptance("User Notifications - Users - Ignore User", function (needs) {
   needs.user();
 
   needs.hooks.beforeEach(() => {
-    const timezone = moment.tz.guess();
+    const timezone = loggedInUser().user_option.timezone;
     clock = fakeTime("2100-05-03T08:00:00", timezone, true); // Monday morning
   });
 
@@ -124,6 +119,7 @@ acceptance("User Notifications - Users - Ignore User", function (needs) {
   });
 
   test("Shows correct timeframe options", async function (assert) {
+    this.siteSettings.suggest_weekends_in_date_pickers = true;
     await visit("/u/eviltrout/preferences/users");
 
     await click("div.user-notifications div div button");
@@ -136,18 +132,19 @@ acceptance("User Notifications - Users - Ignore User", function (needs) {
     );
 
     const expected = [
-      I18n.t("topic.auto_update_input.later_today"),
-      I18n.t("topic.auto_update_input.tomorrow"),
-      I18n.t("topic.auto_update_input.this_weekend"),
-      I18n.t("topic.auto_update_input.next_week"),
-      I18n.t("topic.auto_update_input.two_weeks"),
-      I18n.t("topic.auto_update_input.next_month"),
-      I18n.t("topic.auto_update_input.two_months"),
-      I18n.t("topic.auto_update_input.three_months"),
-      I18n.t("topic.auto_update_input.four_months"),
-      I18n.t("topic.auto_update_input.six_months"),
-      I18n.t("topic.auto_update_input.one_year"),
-      I18n.t("topic.auto_update_input.forever"),
+      i18n("time_shortcut.later_today"),
+      i18n("time_shortcut.tomorrow"),
+      i18n("time_shortcut.later_this_week"),
+      i18n("time_shortcut.this_weekend"),
+      i18n("time_shortcut.start_of_next_business_week_alt"),
+      i18n("time_shortcut.two_weeks"),
+      i18n("time_shortcut.next_month"),
+      i18n("time_shortcut.two_months"),
+      i18n("time_shortcut.three_months"),
+      i18n("time_shortcut.four_months"),
+      i18n("time_shortcut.six_months"),
+      i18n("time_shortcut.one_year"),
+      i18n("time_shortcut.forever"),
     ];
 
     assert.deepEqual(options, expected, "options are correct");

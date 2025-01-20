@@ -1,10 +1,12 @@
-import { applyDecorators, createWidget } from "discourse/widgets/widget";
-import I18n from "I18n";
-import { formatUsername } from "discourse/lib/utilities";
-import getURL from "discourse-common/lib/get-url";
+import { hbs } from "ember-cli-htmlbars";
 import { h } from "virtual-dom";
-import { iconNode } from "discourse-common/lib/icon-library";
+import getURL from "discourse/lib/get-url";
+import { iconNode } from "discourse/lib/icon-library";
 import { prioritizeNameInUx } from "discourse/lib/settings";
+import { formatUsername } from "discourse/lib/utilities";
+import RenderGlimmer from "discourse/widgets/render-glimmer";
+import { applyDecorators, createWidget } from "discourse/widgets/widget";
+import { i18n } from "discourse-i18n";
 
 let sanitizeName = function (name) {
   return name.toLowerCase().replace(/[\s\._-]/g, "");
@@ -16,6 +18,23 @@ export function disableNameSuppression() {
 
 createWidget("poster-name-title", {
   tagName: "span.user-title",
+
+  buildClasses(attrs) {
+    let classNames = [];
+
+    classNames.push(attrs.title);
+
+    if (attrs.titleIsGroup) {
+      classNames.push(attrs.primaryGroupName);
+    }
+
+    classNames = classNames.map(
+      (className) =>
+        `user-title--${className.replace(/\s+/g, "-").toLowerCase()}`
+    );
+
+    return classNames;
+  },
 
   html(attrs) {
     let titleContents = attrs.title;
@@ -42,11 +61,25 @@ export default createWidget("poster-name", {
     showGlyph: true,
   },
 
+  didRenderWidget() {
+    if (this.attrs.user) {
+      this.attrs.user.statusManager.trackStatus();
+      this.attrs.user.on("status-changed", this, "scheduleRerender");
+    }
+  },
+
+  willRerenderWidget() {
+    if (this.attrs.user) {
+      this.attrs.user.off("status-changed", this, "scheduleRerender");
+      this.attrs.user.statusManager.stopTrackingStatus();
+    }
+  },
+
   // TODO: Allow extensibility
   posterGlyph(attrs) {
     if (attrs.moderator || attrs.groupModerator) {
-      return iconNode("shield-alt", {
-        title: I18n.t("user.moderator_tooltip"),
+      return iconNode("shield-halved", {
+        title: i18n("user.moderator_tooltip"),
       });
     }
   },
@@ -58,6 +91,12 @@ export default createWidget("poster-name", {
         attributes: {
           href: attrs.usernameUrl,
           "data-user-card": attrs.username,
+          class: `${
+            this.siteSettings.hide_user_profiles_from_public &&
+            !this.currentUser
+              ? "non-clickable"
+              : ""
+          }`,
         },
       },
       formatUsername(text)
@@ -89,12 +128,9 @@ export default createWidget("poster-name", {
       classNames.push("new-user");
     }
 
-    let afterNameContents =
-      applyDecorators(this, "after-name", attrs, this.state) || [];
-
     const primaryGroupName = attrs.primary_group_name;
     if (primaryGroupName && primaryGroupName.length) {
-      classNames.push(primaryGroupName);
+      classNames.push(`group--${primaryGroupName}`);
     }
     let nameContents = [this.userLink(attrs, nameFirst ? name : username)];
 
@@ -104,33 +140,72 @@ export default createWidget("poster-name", {
         nameContents.push(glyph);
       }
     }
+
+    const afterNameContents =
+      applyDecorators(this, "after-name", attrs, this.state) || [];
+
     nameContents = nameContents.concat(afterNameContents);
 
     const contents = [
       h("span", { className: classNames.join(" ") }, nameContents),
     ];
 
-    if (!this.settings.showNameAndGroup) {
-      return contents;
-    }
-
-    if (
-      name &&
-      this.siteSettings.display_name_on_posts &&
-      sanitizeName(name) !== sanitizeName(username)
-    ) {
-      contents.push(
-        h(
-          "span.second." + (nameFirst ? "username" : "full-name"),
-          [this.userLink(attrs, nameFirst ? username : name)].concat(
-            afterNameContents
+    if (this.settings.showNameAndGroup) {
+      if (
+        name &&
+        this.siteSettings.display_name_on_posts &&
+        sanitizeName(name) !== sanitizeName(username)
+      ) {
+        contents.push(
+          h(
+            "span.second." + (nameFirst ? "username" : "full-name"),
+            [this.userLink(attrs, nameFirst ? username : name)].concat(
+              afterNameContents
+            )
           )
-        )
-      );
+        );
+      }
+
+      this.buildTitleObject(attrs, contents);
+
+      if (this.siteSettings.enable_user_status) {
+        this.addUserStatus(contents, attrs);
+      }
     }
 
+    if (attrs.badgesGranted?.length) {
+      const badges = [];
+
+      attrs.badgesGranted.forEach((badge) => {
+        // Alter the badge description to show that the badge was granted for this post.
+        badge.description = i18n("post.badge_granted_tooltip", {
+          username: attrs.username,
+          badge_name: badge.name,
+        });
+
+        const badgeIcon = new RenderGlimmer(
+          this,
+          `span.user-badge-button-${badge.slug}`,
+          hbs`<UserBadge @badge={{@data.badge}} @user={{@data.user}} @showName={{false}} />`,
+          {
+            badge,
+            user: attrs.user,
+          }
+        );
+        badges.push(badgeIcon);
+      });
+
+      contents.push(h("span.user-badge-buttons", badges));
+    }
+
+    return contents;
+  },
+
+  buildTitleObject(attrs, contents) {
+    const primaryGroupName = attrs.primary_group_name;
     const title = attrs.user_title,
       titleIsGroup = attrs.title_is_group;
+
     if (title && title.length) {
       contents.push(
         this.attach("poster-name-title", {
@@ -140,7 +215,11 @@ export default createWidget("poster-name", {
         })
       );
     }
+  },
 
-    return contents;
+  addUserStatus(contents, attrs) {
+    if (attrs.user && attrs.user.status) {
+      contents.push(this.attach("post-user-status", attrs.user.status));
+    }
   },
 });

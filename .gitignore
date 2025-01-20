@@ -8,6 +8,7 @@
 /.env
 /.procfile
 /dump.rdb
+.DS_Store
 
 /config/discourse.conf
 /config/discourse.pill
@@ -34,14 +35,20 @@
 
 # Plugins except for the bundled ones
 /plugins/*
-!/plugins/discourse-details/
+!/plugins/discourse-details
 !/plugins/discourse-local-dates
 !/plugins/discourse-narrative-bot
 !/plugins/discourse-presence
-!/plugins/lazy-yt/
-!/plugins/poll/
+!/plugins/discourse-lazy-videos
+!/plugins/automation
+/plugins/automation/gems
+!/plugins/chat
+!/plugins/poll
 !/plugins/styleguide
-/plugins/*/auto_generated/
+!/plugins/spoiler-alert
+!/plugins/checklist
+!/plugins/footnote
+/plugins/*/auto_generated
 
 /spec/fixtures/plugins/my_plugin/auto_generated
 
@@ -49,13 +56,37 @@
 /vendor/data/GeoLite2-City.mmdb
 /vendor/data/GeoLite2-ASN.mmdb
 
+# We provide a .sample but people can use newer versions if they want to
+.ruby-version
+.ruby-gemset
+.tool-versions
+
+# Likewise, there are sample files for VSCode config
+/.vscode/*
+!/.vscode/extensions.json
+!/.vscode/*.sample
+
 # Front-end
 dist
 node_modules
 yarn-error.log
+.pnpm-store
+
+# Linting artifacts
+.eslintcache
+/lint-progress
 
 # Auto-generated plugin JS assets
 /app/assets/javascripts/plugins/*
 
 # Generated API documentation files
 openapi/*
+
+# Cached License Data Files
+/.licenses
+
+# devenv.sh
+.devenv*
+
+# direnv.net
+.direnv

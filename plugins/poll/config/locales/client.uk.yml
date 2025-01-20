@@ -17,6 +17,11 @@ uk:
         few: "голосів"
         many: "голоси"
         other: "голоси"
+      votes:
+        one: "%{count} голос"
+        few: "%{count} голоси"
+        many: "%{count} голосів"
+        other: "%{count} голосів"
       average_rating: "Середній рейтинг: <strong>%{average}</strong>."
       public:
         title: "Голоси <strong>публічні</strong> ."
@@ -28,34 +33,46 @@ uk:
         closed:
           title: "Результати будуть показані після <strong>закриття</strong> ."
         staff:
-          title: "Результати показуються лише <strong>співробітникам</strong> ."
+          title: "Результати показуються лише <strong>членам команди обслуговування</strong> ."
+        tabs:
+          votes: "Голоси"
+          outcome: "Результат"
       multiple:
         help:
           at_least_min_options:
-            one: "Виберіть принаймні <strong>%{count}</strong> варіант."
-            few: "Виберіть принаймні <strong>%{count}</strong> варіанти."
-            many: "Виберіть принаймні <strong>%{count}</strong> варіантів."
-            other: "Виберіть принаймні <strong>%{count}</strong> варіанти."
+            one: "Виберіть принаймні <strong>%{count} варіант</strong>."
+            few: "Виберіть принаймні <strong>%{count} варіанти</strong>."
+            many: "Виберіть принаймні <strong>%{count} варіантів</strong>."
+            other: "Виберіть принаймні <strong>%{count} варіантів</strong>."
           up_to_max_options:
-            one: "Виберіть не більше як <strong>%{count}</strong> варіант."
-            few: "Виберіть не більше <strong>%{count}</strong> варіанти."
-            many: "Виберіть не більше <strong>%{count}</strong> варіантів."
-            other: "Виберіть не більше <strong>%{count}</strong> варіантів."
+            one: "Виберіть до <strong>%{count} варіант</strong>."
+            few: "Виберіть до <strong>%{count} варіанти</strong>."
+            many: "Виберіть до <strong>%{count} варіантів</strong>."
+            other: "Виберіть до <strong>%{count} варіантів</strong>."
           x_options:
-            one: "Виберіть <strong>%{count}</strong> варіант."
-            few: "Виберіть <strong>%{count}</strong> варіанти."
-            many: "Виберіть <strong>%{count}</strong> варіантів."
-            other: "Виберіть <strong>%{count}</strong> варіантів."
-          between_min_and_max_options: "Виберіть між <strong>%{min}</strong> і <strong>%{max}</strong> варіантами."
+            one: "Виберіть <strong>%{count} варіант</strong>."
+            few: "Виберіть <strong>%{count} варіанти</strong>."
+            many: "Виберіть <strong>%{count} варіантів</strong>."
+            other: "Виберіть <strong>%{count} варіантів</strong>."
+          between_min_and_max_options: "Виберіть між <strong>%{min} і %{max} варіантами</strong>."
       cast-votes:
         title: "Проголосуйте"
         label: "Проголосувати!"
       show-results:
         title: "Показати результати опитування"
-        label: "Показати результати"
+        label: "Результати"
+      show-tally:
+        title: "Показати результати голосування за кількістю голосів"
+        label: "Показати підрахунок"
+      show-percentage:
+        title: "Показати результати голосування у відсотках"
+        label: "Показувати у відсотках"
+      remove-vote:
+        title: "Видалити свій голос"
+        label: "Скасувати голосування"
       hide-results:
         title: "Назад до своїх голосів"
-        label: "Показати голосування"
+        label: "Голосувати"
       group-results:
         title: "Групувати голоси за полем користувача"
         label: "Показати відбивку"
@@ -79,6 +96,31 @@ uk:
         breakdown: "Розбивка"
         percentage: "Відсоток"
         count: "Кількість"
+      ranked_choice:
+        title:
+          rounds: "Раунди"
+          outcome: "Результат"
+        none: "Немає"
+        majority: "Більшість"
+        eliminated: "Ліквідований"
+        round: "Раунд"
+        winner:
+          one: "Переможець %{winner} після одного раунду."
+          few: "Переможець %{winner} після %{count} раундів."
+          many: "Переможець %{winner} після %{count} раундів."
+          other: "Переможець %{winner} після %{count} раундів."
+        tied:
+          one: "Нічия після одного раунду між такими кандидатами:"
+          few: "Нічия після %{count} раундів між такими кандидатами:"
+          many: "Нічия після %{count} раундів між такими кандидатами:"
+          other: "Нічия після %{count} раундів між такими кандидатами:"
+      options:
+        label: "Параметри"
+        ranked_choice:
+          abstain: "Утриматись"
+          highest_priority: "(найвищий пріоритет)"
+          lowest_priority: "(найнижчий пріоритет)"
+          login: "Увійдіть, щоб проголосувати!"
       error_while_toggling_status: "На жаль, виникла помилка зміни статусу цього опитування."
       error_while_casting_votes: "На жаль, сталася помилка під час голосування."
       error_while_fetching_voters: "На жаль, під час відображення тих, хто проголосував, сталася помилка."
@@ -97,13 +139,14 @@ uk:
           label: Тип
           regular: Єдиний вибір
           multiple: Широкий вибір
+          ranked_choice: Рейтинговий вибір
           number: Рейтинг в цифрах
         poll_result:
           label: Показати результати...
           always: Завжди видно
           vote: Тільки після голосування
           closed: Коли опитування закрито
-          staff: Для персоналу тільки
+          staff: Для команди обслуговування
         poll_groups:
           label: Обмежити голосування цими групами
         poll_chart_type:

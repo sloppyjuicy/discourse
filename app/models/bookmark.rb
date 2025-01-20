@@ -1,67 +1,77 @@
 # frozen_string_literal: true
 
 class Bookmark < ActiveRecord::Base
-  self.ignored_columns = [
-    "topic_id", # TODO (martin) (2021-12-01): remove
-    "reminder_type" # TODO (martin) (2021-12-01): remove
+  DEFAULT_BOOKMARKABLES = [
+    RegisteredBookmarkable.new(PostBookmarkable),
+    RegisteredBookmarkable.new(TopicBookmarkable),
   ]
 
-  belongs_to :user
-  belongs_to :post
-  has_one :topic, through: :post
+  def self.registered_bookmarkables
+    Set.new(DEFAULT_BOOKMARKABLES | DiscoursePluginRegistry.bookmarkables)
+  end
 
-  delegate :topic_id, to: :post
+  def self.registered_bookmarkable_from_type(type)
+    begin
+      resolved_type = Bookmark.polymorphic_class_for(type).name
+      Bookmark.registered_bookmarkables.find { |bm| bm.model.name == resolved_type }
+
+      # If the class cannot be found from the provided type using polymorphic_class_for,
+      # then the type is not valid and thus there will not be any registered bookmarkable.
+    rescue NameError
+    end
+  end
+
+  def self.valid_bookmarkable_types
+    Bookmark.registered_bookmarkables.map { |bm| bm.model.polymorphic_name }
+  end
+
+  belongs_to :user
+  belongs_to :bookmarkable, polymorphic: true
 
   def self.auto_delete_preferences
-    @auto_delete_preferences ||= Enum.new(
-      never: 0,
-      when_reminder_sent: 1,
-      on_owner_reply: 2
-    )
+    @auto_delete_preferences ||=
+      Enum.new(never: 0, when_reminder_sent: 1, on_owner_reply: 2, clear_reminder: 3)
   end
 
-  # TODO (martin) (2021-12-01) Remove this once plugins are not using it.
-  def self.reminder_types
-    @reminder_types ||= Enum.new(
-      later_today: 1,
-      next_business_day: 2,
-      tomorrow: 3,
-      next_week: 4,
-      next_month: 5,
-      custom: 6,
-      start_of_next_business_week: 7,
-      later_this_week: 8
-    )
+  def self.select_type(bookmarks_relation, type)
+    bookmarks_relation.select { |bm| bm.bookmarkable_type == type }
   end
 
-  validate :unique_per_post_for_user,
-    on: [:create, :update],
-    if: Proc.new { |b| b.will_save_change_to_post_id? || b.will_save_change_to_user_id? }
+  validate :polymorphic_columns_present, on: %i[create update]
+  validate :valid_bookmarkable_type, on: %i[create update]
 
-  validate :for_topic_must_use_first_post,
-    on: [:create, :update],
-    if: Proc.new { |b| b.will_save_change_to_post_id? || b.will_save_change_to_for_topic? }
+  validate :unique_per_bookmarkable,
+           on: %i[create update],
+           if:
+             Proc.new { |b|
+               b.will_save_change_to_bookmarkable_id? || b.will_save_change_to_bookmarkable_type? ||
+                 b.will_save_change_to_user_id?
+             }
 
-  validate :ensure_sane_reminder_at_time
+  validate :ensure_sane_reminder_at_time, if: :will_save_change_to_reminder_at?
   validate :bookmark_limit_not_reached
   validates :name, length: { maximum: 100 }
 
-  def unique_per_post_for_user
-    exists = if is_for_first_post?
-      Bookmark.exists?(user_id: user_id, post_id: post_id, for_topic: for_topic)
-    else
-      Bookmark.exists?(user_id: user_id, post_id: post_id)
-    end
-
-    if exists
-      self.errors.add(:base, I18n.t("bookmarks.errors.already_bookmarked_post"))
-    end
+  def registered_bookmarkable
+    Bookmark.registered_bookmarkable_from_type(self.bookmarkable_type)
   end
 
-  def for_topic_must_use_first_post
-    if !is_for_first_post? && self.for_topic
-      self.errors.add(:base, I18n.t("bookmarks.errors.for_topic_must_use_first_post"))
+  def polymorphic_columns_present
+    return if self.bookmarkable_id.present? && self.bookmarkable_type.present?
+
+    self.errors.add(:base, I18n.t("bookmarks.errors.bookmarkable_id_type_required"))
+  end
+
+  def unique_per_bookmarkable
+    if !Bookmark.exists?(
+         user_id: user_id,
+         bookmarkable_id: bookmarkable_id,
+         bookmarkable_type: bookmarkable_type,
+       )
+      return
     end
+
+    self.errors.add(:base, I18n.t("bookmarks.errors.already_bookmarked", type: bookmarkable_type))
   end
 
   def ensure_sane_reminder_at_time
@@ -83,94 +93,102 @@ class Bookmark < ActiveRecord::Base
       I18n.t(
         "bookmarks.errors.too_many",
         user_bookmarks_url: "#{Discourse.base_url}/my/activity/bookmarks",
-        limit: SiteSetting.max_bookmarks_per_user
-      )
+        limit: SiteSetting.max_bookmarks_per_user,
+      ),
     )
   end
 
-  def is_for_first_post?
-    @is_for_first_post ||= new_record? ? Post.exists?(id: post_id, post_number: 1) : post.post_number == 1
-  end
+  def valid_bookmarkable_type
+    return if Bookmark.valid_bookmarkable_types.include?(self.bookmarkable_type)
 
-  def no_reminder?
-    self.reminder_at.blank?
+    self.errors.add(
+      :base,
+      I18n.t("bookmarks.errors.invalid_bookmarkable", type: self.bookmarkable_type),
+    )
   end
 
   def auto_delete_when_reminder_sent?
     self.auto_delete_preference == Bookmark.auto_delete_preferences[:when_reminder_sent]
   end
 
-  def auto_delete_on_owner_reply?
-    self.auto_delete_preference == Bookmark.auto_delete_preferences[:on_owner_reply]
+  def auto_clear_reminder_when_reminder_sent?
+    self.auto_delete_preference == Bookmark.auto_delete_preferences[:clear_reminder]
   end
 
   def reminder_at_ics(offset: 0)
     (reminder_at + offset).strftime(I18n.t("datetime_formats.formats.calendar_ics"))
   end
 
-  def clear_reminder!
-    update!(
-      reminder_at: nil,
-      reminder_last_sent_at: Time.zone.now,
-      reminder_set_at: nil
-    )
+  def clear_reminder!(force_clear_reminder_at: false)
+    reminder_update_attrs = { reminder_last_sent_at: Time.zone.now, reminder_set_at: nil }
+
+    if self.auto_clear_reminder_when_reminder_sent? || force_clear_reminder_at
+      reminder_update_attrs[:reminder_at] = nil
+    end
+
+    update!(reminder_update_attrs)
   end
 
-  scope :with_reminders, -> do
-    where("reminder_at IS NOT NULL")
+  def reminder_at_in_zone(timezone)
+    self.reminder_at.in_time_zone(timezone)
   end
 
-  scope :pending_reminders, ->(before_time = Time.now.utc) do
-    with_reminders.where("reminder_at <= :before_time", before_time: before_time)
-  end
+  scope :with_reminders, -> { where("reminder_at IS NOT NULL") }
 
-  scope :pending_reminders_for_user, ->(user) do
-    pending_reminders.where(user: user)
-  end
+  scope :pending_reminders,
+        ->(before_time = Time.now.utc) do
+          with_reminders.where("reminder_at <= ?", before_time).where(reminder_last_sent_at: nil)
+        end
 
-  scope :for_user_in_topic, ->(user_id, topic_id) {
-    joins(:post).where(user_id: user_id, posts: { topic_id: topic_id })
-  }
+  scope :pending_reminders_for_user, ->(user) { pending_reminders.where(user: user) }
 
-  def self.find_for_topic_by_user(topic_id, user_id)
-    for_user_in_topic(user_id, topic_id).where(for_topic: true).first
-  end
+  scope :for_user_in_topic,
+        ->(user_id, topic_id) do
+          joins(
+            "LEFT JOIN posts ON posts.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Post'",
+          ).joins(
+            "LEFT JOIN topics ON (topics.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Topic') OR
+             (topics.id = posts.topic_id)",
+          ).where(
+            "bookmarks.user_id = :user_id AND (topics.id = :topic_id OR posts.topic_id = :topic_id)
+        AND posts.deleted_at IS NULL AND topics.deleted_at IS NULL",
+            user_id: user_id,
+            topic_id: topic_id,
+          )
+        end
 
   def self.count_per_day(opts = nil)
     opts ||= {}
-    result = where('bookmarks.created_at >= ?', opts[:start_date] || (opts[:since_days_ago] || 30).days.ago)
+    result =
+      where(
+        "bookmarks.created_at >= ?",
+        opts[:start_date] || (opts[:since_days_ago] || 30).days.ago,
+      )
 
-    if opts[:end_date]
-      result = result.where('bookmarks.created_at <= ?', opts[:end_date])
-    end
+    result = result.where("bookmarks.created_at <= ?", opts[:end_date]) if opts[:end_date]
 
     if opts[:category_id]
-      result = result.joins(:topic).merge(Topic.in_category_and_subcategories(opts[:category_id]))
+      result =
+        result
+          .joins(
+            "LEFT JOIN posts ON posts.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Post'",
+          )
+          .joins(
+            "LEFT JOIN topics ON (topics.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Topic') OR (topics.id = posts.topic_id)",
+          )
+          .where("topics.deleted_at IS NULL AND posts.deleted_at IS NULL")
+          .merge(Topic.in_category_and_subcategories(opts[:category_id]))
     end
 
-    result.group('date(bookmarks.created_at)')
-      .order('date(bookmarks.created_at)')
-      .count
+    result.group("date(bookmarks.created_at)").order("date(bookmarks.created_at)").count
   end
 
   ##
-  # Deletes bookmarks that are attached to posts/topics that were deleted
-  # more than X days ago. We don't delete bookmarks instantly when a post/topic
-  # is deleted so that there is a grace period to un-delete.
+  # Deletes bookmarks that are attached to the bookmarkable records that were deleted
+  # more than X days ago. We don't delete bookmarks instantly when trashable bookmarkables
+  # are deleted so that there is a grace period to un-delete.
   def self.cleanup!
-    grace_time = 3.days.ago
-    topics_deleted = DB.query(<<~SQL, grace_time: grace_time)
-      DELETE FROM bookmarks b
-      USING topics t, posts p
-      WHERE (t.id = p.topic_id AND b.post_id = p.id)
-        AND (t.deleted_at < :grace_time OR p.deleted_at < :grace_time)
-       RETURNING t.id AS topic_id
-    SQL
-
-    topics_deleted_ids = topics_deleted.map(&:topic_id).uniq
-    topics_deleted_ids.each do |topic_id|
-      Jobs.enqueue(:sync_topic_user_bookmarked, topic_id: topic_id)
-    end
+    Bookmark.registered_bookmarkables.each(&:cleanup_deleted)
   end
 end
 
@@ -180,7 +198,6 @@ end
 #
 #  id                     :bigint           not null, primary key
 #  user_id                :bigint           not null
-#  post_id                :bigint           not null
 #  name                   :string(100)
 #  reminder_at            :datetime
 #  created_at             :datetime         not null
@@ -189,14 +206,13 @@ end
 #  reminder_set_at        :datetime
 #  auto_delete_preference :integer          default(0), not null
 #  pinned                 :boolean          default(FALSE)
-#  for_topic              :boolean          default(FALSE), not null
+#  bookmarkable_id        :bigint
+#  bookmarkable_type      :string
 #
 # Indexes
 #
-#  index_bookmarks_on_post_id                            (post_id)
-#  index_bookmarks_on_reminder_at                        (reminder_at)
-#  index_bookmarks_on_reminder_set_at                    (reminder_set_at)
-#  index_bookmarks_on_topic_id                           (topic_id)
-#  index_bookmarks_on_user_id                            (user_id)
-#  index_bookmarks_on_user_id_and_post_id_and_for_topic  (user_id,post_id,for_topic) UNIQUE
+#  idx_bookmarks_user_polymorphic_unique  (user_id,bookmarkable_type,bookmarkable_id) UNIQUE
+#  index_bookmarks_on_reminder_at         (reminder_at)
+#  index_bookmarks_on_reminder_set_at     (reminder_set_at)
+#  index_bookmarks_on_user_id             (user_id)
 #

@@ -1,16 +1,17 @@
-import EmberObject, { action, computed } from "@ember/object";
-import Report, { DAILY_LIMIT_DAYS, SCHEMA_VERSION } from "admin/models/report";
-import { alias, and, equal, notEmpty, or } from "@ember/object/computed";
 import Component from "@ember/component";
-import I18n from "I18n";
-import ReportLoader from "discourse/lib/reports-loader";
-import discourseComputed from "discourse-common/utils/decorators";
-import { exportEntity } from "discourse/lib/export-csv";
-import { isPresent } from "@ember/utils";
-import { isTesting } from "discourse-common/config/environment";
-import { makeArray } from "discourse-common/lib/helpers";
+import EmberObject, { action, computed } from "@ember/object";
+import { alias, and, equal, notEmpty, or } from "@ember/object/computed";
 import { next } from "@ember/runloop";
+import { isPresent } from "@ember/utils";
+import { classNameBindings, classNames } from "@ember-decorators/component";
+import discourseComputed from "discourse/lib/decorators";
+import { isTesting } from "discourse/lib/environment";
+import { exportEntity } from "discourse/lib/export-csv";
 import { outputExportResult } from "discourse/lib/export-result";
+import { makeArray } from "discourse/lib/helpers";
+import ReportLoader from "discourse/lib/reports-loader";
+import { i18n } from "discourse-i18n";
+import Report, { DAILY_LIMIT_DAYS, SCHEMA_VERSION } from "admin/models/report";
 
 const TABLE_OPTIONS = {
   perPage: 8,
@@ -21,51 +22,57 @@ const TABLE_OPTIONS = {
 
 const CHART_OPTIONS = {};
 
-export default Component.extend({
-  classNameBindings: [
-    "isHidden:hidden",
-    "isHidden::is-visible",
-    "isEnabled",
-    "isLoading",
-    "dasherizedDataSourceName",
-  ],
-  classNames: ["admin-report"],
-  isEnabled: true,
-  disabledLabel: I18n.t("admin.dashboard.disabled"),
-  isLoading: false,
-  rateLimitationString: null,
-  dataSourceName: null,
-  report: null,
-  model: null,
-  reportOptions: null,
-  forcedModes: null,
-  showAllReportsLink: false,
-  filters: null,
-  showTrend: false,
-  showHeader: true,
-  showTitle: true,
-  showFilteringUI: false,
-  showDatesOptions: alias("model.dates_filtering"),
-  showRefresh: or("showDatesOptions", "model.available_filters.length"),
-  shouldDisplayTrend: and("showTrend", "model.prev_period"),
-  endDate: null,
-  startDate: null,
+@classNameBindings(
+  "isHidden:hidden",
+  "isHidden::is-visible",
+  "isEnabled",
+  "isLoading",
+  "dasherizedDataSourceName"
+)
+@classNames("admin-report")
+export default class AdminReport extends Component {
+  isEnabled = true;
+  disabledLabel = i18n("admin.dashboard.disabled");
+  isLoading = false;
+  rateLimitationString = null;
+  dataSourceName = null;
+  report = null;
+  model = null;
+  reportOptions = null;
+  forcedModes = null;
+  filters = null;
+  showTrend = false;
+  showHeader = true;
+  showTitle = true;
+  showFilteringUI = false;
 
-  init() {
-    this._super(...arguments);
+  @alias("model.dates_filtering") showDatesOptions;
 
-    this._reports = [];
-  },
+  @or("showDatesOptions", "model.available_filters.length") showRefresh;
 
-  isHidden: computed("siteSettings.dashboard_hidden_reports", function () {
+  @and("showTrend", "model.prev_period") shouldDisplayTrend;
+
+  endDate = null;
+  startDate = null;
+
+  @or("showTimeoutError", "showExceptionError", "showNotFoundError") showError;
+  @equal("model.error", "not_found") showNotFoundError;
+  @equal("model.error", "timeout") showTimeoutError;
+  @equal("model.error", "exception") showExceptionError;
+  @notEmpty("model.data") hasData;
+
+  _reports = [];
+
+  @computed("siteSettings.dashboard_hidden_reports")
+  get isHidden() {
     return (this.siteSettings.dashboard_hidden_reports || "")
       .split("|")
       .filter(Boolean)
       .includes(this.dataSourceName);
-  }),
+  }
 
   didReceiveAttrs() {
-    this._super(...arguments);
+    super.didReceiveAttrs(...arguments);
 
     let startDate = moment();
     if (this.filters && isPresent(this.filters.startDate)) {
@@ -88,42 +95,35 @@ export default Component.extend({
     } else if (this.dataSourceName) {
       this._fetchReport();
     }
-  },
-
-  showError: or("showTimeoutError", "showExceptionError", "showNotFoundError"),
-  showNotFoundError: equal("model.error", "not_found"),
-  showTimeoutError: equal("model.error", "timeout"),
-  showExceptionError: equal("model.error", "exception"),
-
-  hasData: notEmpty("model.data"),
+  }
 
   @discourseComputed("dataSourceName", "model.type")
   dasherizedDataSourceName(dataSourceName, type) {
     return (dataSourceName || type || "undefined").replace(/_/g, "-");
-  },
+  }
 
   @discourseComputed("dataSourceName", "model.type")
   dataSource(dataSourceName, type) {
     dataSourceName = dataSourceName || type;
     return `/admin/reports/${dataSourceName}`;
-  },
+  }
 
   @discourseComputed("displayedModes.length")
   showModes(displayedModesLength) {
     return displayedModesLength > 1;
-  },
+  }
 
   @discourseComputed("currentMode")
   isChartMode(currentMode) {
     return currentMode === "chart";
-  },
+  }
 
   @action
   changeGrouping(grouping) {
     this.send("refreshReport", {
       chartGrouping: grouping,
     });
-  },
+  }
 
   @discourseComputed("currentMode", "model.modes", "forcedModes")
   displayedModes(currentMode, reportModes, forcedModes) {
@@ -139,12 +139,12 @@ export default Component.extend({
         icon: mode === "table" ? "table" : "signal",
       };
     });
-  },
+  }
 
   @discourseComputed("currentMode")
   modeComponent(currentMode) {
     return `admin-report-${currentMode.replace(/_/g, "-")}`;
-  },
+  }
 
   @discourseComputed(
     "dataSourceName",
@@ -178,7 +178,7 @@ export default Component.extend({
       .join(":");
 
     return reportKey;
-  },
+  }
 
   @discourseComputed("options.chartGrouping", "model.chartData.length")
   chartGroupings(grouping, count) {
@@ -192,7 +192,7 @@ export default Component.extend({
         class: `chart-grouping ${grouping === id ? "active" : "inactive"}`,
       };
     });
-  },
+  }
 
   @action
   onChangeDateRange(range) {
@@ -200,7 +200,7 @@ export default Component.extend({
       startDate: range.from,
       endDate: range.to,
     });
-  },
+  }
 
   @action
   applyFilter(id, value) {
@@ -215,15 +215,15 @@ export default Component.extend({
     this.send("refreshReport", {
       filters: customFilters,
     });
-  },
+  }
 
   @action
   refreshReport(options = {}) {
-    if (!this.attrs.onRefresh) {
+    if (!this.onRefresh) {
       return;
     }
 
-    this.attrs.onRefresh({
+    this.onRefresh({
       type: this.get("model.type"),
       mode: this.currentMode,
       chartGrouping: options.chartGrouping,
@@ -238,7 +238,7 @@ export default Component.extend({
           ? this.get("filters.customFilters")
           : options.filters,
     });
-  },
+  }
 
   @action
   exportCsv() {
@@ -254,7 +254,7 @@ export default Component.extend({
     }
 
     exportEntity("report", args).then(outputExportResult);
-  },
+  }
 
   @action
   onChangeMode(mode) {
@@ -263,7 +263,7 @@ export default Component.extend({
     this.send("refreshReport", {
       chartGrouping: null,
     });
-  },
+  }
 
   _computeReport() {
     if (!this.element || this.isDestroying || this.isDestroyed) {
@@ -306,7 +306,7 @@ export default Component.extend({
     }
 
     this._renderReport(report, this.forcedModes, this.currentMode);
-  },
+  }
 
   _renderReport(report, forcedModes, currentMode) {
     const modes = forcedModes ? forcedModes.split(",") : report.modes;
@@ -317,11 +317,9 @@ export default Component.extend({
       currentMode,
       options: this._buildOptions(currentMode, report),
     });
-  },
+  }
 
   _fetchReport() {
-    this._super(...arguments);
-
     this.setProperties({ isLoading: true, rateLimitationString: null });
 
     next(() => {
@@ -337,7 +335,7 @@ export default Component.extend({
         if (response === 429) {
           this.set(
             "rateLimitationString",
-            I18n.t("admin.dashboard.too_many_requests")
+            i18n("admin.dashboard.too_many_requests")
           );
         } else if (response === 500) {
           this.set("model.error", "exception");
@@ -349,7 +347,7 @@ export default Component.extend({
 
       ReportLoader.enqueue(this.dataSourceName, payload.data, callback);
     });
-  },
+  }
 
   _buildPayload(facets) {
     let payload = { data: { facets } };
@@ -375,7 +373,7 @@ export default Component.extend({
     }
 
     return payload;
-  },
+  }
 
   _buildOptions(mode, report) {
     if (mode === "table") {
@@ -392,8 +390,10 @@ export default Component.extend({
             Report.groupingForDatapoints(report.chartData.length),
         })
       );
+    } else if (mode === "stacked-chart" || mode === "stacked_chart") {
+      return this.get("reportOptions.stackedChart") || {};
     }
-  },
+  }
 
   _loadReport(jsonReport) {
     Report.fillMissingDates(jsonReport, { filledField: "chartData" });
@@ -423,5 +423,5 @@ export default Component.extend({
     }
 
     return Report.create(jsonReport);
-  },
-});
+  }
+}

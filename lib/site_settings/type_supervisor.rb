@@ -1,44 +1,65 @@
 # frozen_string_literal: true
 
-module SiteSettings; end
+module SiteSettings
+end
 
 class SiteSettings::TypeSupervisor
   include SiteSettings::Validations
 
-  CONSUMED_OPTS = %i[enum choices type validator min max regex hidden regex_error allow_any list_type textarea json_schema].freeze
+  CONSUMED_OPTS = %i[
+    enum
+    choices
+    type
+    validator
+    min
+    max
+    regex
+    hidden
+    regex_error
+    allow_any
+    list_type
+    textarea
+    json_schema
+    requires_confirmation
+  ].freeze
   VALIDATOR_OPTS = %i[min max regex hidden regex_error json_schema].freeze
 
   # For plugins, so they can tell if a feature is supported
   SUPPORTED_TYPES = %i[email username list enum].freeze
 
+  REQUIRES_CONFIRMATION_TYPES = { simple: "simple", user_option: "user_option" }.freeze
+
   def self.types
-    @types ||= Enum.new(
-      string: 1,
-      time: 2,
-      integer: 3,
-      float: 4,
-      bool: 5,
-      null: 6,
-      enum: 7,
-      list: 8,
-      url_list: 9,
-      host_list: 10,
-      category_list: 11,
-      value_list: 12,
-      regex: 13,
-      email: 14,
-      username: 15,
-      category: 16,
-      uploaded_image_list: 17,
-      upload: 18,
-      group: 19,
-      group_list: 20,
-      tag_list: 21,
-      color: 22,
-      simple_list: 23,
-      emoji_list: 24,
-      html_deprecated: 25,
-    )
+    @types ||=
+      Enum.new(
+        string: 1,
+        time: 2,
+        integer: 3,
+        float: 4,
+        bool: 5,
+        null: 6,
+        enum: 7,
+        list: 8,
+        url_list: 9,
+        host_list: 10,
+        category_list: 11,
+        value_list: 12,
+        regex: 13,
+        email: 14,
+        username: 15,
+        category: 16,
+        uploaded_image_list: 17,
+        upload: 18,
+        group: 19,
+        group_list: 20,
+        tag_list: 21,
+        color: 22,
+        simple_list: 23,
+        emoji_list: 24,
+        html_deprecated: 25,
+        tag_group_list: 26,
+        file_size_restriction: 27,
+      )
   end
 
   def self.parse_value_type(val)
@@ -78,13 +99,9 @@ class SiteSettings::TypeSupervisor
   def load_setting(name_arg, opts = {})
     name = name_arg.to_sym
 
-    if opts[:textarea]
-      @textareas[name] = opts[:textarea]
-    end
+    @textareas[name] = opts[:textarea] if opts[:textarea]
 
-    if opts[:json_schema]
-      @json_schemas[name] = opts[:json_schema].constantize
-    end
+    @json_schemas[name] = opts[:json_schema].constantize if opts[:json_schema]
 
     if (enum = opts[:enum])
       @enums[name] = enum.is_a?(String) ? enum.constantize : enum
@@ -129,8 +146,10 @@ class SiteSettings::TypeSupervisor
       value.to_f
     when self.class.types[:integer]
       value.to_i
+    when self.class.types[:file_size_restriction]
+      value.to_i
     when self.class.types[:bool]
-      value == true || value == 't' || value == 'true'
+      value == true || value == "t" || value == "true"
     when self.class.types[:null]
       nil
     when self.class.types[:enum]
@@ -157,12 +176,28 @@ class SiteSettings::TypeSupervisor
     result = { type: type.to_s }
 
     if type == :enum
-      if (klass = enum_class(name))
+      if (klass = get_enum_class(name))
         result.merge!(valid_values: klass.values, translate_names: klass.translate_names?)
       else
-        result.merge!(valid_values: @choices[name].map { |c| { name: c, value: c } }, translate_names: false)
+        result.merge!(
+          valid_values: @choices[name].map { |c| { name: c, value: c } },
+          translate_names: false,
+        )
       end
     end
+
+    if type == :integer || type == :file_size_restriction
+      result[:min] = @validators[name].dig(:opts, :min) if @validators[name].dig(
+        :opts,
+        :min,
+      ).present?
+      result[:max] = @validators[name].dig(:opts, :max) if @validators[name].dig(
+        :opts,
+        :max,
+      ).present?
+    end
+
+    result[:allow_any] = @allow_any[name] if type == :list
 
     result[:choices] = @choices[name] if @choices.has_key? name
     result[:list_type] = @list_type[name] if @list_type.has_key? name
@@ -174,8 +209,16 @@ class SiteSettings::TypeSupervisor
     result
   end
 
+  def get_enum_class(name)
+    @enums[name]
+  end
+
   def get_type(name)
     self.class.types[@types[name.to_sym]]
+  end
+
+  def get_list_type(name)
+    @list_type[name.to_sym]
   end
 
   private
@@ -185,13 +228,20 @@ class SiteSettings::TypeSupervisor
     type = @types[name] || self.class.parse_value_type(val)
 
     if type == self.class.types[:bool]
-      val = (val == true || val == 't' || val == 'true') ? 't' : 'f'
+      val = (val == true || val == "t" || val == "true") ? "t" : "f"
     elsif type == self.class.types[:integer] && !val.is_a?(Integer)
       val = val.to_i
-    elsif type == self.class.types[:null] && val != ''
+    elsif type == self.class.types[:null] && val != ""
       type = get_data_type(name, val)
     elsif type == self.class.types[:enum]
-      val = @defaults_provider[name].is_a?(Integer) ? val.to_i : val.to_s
+      val =
+        (
+          if @defaults_provider[name].is_a?(Integer) && Integer(val, exception: false)
+            val.to_i
+          else
+            val.to_s
+          end
+        )
     elsif type == self.class.types[:uploaded_image_list] && val.present?
       val = val.is_a?(String) ? val : val.map(&:id).join("|")
     elsif type == self.class.types[:upload] && val.present?
@@ -203,23 +253,35 @@ class SiteSettings::TypeSupervisor
 
   def validate_value(name, type, val)
     if type == self.class.types[:enum]
-      if enum_class(name)
-        raise Discourse::InvalidParameters.new("Invalid value `#{val}` for `#{name}`") unless enum_class(name).valid_value?(val)
+      if get_enum_class(name)
+        unless get_enum_class(name).valid_value?(val)
+          raise Discourse::InvalidParameters.new("Invalid value `#{val}` for `#{name}`")
+        end
       else
         unless (choice = @choices[name])
           raise Discourse::InvalidParameters.new(name)
         end
 
-        raise Discourse::InvalidParameters.new(:value) unless choice.include?(val)
+        raise Discourse::InvalidParameters.new(:value) if choice.exclude?(val)
       end
     end
 
     if type == self.class.types[:list] || type == self.class.types[:string]
       if @allow_any.key?(name) && !@allow_any[name]
         split = val.to_s.split("|")
-        diff = (split - @choices[name])
+        resolved_choices = @choices[name]
+        if resolved_choices.first.is_a?(Hash)
+          resolved_choices = resolved_choices.map { |c| c[:value] }
+        end
+        diff = (split - resolved_choices)
         if diff.length > 0
-          raise Discourse::InvalidParameters.new(I18n.t('errors.site_settings.invalid_choice', name: diff.join(','), count: diff.length))
+          raise Discourse::InvalidParameters.new(
+                  I18n.t(
+                    "errors.site_settings.invalid_choice",
+                    name: diff.join(","),
+                    count: diff.length,
+                  ),
+                )
         end
       end
     end
@@ -227,14 +289,12 @@ class SiteSettings::TypeSupervisor
     if (v = @validators[name])
       validator = v[:class].new(v[:opts])
       unless validator.valid_value?(val)
-        raise Discourse::InvalidParameters, "#{name.to_s}: #{validator.error_message}"
+        raise Discourse::InvalidParameters, "#{name}: #{validator.error_message}"
       end
     end
 
     validate_method = "validate_#{name}"
-    if self.respond_to? validate_method
-      public_send(validate_method, val)
-    end
+    public_send(validate_method, val) if self.respond_to? validate_method
   end
 
   def get_data_type(name, val)
@@ -245,10 +305,6 @@ class SiteSettings::TypeSupervisor
     end
 
     self.class.parse_value_type(val)
-  end
-
-  def enum_class(name)
-    @enums[name]
   end
 
   def json_schema_class(name)
@@ -265,11 +321,16 @@ class SiteSettings::TypeSupervisor
       GroupSettingValidator
     when self.class.types[:integer]
       IntegerSettingValidator
+    when self.class.types[:file_size_restriction]
+      IntegerSettingValidator
     when self.class.types[:regex]
       RegexSettingValidator
     when self.class.types[:string], self.class.types[:list], self.class.types[:enum]
       StringSettingValidator
-    else nil
+    when self.class.types[:host_list]
+      HostListSettingValidator
+    else
+      nil
     end
   end
 end

@@ -1,10 +1,6 @@
 import Component from "@ember/component";
+import { classNames, tagName } from "@ember-decorators/component";
 
-let componentArgs = { tagName: "div" };
-
-// TODO: Once we've moved to Ember CLI completely we can remove this.
-if (!Ember.FEATURES.EMBER_GLIMMER_SET_COMPONENT_TEMPLATE) {
-  componentArgs = { tagName: "" };
-}
-
-export default Component.extend(componentArgs);
+@tagName("div")
+@classNames("discourse-root")
+export default class DiscourseRoot extends Component {}

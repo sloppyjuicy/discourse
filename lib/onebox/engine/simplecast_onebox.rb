@@ -6,7 +6,7 @@ module Onebox
       include Engine
       include StandardEmbed
 
-      matches_regexp(/https?:\/\/(.+)?simplecast.com\/(episodes|s)\/.*/)
+      matches_regexp(%r{https?://(.+)?simplecast.com/(episodes|s)/.*})
       always_https
       requires_iframe_origins("https://player.simplecast.com")
 
@@ -16,7 +16,7 @@ module Onebox
 
       def placeholder_html
         oembed = get_oembed
-        return if Onebox::Helpers.blank?(oembed.thumbnail_url)
+        return if oembed.thumbnail_url.blank?
         "<img src='#{oembed.thumbnail_url}' #{oembed.title_attr}>"
       end
 

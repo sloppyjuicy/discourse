@@ -1,9 +1,12 @@
-import DiscourseRoute from "discourse/routes/discourse";
-import I18n from "I18n";
-import Tag from "discourse/models/tag";
 import { action } from "@ember/object";
+import { service } from "@ember/service";
+import Tag from "discourse/models/tag";
+import DiscourseRoute from "discourse/routes/discourse";
+import { i18n } from "discourse-i18n";
 
-export default DiscourseRoute.extend({
+export default class TagsIndex extends DiscourseRoute {
+  @service router;
+
   model() {
     return this.store.findAll("tag").then((result) => {
       if (result.extras) {
@@ -20,11 +23,11 @@ export default DiscourseRoute.extend({
       }
       return result;
     });
-  },
+  }
 
   titleToken() {
-    return I18n.t("tagging.tags");
-  },
+    return i18n("tagging.tags");
+  }
 
   setupController(controller, model) {
     this.controllerFor("tags.index").setProperties({
@@ -33,22 +36,16 @@ export default DiscourseRoute.extend({
         ? ["id"]
         : ["totalCount:desc", "id"],
     });
-  },
-
-  @action
-  didTransition() {
-    this.controllerFor("application").set("showFooter", true);
-    return true;
-  },
+  }
 
   @action
   showTagGroups() {
-    this.transitionTo("tagGroups");
+    this.router.transitionTo("tagGroups");
     return true;
-  },
+  }
 
   @action
   triggerRefresh() {
     this.refresh();
-  },
-});
+  }
+}

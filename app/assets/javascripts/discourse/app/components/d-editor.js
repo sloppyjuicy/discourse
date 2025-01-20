@@ -1,220 +1,43 @@
-import { ajax } from "discourse/lib/ajax";
-import {
-  caretPosition,
-  inCodeBlock,
-  translateModKey,
-} from "discourse/lib/utilities";
-import discourseComputed, {
-  observes,
-  on,
-} from "discourse-common/utils/decorators";
-import { emojiSearch, isSkinTonableEmoji } from "pretty-text/emoji";
-import { emojiUrlFor, generateCookFunction } from "discourse/lib/text";
-import { later, schedule, scheduleOnce } from "@ember/runloop";
 import Component from "@ember/component";
-import I18n from "I18n";
-import ItsATrap from "@discourse/itsatrap";
+import { action } from "@ember/object";
+import { getOwner } from "@ember/owner";
+import { schedule, scheduleOnce } from "@ember/runloop";
+import { service } from "@ember/service";
+import { classNames } from "@ember-decorators/component";
+import { observes, on } from "@ember-decorators/object";
+import { emojiSearch, isSkinTonableEmoji } from "pretty-text/emoji";
+import { translations } from "pretty-text/emoji/data";
+import { resolveCachedShortUrls } from "pretty-text/upload-short-url";
 import { Promise } from "rsvp";
+import TextareaEditor from "discourse/components/composer/textarea-editor";
+import EmojiPickerDetached from "discourse/components/emoji-picker/detached";
+import InsertHyperlink from "discourse/components/modal/insert-hyperlink";
+import { ajax } from "discourse/lib/ajax";
 import { SKIP } from "discourse/lib/autocomplete";
-import { categoryHashtagTriggerRule } from "discourse/lib/category-hashtags";
-import deprecated from "discourse-common/lib/deprecated";
-import discourseDebounce from "discourse-common/lib/debounce";
-import { findRawTemplate } from "discourse-common/lib/raw-templates";
-import { getRegister } from "discourse-common/lib/get-owner";
-import { isEmpty } from "@ember/utils";
-import { isTesting } from "discourse-common/config/environment";
-import { linkSeenHashtags } from "discourse/lib/link-hashtags";
+import Toolbar from "discourse/lib/composer/toolbar";
+import discourseDebounce from "discourse/lib/debounce";
+import discourseComputed, { bind } from "discourse/lib/decorators";
+import deprecated from "discourse/lib/deprecated";
+import { isTesting } from "discourse/lib/environment";
+import { getRegister } from "discourse/lib/get-owner";
+import { hashtagAutocompleteOptions } from "discourse/lib/hashtag-autocomplete";
+import { linkSeenHashtagsInContext } from "discourse/lib/hashtag-decorator";
+import { wantsNewWindow } from "discourse/lib/intercept-click";
+import { PLATFORM_KEY_MODIFIER } from "discourse/lib/keyboard-shortcuts";
 import { linkSeenMentions } from "discourse/lib/link-mentions";
 import { loadOneboxes } from "discourse/lib/load-oneboxes";
-import loadScript from "discourse/lib/load-script";
-import { resolveCachedShortUrls } from "pretty-text/upload-short-url";
-import { search as searchCategoryTag } from "discourse/lib/category-tag-search";
-import { inject as service } from "@ember/service";
-import showModal from "discourse/lib/show-modal";
-import { siteDir } from "discourse/lib/text-direction";
-import { translations } from "pretty-text/emoji/data";
-import { wantsNewWindow } from "discourse/lib/intercept-click";
-import { action } from "@ember/object";
-import TextareaTextManipulation from "discourse/mixins/textarea-text-manipulation";
-
-// Our head can be a static string or a function that returns a string
-// based on input (like for numbered lists).
-function getHead(head, prev) {
-  if (typeof head === "string") {
-    return [head, head.length];
-  } else {
-    return getHead(head(prev));
-  }
-}
-
-function getButtonLabel(labelKey, defaultLabel) {
-  // use the Font Awesome icon if the label matches the default
-  return I18n.t(labelKey) === defaultLabel ? null : labelKey;
-}
-
-const OP = {
-  NONE: 0,
-  REMOVED: 1,
-  ADDED: 2,
-};
-
-const FOUR_SPACES_INDENT = "4-spaces-indent";
+import { findRawTemplate } from "discourse/lib/raw-templates";
+import { emojiUrlFor, generateCookFunction } from "discourse/lib/text";
+import userSearch from "discourse/lib/user-search";
+import {
+  destroyUserStatuses,
+  initUserStatusHtml,
+  renderUserStatusHtml,
+} from "discourse/lib/user-status-on-autocomplete";
+import virtualElementFromTextRange from "discourse/lib/virtual-element-from-text-range";
+import { i18n } from "discourse-i18n";
 
 let _createCallbacks = [];
-
-class Toolbar {
-  constructor(opts) {
-    const { site, siteSettings } = opts;
-    this.shortcuts = {};
-    this.context = null;
-
-    this.groups = [
-      { group: "fontStyles", buttons: [] },
-      { group: "insertions", buttons: [] },
-      { group: "extras", buttons: [] },
-    ];
-
-    this.addButton({
-      id: "bold",
-      group: "fontStyles",
-      icon: "bold",
-      label: getButtonLabel("composer.bold_label", "B"),
-      shortcut: "B",
-      preventFocus: true,
-      trimLeading: true,
-      perform: (e) => e.applySurround("**", "**", "bold_text"),
-    });
-
-    this.addButton({
-      id: "italic",
-      group: "fontStyles",
-      icon: "italic",
-      label: getButtonLabel("composer.italic_label", "I"),
-      shortcut: "I",
-      preventFocus: true,
-      trimLeading: true,
-      perform: (e) => e.applySurround("*", "*", "italic_text"),
-    });
-
-    if (opts.showLink) {
-      this.addButton({
-        id: "link",
-        group: "insertions",
-        shortcut: "K",
-        preventFocus: true,
-        trimLeading: true,
-        sendAction: (event) => this.context.send("showLinkModal", event),
-      });
-    }
-
-    this.addButton({
-      id: "blockquote",
-      group: "insertions",
-      icon: "quote-right",
-      shortcut: "Shift+9",
-      preventFocus: true,
-      perform: (e) =>
-        e.applyList("> ", "blockquote_text", {
-          applyEmptyLines: true,
-          multiline: true,
-        }),
-    });
-
-    this.addButton({
-      id: "code",
-      group: "insertions",
-      shortcut: "E",
-      preventFocus: true,
-      trimLeading: true,
-      action: (...args) => this.context.send("formatCode", args),
-    });
-
-    if (!site.mobileView) {
-      this.addButton({
-        id: "bullet",
-        group: "extras",
-        icon: "list-ul",
-        shortcut: "Shift+8",
-        title: "composer.ulist_title",
-        preventFocus: true,
-        perform: (e) => e.applyList("* ", "list_item"),
-      });
-
-      this.addButton({
-        id: "list",
-        group: "extras",
-        icon: "list-ol",
-        shortcut: "Shift+7",
-        title: "composer.olist_title",
-        preventFocus: true,
-        perform: (e) =>
-          e.applyList(
-            (i) => (!i ? "1. " : `${parseInt(i, 10) + 1}. `),
-            "list_item"
-          ),
-      });
-    }
-
-    if (siteSettings.support_mixed_text_direction) {
-      this.addButton({
-        id: "toggle-direction",
-        group: "extras",
-        icon: "exchange-alt",
-        shortcut: "Shift+6",
-        title: "composer.toggle_direction",
-        preventFocus: true,
-        perform: (e) => e.toggleDirection(),
-      });
-    }
-
-    this.groups[this.groups.length - 1].lastGroup = true;
-  }
-
-  addButton(button) {
-    const g = this.groups.findBy("group", button.group);
-    if (!g) {
-      throw new Error(`Couldn't find toolbar group ${button.group}`);
-    }
-
-    const createdButton = {
-      id: button.id,
-      tabindex: button.tabindex || "-1",
-      className: button.className || button.id,
-      label: button.label,
-      icon: button.label ? null : button.icon || button.id,
-      action: button.action || ((a) => this.context.send("toolbarButton", a)),
-      perform: button.perform || function () {},
-      trimLeading: button.trimLeading,
-      popupMenu: button.popupMenu || false,
-      preventFocus: button.preventFocus || false,
-    };
-
-    if (button.sendAction) {
-      createdButton.sendAction = button.sendAction;
-    }
-
-    const title = I18n.t(button.title || `composer.${button.id}_title`);
-    if (button.shortcut) {
-      const mac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-      const mod = mac ? "Meta" : "Ctrl";
-
-      const shortcutTitle = `${translateModKey(mod + "+")}${translateModKey(
-        button.shortcut
-      )}`;
-
-      createdButton.title = `${title} (${shortcutTitle})`;
-      this.shortcuts[`${mod}+${button.shortcut}`.toLowerCase()] = createdButton;
-    } else {
-      createdButton.title = title;
-    }
-
-    if (button.unshift) {
-      g.buttons.unshift(createdButton);
-    } else {
-      g.buttons.push(createdButton);
-    }
-  }
-}
 
 export function addToolbarCallback(func) {
   _createCallbacks.push(func);
@@ -224,129 +47,149 @@ export function clearToolbarCallbacks() {
 }
 
 export function onToolbarCreate(func) {
-  deprecated("`onToolbarCreate` is deprecated, use the plugin api instead.");
+  deprecated("`onToolbarCreate` is deprecated, use the plugin api instead.", {
+    id: "discourse.d-editor.on-toolbar-create",
+  });
   addToolbarCallback(func);
 }
 
-export default Component.extend(TextareaTextManipulation, {
-  classNames: ["d-editor"],
-  ready: false,
-  lastSel: null,
-  _itsatrap: null,
-  showLink: true,
-  emojiPickerIsActive: false,
-  emojiStore: service("emoji-store"),
-  isEditorFocused: false,
-  processPreview: true,
-  composerFocusSelector: "#reply-control .d-editor-input",
+@classNames("d-editor")
+export default class DEditor extends Component {
+  @service emojiStore;
+  @service modal;
+  @service menu;
+
+  editorComponent = TextareaEditor;
+  textManipulation;
+
+  ready = false;
+  lastSel = null;
+  showLink = true;
+  isEditorFocused = false;
+  processPreview = true;
+  morphingOptions = {
+    beforeAttributeUpdated: (element, attributeName) => {
+      // Don't morph the open attribute of <details> elements
+      return !(element.tagName === "DETAILS" && attributeName === "open");
+    },
+  };
+
+  init() {
+    super.init(...arguments);
+
+    this.register = getRegister(this);
+  }
 
   @discourseComputed("placeholder")
   placeholderTranslated(placeholder) {
     if (placeholder) {
-      return I18n.t(placeholder);
+      return i18n(placeholder);
     }
     return null;
-  },
+  }
 
   _readyNow() {
     this.set("ready", true);
 
     if (this.autofocus) {
-      this._textarea.focus();
+      this.textManipulation.focus();
     }
-  },
-
-  init() {
-    this._super(...arguments);
-
-    this.register = getRegister(this);
-  },
+  }
 
   didInsertElement() {
-    this._super(...arguments);
+    super.didInsertElement(...arguments);
 
     this._previewMutationObserver = this._disablePreviewTabIndex();
 
-    this._textarea = this.element.querySelector("textarea.d-editor-input");
-    this._$textarea = $(this._textarea);
-    this._applyEmojiAutocomplete(this._$textarea);
-    this._applyCategoryHashtagAutocomplete(this._$textarea);
+    // disable clicking on links in the preview
+    this.element
+      .querySelector(".d-editor-preview")
+      .addEventListener("click", this._handlePreviewLinkClick);
+    ``;
+  }
 
-    scheduleOnce("afterRender", this, this._readyNow);
+  get keymap() {
+    const keymap = {};
 
-    this._itsatrap = new ItsATrap(this._textarea);
     const shortcuts = this.get("toolbar.shortcuts");
 
     Object.keys(shortcuts).forEach((sc) => {
       const button = shortcuts[sc];
-      this._itsatrap.bind(sc, () => {
-        button.action(button);
+      keymap[sc] = () => {
+        const customAction = shortcuts[sc].shortcutAction;
+
+        if (customAction) {
+          const toolbarEvent = this.newToolbarEvent();
+          customAction(toolbarEvent);
+        } else {
+          button.action(button);
+        }
         return false;
-      });
+      };
     });
 
-    // disable clicking on links in the preview
-    $(this.element.querySelector(".d-editor-preview")).on(
-      "click.preview",
-      (e) => {
-        if (wantsNewWindow(e)) {
-          return;
+    if (this.popupMenuOptions && this.onPopupMenuAction) {
+      this.popupMenuOptions.forEach((popupButton) => {
+        if (popupButton.shortcut && popupButton.condition) {
+          const shortcut =
+            `${PLATFORM_KEY_MODIFIER}+${popupButton.shortcut}`.toLowerCase();
+          keymap[shortcut] = () => {
+            this.onPopupMenuAction(popupButton, this.newToolbarEvent());
+            return false;
+          };
         }
-        const $target = $(e.target);
-        if ($target.is("a.mention")) {
-          this.appEvents.trigger(
-            "click.discourse-preview-user-card-mention",
-            $target
-          );
-        }
-        if ($target.is("a.mention-group")) {
-          this.appEvents.trigger(
-            "click.discourse-preview-group-card-mention-group",
-            $target
-          );
-        }
-        if ($target.is("a")) {
-          e.preventDefault();
-          return false;
-        }
+      });
+    }
+
+    keymap["tab"] = () => this.textManipulation.indentSelection("right");
+    keymap["shift+tab"] = () => this.textManipulation.indentSelection("left");
+
+    return keymap;
+  }
+
+  @bind
+  _handlePreviewLinkClick(event) {
+    if (wantsNewWindow(event)) {
+      return;
+    }
+
+    if (event.target.tagName === "A") {
+      if (event.target.classList.contains("mention")) {
+        this.appEvents.trigger(
+          "d-editor:preview-click-user-card",
+          event.target,
+          event
+        );
       }
-    );
 
-    if (this.composerEvents) {
-      this.appEvents.on("composer:insert-block", this, "_insertBlock");
-      this.appEvents.on("composer:insert-text", this, "_insertText");
-      this.appEvents.on("composer:replace-text", this, "_replaceText");
-    }
+      if (event.target.classList.contains("mention-group")) {
+        this.appEvents.trigger(
+          "d-editor:preview-click-group-card",
+          event.target,
+          event
+        );
+      }
 
-    if (isTesting()) {
-      this.element.addEventListener("paste", this.paste.bind(this));
+      event.preventDefault();
+      return false;
     }
-  },
+  }
 
   @on("willDestroyElement")
   _shutDown() {
-    if (this.composerEvents) {
-      this.appEvents.off("composer:insert-block", this, "_insertBlock");
-      this.appEvents.off("composer:insert-text", this, "_insertText");
-      this.appEvents.off("composer:replace-text", this, "_replaceText");
-    }
-
-    this._itsatrap?.destroy();
-    this._itsatrap = null;
-
-    $(this.element.querySelector(".d-editor-preview")).off("click.preview");
+    this.element
+      .querySelector(".d-editor-preview")
+      ?.removeEventListener("click", this._handlePreviewLinkClick);
 
     this._previewMutationObserver?.disconnect();
 
-    if (isTesting()) {
-      this.element.removeEventListener("paste", this.paste);
-    }
-  },
+    this._cachedCookFunction = null;
+  }
 
   @discourseComputed()
   toolbar() {
     const toolbar = new Toolbar(
-      this.getProperties("site", "siteSettings", "showLink")
+      this.getProperties("site", "siteSettings", "showLink", "capabilities")
     );
     toolbar.context = this;
 
@@ -355,170 +198,194 @@ export default Component.extend(TextareaTextManipulation, {
     if (this.extraButtons) {
       this.extraButtons(toolbar);
     }
-    return toolbar;
-  },
 
-  cachedCookAsync(text) {
-    if (this._cachedCookFunction) {
-      return Promise.resolve(this._cachedCookFunction(text));
+    const firstButton = toolbar.groups.mapBy("buttons").flat().firstObject;
+    if (firstButton) {
+      firstButton.tabindex = 0;
     }
 
-    const markdownOptions = this.markdownOptions || {};
-    return generateCookFunction(markdownOptions).then((cook) => {
-      this._cachedCookFunction = cook;
-      return cook(text);
-    });
-  },
+    return toolbar;
+  }
 
-  _updatePreview() {
-    if (this._state !== "inDOM" || !this.processPreview) {
+  async cachedCookAsync(text, options) {
+    this._cachedCookFunction ||= await generateCookFunction(options || {});
+    return await this._cachedCookFunction(text);
+  }
+
+  async _updatePreview() {
+    if (
+      this._state !== "inDOM" ||
+      !this.processPreview ||
+      this.isDestroying ||
+      this.isDestroyed
+    ) {
       return;
     }
 
-    const value = this.value;
+    const cooked = await this.cachedCookAsync(this.value, this.markdownOptions);
 
-    this.cachedCookAsync(value).then((cooked) => {
-      if (this.isDestroyed) {
+    if (this.preview === cooked || this.isDestroying || this.isDestroyed) {
+      return;
+    }
+
+    this.set("preview", cooked);
+
+    let unseenMentions, unseenHashtags;
+
+    if (this.siteSettings.enable_diffhtml_preview) {
+      const previewElement = this.element.querySelector(".d-editor-preview");
+      const cookedElement = previewElement.cloneNode(false);
+      cookedElement.innerHTML = cooked;
+
+      unseenMentions = linkSeenMentions(cookedElement, this.siteSettings);
+
+      unseenHashtags = linkSeenHashtagsInContext(
+        this.site.hashtag_configurations["topic-composer"],
+        cookedElement
+      );
+
+      loadOneboxes(
+        cookedElement,
+        ajax,
+        this.topicId,
+        this.categoryId,
+        this.siteSettings.max_oneboxes_per_post,
+        /* refresh */ false,
+        /* offline */ true
+      );
+
+      resolveCachedShortUrls(this.siteSettings, cookedElement);
+
+      // trigger all the "api.decorateCookedElement"
+      this.appEvents.trigger(
+        "decorate-non-stream-cooked-element",
+        cookedElement
+      );
+
+      (await import("morphlex")).morph(
+        previewElement,
+        cookedElement,
+        this.morphingOptions
+      );
+    }
+
+    schedule("afterRender", () => {
+      if (
+        this._state !== "inDOM" ||
+        !this.element ||
+        this.isDestroying ||
+        this.isDestroyed
+      ) {
         return;
       }
 
-      if (this.preview === cooked) {
-        return;
+      const previewElement = this.element.querySelector(".d-editor-preview");
+
+      if (previewElement && this.previewUpdated) {
+        this.previewUpdated(previewElement, unseenMentions, unseenHashtags);
       }
-
-      this.set("preview", cooked);
-
-      let previewPromise = Promise.resolve();
-
-      if (this.siteSettings.enable_diffhtml_preview) {
-        const cookedElement = document.createElement("div");
-        cookedElement.innerHTML = cooked;
-
-        linkSeenHashtags($(cookedElement));
-        linkSeenMentions(cookedElement, this.siteSettings);
-        resolveCachedShortUrls(this.siteSettings, cookedElement);
-        loadOneboxes(
-          cookedElement,
-          ajax,
-          null,
-          null,
-          this.siteSettings.max_oneboxes_per_post,
-          false,
-          true
-        );
-
-        previewPromise = loadScript("/javascripts/diffhtml.min.js").then(() => {
-          window.diff.innerHTML(
-            this.element.querySelector(".d-editor-preview"),
-            cookedElement.innerHTML
-          );
-        });
-      }
-
-      previewPromise.then(() => {
-        schedule("afterRender", () => {
-          if (this._state !== "inDOM" || !this.element) {
-            return;
-          }
-
-          const preview = this.element.querySelector(".d-editor-preview");
-          if (!preview) {
-            return;
-          }
-
-          if (this.previewUpdated) {
-            this.previewUpdated($(preview));
-          }
-        });
-      });
     });
-  },
+  }
 
   @observes("ready", "value", "processPreview")
-  _watchForChanges() {
+  async _watchForChanges() {
     if (!this.ready) {
       return;
     }
 
     // Debouncing in test mode is complicated
     if (isTesting()) {
-      this._updatePreview();
+      await this._updatePreview();
     } else {
       discourseDebounce(this, this._updatePreview, 30);
     }
-  },
+  }
 
-  _applyCategoryHashtagAutocomplete() {
-    const siteSettings = this.siteSettings;
-
-    this._$textarea.autocomplete({
-      template: findRawTemplate("category-tag-autocomplete"),
-      key: "#",
-      afterComplete: (value) => {
-        this.set("value", value);
-        return this._focusTextArea();
-      },
-      transformComplete: (obj) => {
-        return obj.text;
-      },
-      dataSource: (term) => {
-        if (term.match(/\s/)) {
-          return null;
+  _applyHashtagAutocomplete() {
+    this.textManipulation.autocomplete(
+      hashtagAutocompleteOptions(
+        this.site.hashtag_configurations["topic-composer"],
+        this.siteSettings,
+        {
+          afterComplete: () => {
+            schedule(
+              "afterRender",
+              this.textManipulation,
+              this.textManipulation.blurAndFocus
+            );
+          },
         }
-        return searchCategoryTag(term, siteSettings);
-      },
-      triggerRule: (textarea, opts) => {
-        return categoryHashtagTriggerRule(textarea, opts);
-      },
-    });
-  },
+      )
+    );
+  }
 
-  _applyEmojiAutocomplete($textarea) {
+  _applyEmojiAutocomplete() {
     if (!this.siteSettings.enable_emoji) {
       return;
     }
 
-    $textarea.autocomplete({
+    this.textManipulation.autocomplete({
       template: findRawTemplate("emoji-selector-autocomplete"),
       key: ":",
-      afterComplete: (text) => {
-        this.set("value", text);
-        this._focusTextArea();
+      afterComplete: () => {
+        schedule(
+          "afterRender",
+          this.textManipulation,
+          this.textManipulation.blurAndFocus
+        );
       },
 
       onKeyUp: (text, cp) => {
-        if (inCodeBlock(text, cp)) {
-          return false;
-        }
-
-        const matches = /(?:^|[\s.\?,@\/#!%&*;:\[\]{}=\-_()])(:(?!:).?[\w-]*:?(?!:)(?:t\d?)?:?) ?$/gi.exec(
-          text.substring(0, cp)
-        );
+        const matches =
+          /(?:^|[\s.\?,@\/#!%&*;:\[\]{}=\-_()])(:(?!:).?[\w-]*:?(?!:)(?:t\d?)?:?) ?$/gi.exec(
+            text.substring(0, cp)
+          );
 
         if (matches && matches[1]) {
           return [matches[1]];
         }
       },
 
-      transformComplete: (v) => {
+      transformComplete: (v, event) => {
         if (v.code) {
-          this.emojiStore.track(v.code);
+          this.emojiStore.trackEmojiForContext(v.code, "topic");
           return `${v.code}:`;
         } else {
-          $textarea.autocomplete({ cancel: true });
-          this.set("emojiPickerIsActive", true);
+          this.textManipulation.autocomplete({ cancel: true });
 
-          schedule("afterRender", () => {
-            const filterInput = document.querySelector(
-              ".emoji-picker input[name='filter']"
-            );
-            if (filterInput) {
-              filterInput.value = v.term;
+          const menuOptions = {
+            identifier: "emoji-picker",
+            component: EmojiPickerDetached,
+            modalForMobile: true,
+            data: {
+              didSelectEmoji: (emoji) => {
+                this.textManipulation.emojiSelected(emoji);
+              },
+              term: v.term,
+            },
+          };
 
-              later(() => filterInput.dispatchEvent(new Event("input")), 50);
-            }
-          });
+          let virtualElement;
+          if (event instanceof KeyboardEvent) {
+            // when user selects more by pressing enter
+            virtualElement = virtualElementFromTextRange();
+          } else {
+            // when user selects more by clicking on it
+            virtualElement = {
+              getBoundingClientRect: () => ({
+                x: event.pageX,
+                y: event.pageY,
+                top: event.pageY,
+                left: event.pageX,
+                bottom: 0,
+                right: 0,
+                width: 0,
+                height: 0,
+              }),
+            };
+          }
 
+          this.menuInstance = this.menu.show(virtualElement, menuOptions);
           return "";
         }
       },
@@ -533,8 +400,13 @@ export default Component.extend(TextareaTextManipulation, {
           }
 
           if (term === "") {
-            if (this.emojiStore.favorites.length) {
-              return resolve(this.emojiStore.favorites.slice(0, 5));
+            const favorites = this.emojiStore.favoritesForContext("topic");
+            if (favorites.length) {
+              return resolve(
+                favorites
+                  .filter((f) => !this.site.denied_emojis?.includes(f))
+                  .slice(0, 5)
+              );
             } else {
               return resolve([
                 "slight_smile",
@@ -548,21 +420,24 @@ export default Component.extend(TextareaTextManipulation, {
 
           // note this will only work for emojis starting with :
           // eg: :-)
+          const emojiTranslation =
+            this.get("site.custom_emoji_translation") || {};
           const allTranslations = Object.assign(
             {},
             translations,
-            this.getWithDefault("site.custom_emoji_translation", {})
+            emojiTranslation
           );
           if (allTranslations[full]) {
             return resolve([allTranslations[full]]);
           }
 
+          const emojiDenied = this.get("site.denied_emojis") || [];
           const match = term.match(/^:?(.*?):t([2-6])?$/);
           if (match) {
             const name = match[1];
             const scale = match[2];
 
-            if (isSkinTonableEmoji(name)) {
+            if (isSkinTonableEmoji(name) && !emojiDenied.includes(name)) {
               if (scale) {
                 return resolve([`${name}:t${scale}`]);
               } else {
@@ -574,168 +449,65 @@ export default Component.extend(TextareaTextManipulation, {
           const options = emojiSearch(term, {
             maxResults: 5,
             diversity: this.emojiStore.diversity,
+            exclude: emojiDenied,
           });
 
           return resolve(options);
         })
-          .then((list) =>
-            list.map((code) => {
+          .then((list) => {
+            if (list === SKIP) {
+              return [];
+            }
+
+            return list.map((code) => {
               return { code, src: emojiUrlFor(code) };
-            })
-          )
+            });
+          })
           .then((list) => {
             if (list.length) {
-              list.push({ label: I18n.t("composer.more_emoji"), term });
+              list.push({ label: i18n("composer.more_emoji"), term });
             }
             return list;
           });
       },
 
-      triggerRule: (textarea) =>
-        !inCodeBlock(textarea.value, caretPosition(textarea)),
+      triggerRule: async () => !(await this.textManipulation.inCodeBlock()),
     });
-  },
+  }
 
-  // perform the same operation over many lines of text
-  _getMultilineContents(lines, head, hval, hlen, tail, tlen, opts) {
-    let operation = OP.NONE;
-
-    const applyEmptyLines = opts && opts.applyEmptyLines;
-
-    return lines
-      .map((l) => {
-        if (!applyEmptyLines && l.length === 0) {
-          return l;
-        }
-
-        if (
-          operation !== OP.ADDED &&
-          ((l.slice(0, hlen) === hval && tlen === 0) ||
-            (tail.length && l.slice(-tlen) === tail))
-        ) {
-          operation = OP.REMOVED;
-          if (tlen === 0) {
-            const result = l.slice(hlen);
-            [hval, hlen] = getHead(head, hval);
-            return result;
-          } else if (l.slice(-tlen) === tail) {
-            const result = l.slice(hlen, -tlen);
-            [hval, hlen] = getHead(head, hval);
-            return result;
-          }
-        } else if (operation === OP.NONE) {
-          operation = OP.ADDED;
-        } else if (operation === OP.REMOVED) {
-          return l;
-        }
-
-        const result = `${hval}${l}${tail}`;
-        [hval, hlen] = getHead(head, hval);
-        return result;
-      })
-      .join("\n");
-  },
-
-  _applySurround(sel, head, tail, exampleKey, opts) {
-    const pre = sel.pre;
-    const post = sel.post;
-
-    const tlen = tail.length;
-    if (sel.start === sel.end) {
-      if (tlen === 0) {
-        return;
-      }
-
-      const [hval, hlen] = getHead(head);
-      const example = I18n.t(`composer.${exampleKey}`);
-      this.set("value", `${pre}${hval}${example}${tail}${post}`);
-      this._selectText(pre.length + hlen, example.length);
-    } else if (opts && !opts.multiline) {
-      let [hval, hlen] = getHead(head);
-
-      if (opts.useBlockMode && sel.value.split("\n").length > 1) {
-        hval += "\n";
-        hlen += 1;
-        tail = `\n${tail}`;
-      }
-
-      if (pre.slice(-hlen) === hval && post.slice(0, tail.length) === tail) {
-        this.set(
-          "value",
-          `${pre.slice(0, -hlen)}${sel.value}${post.slice(tail.length)}`
-        );
-        this._selectText(sel.start - hlen, sel.value.length);
-      } else {
-        this.set("value", `${pre}${hval}${sel.value}${tail}${post}`);
-        this._selectText(sel.start + hlen, sel.value.length);
-      }
-    } else {
-      const lines = sel.value.split("\n");
-
-      let [hval, hlen] = getHead(head);
-      if (
-        lines.length === 1 &&
-        pre.slice(-tlen) === tail &&
-        post.slice(0, hlen) === hval
-      ) {
-        this.set(
-          "value",
-          `${pre.slice(0, -hlen)}${sel.value}${post.slice(tlen)}`
-        );
-        this._selectText(sel.start - hlen, sel.value.length);
-      } else {
-        const contents = this._getMultilineContents(
-          lines,
-          head,
-          hval,
-          hlen,
-          tail,
-          tlen,
-          opts
-        );
-
-        this.set("value", `${pre}${contents}${post}`);
-        if (lines.length === 1 && tlen > 0) {
-          this._selectText(sel.start + hlen, sel.value.length);
-        } else {
-          this._selectText(sel.start, contents.length);
-        }
-      }
+  _applyMentionAutocomplete() {
+    if (!this.siteSettings.enable_mentions) {
+      return;
     }
-  },
 
-  _applyList(sel, head, exampleKey, opts) {
-    if (sel.value.indexOf("\n") !== -1) {
-      this._applySurround(sel, head, "", exampleKey, opts);
-    } else {
-      const [hval, hlen] = getHead(head);
-      if (sel.start === sel.end) {
-        sel.value = I18n.t(`composer.${exampleKey}`);
-      }
-
-      const trimmedPre = sel.pre.trim();
-      const number =
-        sel.value.indexOf(hval) === 0
-          ? sel.value.slice(hlen)
-          : `${hval}${sel.value}`;
-      const preLines = trimmedPre.length ? `${trimmedPre}\n\n` : "";
-
-      const trimmedPost = sel.post.trim();
-      const post = trimmedPost.length ? `\n\n${trimmedPost}` : trimmedPost;
-
-      this.set("value", `${preLines}${number}${post}`);
-      this._selectText(preLines.length, number.length);
-    }
-  },
-
-  _toggleDirection() {
-    let currentDir = this._$textarea.attr("dir")
-        ? this._$textarea.attr("dir")
-        : siteDir(),
-      newDir = currentDir === "ltr" ? "rtl" : "ltr";
-
-    this._$textarea.attr("dir", newDir).focus();
-  },
+    this.textManipulation.autocomplete({
+      template: findRawTemplate("user-selector-autocomplete"),
+      dataSource: (term) => {
+        destroyUserStatuses();
+        return userSearch({
+          term,
+          topicId: this.topicId,
+          categoryId: this.categoryId,
+          includeGroups: true,
+        }).then((result) => {
+          initUserStatusHtml(getOwner(this), result.users);
+          return result;
+        });
+      },
+      onRender: (options) => renderUserStatusHtml(options),
+      key: "@",
+      transformComplete: (v) => v.username || v.name,
+      afterComplete: () => {
+        schedule(
+          "afterRender",
+          this.textManipulation,
+          this.textManipulation.blurAndFocus
+        );
+      },
+      triggerRule: async () => !(await this.textManipulation.inCodeBlock()),
+      onClose: destroyUserStatuses,
+    });
+  }
 
   @action
   rovingButtonBar(event) {
@@ -774,135 +546,181 @@ export default Component.extend(TextareaTextManipulation, {
     }
 
     return true;
-  },
+  }
 
-  actions: {
-    emoji() {
-      if (this.disabled) {
-        return;
-      }
+  /**
+   * Represents a toolbar event object passed to toolbar buttons.
+   *
+   * @typedef {Object} ToolbarEvent
+   * @property {function} applySurround - Applies surrounding text
+   * @property {function} formatCode - Formats as code
+   * @property {function} replaceText - Replaces text
+   * @property {function} selectText - Selects a range of text
+   * @property {function} toggleDirection - Toggles text direction
+   * @property {function} getText - Gets the text
+   * @property {function} addText - Adds text
+   * @property {function} applyList - Applies a list format
+   * @property {*} selected - The current selection
+   */
 
-      this.set("emojiPickerIsActive", !this.emojiPickerIsActive);
-    },
+  /**
+   * Creates a new toolbar event object
+   *
+   * @param {boolean} trimLeading - Whether to trim leading whitespace
+   * @returns {ToolbarEvent} An object with toolbar event actions
+   */
+  newToolbarEvent(trimLeading) {
+    const selected = this.textManipulation.getSelected(trimLeading);
+    return {
+      selected,
+      selectText: (from, length) =>
+        this.textManipulation.selectText(from, length, { scroll: false }),
+      applySurround: (head, tail, exampleKey, opts) =>
+        this.textManipulation.applySurround(
+          selected,
+          head,
+          tail,
+          exampleKey,
+          opts
+        ),
+      applyList: (head, exampleKey, opts) =>
+        this.textManipulation.applyList(selected, head, exampleKey, opts),
+      formatCode: () => this.textManipulation.formatCode(),
+      addText: (text) => this.textManipulation.addText(selected, text),
+      getText: () => this.value,
+      toggleDirection: () => this.textManipulation.toggleDirection(),
+      replaceText: (oldVal, newVal, opts) =>
+        this.textManipulation.replaceText(oldVal, newVal, opts),
+    };
+  }
 
-    emojiSelected(code) {
-      let selected = this._getSelected();
-      const captures = selected.pre.match(/\B:(\w*)$/);
+  @action
+  toolbarButton(button) {
+    if (this.disabled) {
+      return;
+    }
 
-      if (isEmpty(captures)) {
-        if (selected.pre.match(/\S$/)) {
-          this._addText(selected, ` :${code}:`);
-        } else {
-          this._addText(selected, `:${code}:`);
-        }
-      } else {
-        let numOfRemovedChars = selected.pre.length - captures[1].length;
-        selected.pre = selected.pre.slice(
-          0,
-          selected.pre.length - captures[1].length
-        );
-        selected.start -= numOfRemovedChars;
-        selected.end -= numOfRemovedChars;
-        this._addText(selected, `${code}:`);
-      }
-    },
+    const toolbarEvent = this.newToolbarEvent(button.trimLeading);
+    if (button.sendAction) {
+      return button.sendAction(toolbarEvent);
+    } else {
+      button.perform(toolbarEvent);
+    }
+  }
 
-    toolbarButton(button) {
-      if (this.disabled) {
-        return;
-      }
+  @action
+  showLinkModal(toolbarEvent) {
+    if (this.disabled) {
+      return;
+    }
 
-      const selected = this._getSelected(button.trimLeading);
-      const toolbarEvent = {
-        selected,
-        selectText: (from, length) =>
-          this._selectText(from, length, { scroll: false }),
-        applySurround: (head, tail, exampleKey, opts) =>
-          this._applySurround(selected, head, tail, exampleKey, opts),
-        applyList: (head, exampleKey, opts) =>
-          this._applyList(selected, head, exampleKey, opts),
-        addText: (text) => this._addText(selected, text),
-        replaceText: (text) => this._addText({ pre: "", post: "" }, text),
-        getText: () => this.value,
-        toggleDirection: () => this._toggleDirection(),
-      };
+    let linkText = "";
+    this._lastSel = toolbarEvent.selected;
 
-      if (button.sendAction) {
-        return button.sendAction(toolbarEvent);
-      } else {
-        button.perform(toolbarEvent);
-      }
-    },
+    if (this._lastSel) {
+      linkText = this._lastSel.value;
+    }
 
-    showLinkModal(toolbarEvent) {
-      if (this.disabled) {
-        return;
-      }
-
-      let linkText = "";
-      this._lastSel = toolbarEvent.selected;
-
-      if (this._lastSel) {
-        linkText = this._lastSel.value;
-      }
-
-      showModal("insert-hyperlink").setProperties({
+    this.modal.show(InsertHyperlink, {
+      model: {
         linkText,
         toolbarEvent,
-      });
-    },
+      },
+    });
+  }
 
-    formatCode() {
-      if (this.disabled) {
-        return;
-      }
+  @action
+  handleFocusIn() {
+    this.set("isEditorFocused", true);
+  }
 
-      const sel = this._getSelected("", { lineVal: true });
-      const selValue = sel.value;
-      const hasNewLine = selValue.indexOf("\n") !== -1;
-      const isBlankLine = sel.lineVal.trim().length === 0;
-      const isFourSpacesIndent =
-        this.siteSettings.code_formatting_style === FOUR_SPACES_INDENT;
+  @action
+  handleFocusOut() {
+    this.set("isEditorFocused", false);
+  }
 
-      if (!hasNewLine) {
-        if (selValue.length === 0 && isBlankLine) {
-          if (isFourSpacesIndent) {
-            const example = I18n.t(`composer.code_text`);
-            this.set("value", `${sel.pre}    ${example}${sel.post}`);
-            return this._selectText(sel.pre.length + 4, example.length);
-          } else {
-            return this._applySurround(
-              sel,
-              "```\n",
-              "\n```",
-              "paste_code_text"
-            );
-          }
-        } else {
-          return this._applySurround(sel, "`", "`", "code_title");
-        }
-      } else {
-        if (isFourSpacesIndent) {
-          return this._applySurround(sel, "    ", "", "code_text");
-        } else {
-          const preNewline = sel.pre[-1] !== "\n" && sel.pre !== "" ? "\n" : "";
-          const postNewline = sel.post[0] !== "\n" ? "\n" : "";
-          return this._addText(
-            sel,
-            `${preNewline}\`\`\`\n${sel.value}\n\`\`\`${postNewline}`
-          );
-        }
-      }
-    },
+  @action
+  setupEditor(textManipulation) {
+    this.set("textManipulation", textManipulation);
 
-    focusIn() {
-      this.set("isEditorFocused", true);
-    },
+    const destroyEvents = this.setupEvents();
 
-    focusOut() {
-      this.set("isEditorFocused", false);
-    },
-  },
+    this.element.addEventListener("paste", textManipulation.paste);
+
+    this._applyEmojiAutocomplete();
+    this._applyHashtagAutocomplete();
+    this._applyMentionAutocomplete();
+
+    const destroyEditor = this.onSetup?.(textManipulation);
+
+    scheduleOnce("afterRender", this, this._readyNow);
+
+    return () => {
+      destroyEvents?.();
+
+      this.element?.removeEventListener("paste", textManipulation.paste);
+
+      textManipulation.autocomplete("destroy");
+
+      destroyEditor?.();
+    };
+  }
+
+  setupEvents() {
+    const textManipulation = this.textManipulation;
+
+    if (this.composerEvents) {
+      this.appEvents.on(
+        "composer:insert-block",
+        textManipulation,
+        "insertBlock"
+      );
+      this.appEvents.on("composer:insert-text", textManipulation, "insertText");
+      this.appEvents.on(
+        "composer:replace-text",
+        textManipulation,
+        "replaceText"
+      );
+      this.appEvents.on(
+        "composer:apply-surround",
+        textManipulation,
+        "applySurroundSelection"
+      );
+      this.appEvents.on(
+        "composer:indent-selected-text",
+        textManipulation,
+        "indentSelection"
+      );
+
+      return () => {
+        this.appEvents.off(
+          "composer:insert-block",
+          textManipulation,
+          "insertBlock"
+        );
+        this.appEvents.off(
+          "composer:insert-text",
+          textManipulation,
+          "insertText"
+        );
+        this.appEvents.off(
+          "composer:replace-text",
+          textManipulation,
+          "replaceText"
+        );
+        this.appEvents.off(
+          "composer:apply-surround",
+          textManipulation,
+          "applySurroundSelection"
+        );
+        this.appEvents.off(
+          "composer:indent-selected-text",
+          textManipulation,
+          "indentSelection"
+        );
+      };
+    }
+  }
 
   _disablePreviewTabIndex() {
     const observer = new MutationObserver(function () {
@@ -919,5 +737,5 @@ export default Component.extend(TextareaTextManipulation, {
     });
 
     return observer;
-  },
-});
+  }
+}

@@ -1,5 +1,5 @@
 import { ajax } from "discourse/lib/ajax";
-import discourseDebounce from "discourse-common/lib/debounce";
+import discourseDebounce from "discourse/lib/debounce";
 
 let _queue = [];
 let _processing = 0;
@@ -11,7 +11,7 @@ const MAX_JOB_SIZE = 4;
 const MAX_CONCURRENCY = 3;
 
 // max number of jobs stored, first entered jobs will be evicted first
-const MAX_QUEUE_SIZE = 20;
+const MAX_QUEUE_SIZE = 40;
 
 const BULK_REPORTS_ENDPOINT = "/admin/reports/bulk";
 
@@ -19,7 +19,7 @@ const DEBOUNCING_DELAY = 50;
 
 export default {
   enqueue(type, params, callback) {
-    // makes sures the queue is not filling indefinitely
+    // makes sure the queue is not filling indefinitely
     if (_queue.length >= MAX_QUEUE_SIZE) {
       const removedJobs = _queue.splice(0, 1)[0];
       removedJobs.forEach((job) => {

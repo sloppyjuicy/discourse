@@ -27,14 +27,17 @@ task "avatars:clean" => :environment do
   puts "Cleaning up avatar thumbnails"
   puts
 
-  optimized_image_ids = OptimizedImage.where("upload_id IN (SELECT custom_upload_id FROM user_avatars) OR
+  optimized_image_ids =
+    OptimizedImage.where(
+      "upload_id IN (SELECT custom_upload_id FROM user_avatars) OR
                         upload_id IN (SELECT gravatar_upload_id FROM user_avatars) OR
-                        upload_id IN (SELECT uploaded_avatar_id FROM users)").pluck(:id)
+                        upload_id IN (SELECT uploaded_avatar_id FROM users)",
+    ).pluck(:id)
 
   optimized_image_ids.each do |id|
     begin
       optimized_image = OptimizedImage.find_by(id: id)
-      next unless optimized_image.present?
+      next if optimized_image.blank?
       optimized_image.destroy!
     rescue => e
       puts "", "Failed to cleanup avatar (optimized_image id: #{id})", e, e.backtrace.join("\n")

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class UserSerializer < UserCardSerializer
+  include UserTagNotificationsMixin
+  include UserSidebarMixin
 
   attributes :bio_raw,
              :bio_cooked,
@@ -29,9 +31,7 @@ class UserSerializer < UserCardSerializer
     can_edit
   end
 
-  staff_attributes :post_count,
-                   :can_be_deleted,
-                   :can_delete_all_posts
+  staff_attributes :post_count, :can_be_deleted, :can_delete_all_posts
 
   private_attributes :locale,
                      :muted_category_ids,
@@ -51,7 +51,9 @@ class UserSerializer < UserCardSerializer
                      :custom_avatar_template,
                      :has_title_badges,
                      :muted_usernames,
+                     :can_mute_users,
                      :ignored_usernames,
+                     :can_ignore_users,
                      :allowed_pm_usernames,
                      :mailing_list_posts_per_day,
                      :can_change_bio,
@@ -59,20 +61,27 @@ class UserSerializer < UserCardSerializer
                      :can_change_website,
                      :can_change_tracking_preferences,
                      :user_api_keys,
+                     :user_passkeys,
                      :user_auth_tokens,
                      :user_notification_schedule,
-                     :use_logo_small_as_avatar
+                     :use_logo_small_as_avatar,
+                     :sidebar_tags,
+                     :sidebar_category_ids,
+                     :display_sidebar_tags,
+                     :can_pick_theme_with_custom_homepage
 
-  untrusted_attributes :bio_raw,
-                       :bio_cooked,
-                       :profile_background_upload_url,
+  untrusted_attributes :bio_raw, :bio_cooked, :profile_background_upload_url
 
   ###
   ### ATTRIBUTES
   ###
   #
   def user_notification_schedule
-    object.user_notification_schedule || UserNotificationSchedule::DEFAULT
+    UserNotificationScheduleSerializer.new(
+      object.user_notification_schedule,
+      scope: scope,
+      root: false,
+    ).as_json || UserNotificationSchedule::DEFAULT
   end
 
   def mailing_list_posts_per_day
@@ -81,8 +90,11 @@ class UserSerializer < UserCardSerializer
   end
 
   def groups
-    object.groups.order(:id)
-      .visible_groups(scope.user).members_visible_groups(scope.user)
+    if scope.user == object
+      object.groups.order(:id).visible_groups(scope.user)
+    else
+      object.groups.order(:id).visible_groups(scope.user).members_visible_groups(scope.user)
+    end
   end
 
   def group_users
@@ -138,15 +150,19 @@ class UserSerializer < UserCardSerializer
   end
 
   def user_api_keys
-    keys = object.user_api_keys.where(revoked_at: nil).map do |k|
-      {
-        id: k.id,
-        application_name: k.application_name,
-        scopes: k.scopes.map { |s| I18n.t("user_api_key.scopes.#{s.name}") },
-        created_at: k.created_at,
-        last_used_at: k.last_used_at,
-      }
-    end
+    keys =
+      object
+        .user_api_keys
+        .where(revoked_at: nil)
+        .map do |k|
+          {
+            id: k.id,
+            application_name: k.client.application_name,
+            scopes: k.scopes.map { |s| I18n.t("user_api_key.scopes.#{s.name}") },
+            created_at: k.created_at,
+            last_used_at: k.last_used_at,
+          }
+        end
 
     keys.sort! { |a, b| a[:last_used_at].to_time <=> b[:last_used_at].to_time }
     keys.length > 0 ? keys : nil
@@ -156,8 +172,21 @@ class UserSerializer < UserCardSerializer
     ActiveModel::ArraySerializer.new(
       object.user_auth_tokens,
       each_serializer: UserAuthTokenSerializer,
-      scope: scope
+      scope: scope,
     )
+  end
+
+  def user_passkeys
+    UserSecurityKey
+      .where(user_id: object.id, factor_type: UserSecurityKey.factor_types[:first_factor])
+      .order("created_at ASC")
+      .map do |usk|
+        { id: usk.id, name: usk.name, last_used: usk.last_used, created_at: usk.created_at }
+      end
+  end
+
+  def include_user_passkeys?
+    SiteSetting.enable_passkeys? && user_is_current_user
   end
 
   def bio_raw
@@ -211,22 +240,6 @@ class UserSerializer < UserCardSerializer
   ###
   ### PRIVATE ATTRIBUTES
   ###
-  def muted_tags
-    tags_with_notification_level(:muted)
-  end
-
-  def tracked_tags
-    tags_with_notification_level(:tracking)
-  end
-
-  def watching_first_post_tags
-    tags_with_notification_level(:watching_first_post)
-  end
-
-  def watched_tags
-    tags_with_notification_level(:watching)
-  end
-
   def muted_category_ids
     categories_with_notification_level(:muted)
   end
@@ -251,8 +264,16 @@ class UserSerializer < UserCardSerializer
     MutedUser.where(user_id: object.id).joins(:muted_user).pluck(:username)
   end
 
+  def can_mute_users
+    scope.can_mute_users?
+  end
+
   def ignored_usernames
     IgnoredUser.where(user_id: object.id).joins(:ignored_user).pluck(:username)
+  end
+
+  def can_ignore_users
+    scope.can_ignore_users?
   end
 
   def allowed_pm_usernames
@@ -316,7 +337,12 @@ class UserSerializer < UserCardSerializer
   end
 
   def use_logo_small_as_avatar
-    object.is_system_user? && SiteSetting.logo_small && SiteSetting.use_site_small_logo_as_system_avatar
+    object.is_system_user? && SiteSetting.logo_small &&
+      SiteSetting.use_site_small_logo_as_system_avatar
+  end
+
+  def can_pick_theme_with_custom_homepage
+    ThemeModifierHelper.new(theme_ids: Theme.enabled_theme_and_component_ids).custom_homepage
   end
 
   private
@@ -324,11 +350,8 @@ class UserSerializer < UserCardSerializer
   def custom_field_keys
     fields = super
 
-    if scope.can_edit?(object)
-      fields += DiscoursePluginRegistry.serialized_current_user_fields.to_a
-    end
+    fields += DiscoursePluginRegistry.serialized_current_user_fields.to_a if scope.can_edit?(object)
 
     fields
   end
-
 end

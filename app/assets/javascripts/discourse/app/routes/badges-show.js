@@ -1,21 +1,19 @@
-import Badge from "discourse/models/badge";
-import DiscourseRoute from "discourse/routes/discourse";
-import PreloadStore from "discourse/lib/preload-store";
-import UserBadge from "discourse/models/user-badge";
-import { scrollTop } from "discourse/mixins/scroll-top";
 import { hash } from "rsvp";
-import { action } from "@ember/object";
+import PreloadStore from "discourse/lib/preload-store";
+import Badge from "discourse/models/badge";
+import UserBadge from "discourse/models/user-badge";
+import DiscourseRoute from "discourse/routes/discourse";
 
-export default DiscourseRoute.extend({
-  queryParams: {
+export default class BadgesShow extends DiscourseRoute {
+  queryParams = {
     username: {
       refreshModel: true,
     },
-  },
+  };
 
   serialize(model) {
     return model.getProperties("id", "slug");
-  },
+  }
 
   model(params) {
     if (PreloadStore.get("badge")) {
@@ -25,7 +23,7 @@ export default DiscourseRoute.extend({
     } else {
       return Badge.findById(params.id);
     }
-  },
+  }
 
   afterModel(model, transition) {
     const usernameFromParams =
@@ -50,25 +48,18 @@ export default DiscourseRoute.extend({
     };
 
     return hash(promises);
-  },
+  }
 
   titleToken() {
     const model = this.modelFor("badges.show");
     if (model) {
       return model.get("name");
     }
-  },
+  }
 
-  setupController(controller, model) {
-    controller.set("model", model);
+  setupController(controller) {
+    super.setupController(...arguments);
     controller.set("userBadges", this.userBadgesGrant);
     controller.set("userBadgesAll", this.userBadgesAll);
-  },
-
-  @action
-  didTransition() {
-    this.controllerFor("badges/show")._showFooter();
-    scrollTop();
-    return true;
-  },
-});
+  }
+}

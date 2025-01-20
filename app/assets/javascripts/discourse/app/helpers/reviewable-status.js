@@ -1,3 +1,5 @@
+import { htmlSafe } from "@ember/template";
+import { iconHTML } from "discourse/lib/icon-library";
 import {
   APPROVED,
   DELETED,
@@ -5,27 +7,66 @@ import {
   PENDING,
   REJECTED,
 } from "discourse/models/reviewable";
-import I18n from "I18n";
-import { htmlHelper } from "discourse-common/lib/helpers";
-import { iconHTML } from "discourse-common/lib/icon-library";
+import { i18n } from "discourse-i18n";
 
-function dataFor(status) {
+function dataFor(status, type) {
   switch (status) {
     case PENDING:
       return { name: "pending" };
     case APPROVED:
-      return { icon: "check", name: "approved" };
+      switch (type) {
+        case "ReviewableQueuedPost":
+          return {
+            icon: "check",
+            name: "approved_post",
+            cssClass: "approved",
+          };
+        case "ReviewableUser":
+          return {
+            icon: "check",
+            name: "approved_user",
+            cssClass: "approved",
+          };
+        default:
+          return {
+            icon: "check",
+            name: "approved_flag",
+            cssClass: "approved",
+          };
+      }
     case REJECTED:
-      return { icon: "times", name: "rejected" };
+      switch (type) {
+        case "ReviewableQueuedPost":
+          return {
+            icon: "xmark",
+            name: "rejected_post",
+            cssClass: "rejected",
+          };
+        case "ReviewableUser":
+          return {
+            icon: "xmark",
+            name: "rejected_user",
+            cssClass: "rejected",
+          };
+        default:
+          return {
+            icon: "xmark",
+            name: "rejected_flag",
+            cssClass: "rejected",
+          };
+      }
     case IGNORED:
-      return { icon: "external-link-alt", name: "ignored" };
+      return {
+        icon: "up-right-from-square",
+        name: "ignored",
+      };
     case DELETED:
-      return { icon: "trash-alt", name: "deleted" };
+      return { icon: "trash-can", name: "deleted" };
   }
 }
 
-export function htmlStatus(status) {
-  let data = dataFor(status);
+export function htmlStatus(status, type) {
+  let data = dataFor(status, type);
   if (!data) {
     return;
   }
@@ -33,15 +74,13 @@ export function htmlStatus(status) {
   let icon = data.icon ? iconHTML(data.icon) : "";
 
   return `
-    <span class='status'>
-      <span class="${data.name}">
-        ${icon}
-        ${I18n.t("review.statuses." + data.name + ".title")}
-      </span>
+    <span class="${data.cssClass || data.name}">
+      ${icon}
+      ${i18n("review.statuses." + data.name + ".title")}
     </span>
   `;
 }
 
-export default htmlHelper((status) => {
-  return htmlStatus(status);
-});
+export default function (status, type) {
+  return htmlSafe(htmlStatus(status, type));
+}

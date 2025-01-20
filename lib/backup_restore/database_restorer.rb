@@ -16,7 +16,7 @@ module BackupRestore
       @current_db = current_db
     end
 
-    def restore(db_dump_path)
+    def restore(db_dump_path, interactive = false)
       BackupRestore.move_tables_between_schemas(MAIN_SCHEMA, BACKUP_SCHEMA)
 
       @db_dump_path = db_dump_path
@@ -24,6 +24,7 @@ module BackupRestore
 
       create_missing_discourse_functions
       restore_dump
+      pause_before_migration if interactive
       migrate_database
       reconnect_database
 
@@ -46,14 +47,14 @@ module BackupRestore
     end
 
     def self.drop_backup_schema
-      if backup_schema_dropable?
-        ActiveRecord::Base.connection.drop_schema(BACKUP_SCHEMA)
-      end
+      ActiveRecord::Base.connection.drop_schema(BACKUP_SCHEMA) if backup_schema_dropable?
     end
 
-    def self.core_migration_files
+    def self.all_migration_files
       Dir[Rails.root.join(Migration::SafeMigrate.post_migration_path, "**/*.rb")] +
-        Dir[Rails.root.join("db/migrate/*.rb")]
+        Dir[Rails.root.join("db/migrate/*.rb")] +
+        Dir[Rails.root.join("plugins/**", Migration::SafeMigrate.post_migration_path, "**/*.rb")] +
+        Dir[Rails.root.join("plugins/**", "db/migrate/*.rb")]
     end
 
     protected
@@ -65,13 +66,14 @@ module BackupRestore
       last_line = nil
       psql_running = true
 
-      log_thread = Thread.new do
-        RailsMultisite::ConnectionManagement::establish_connection(db: @current_db)
-        while psql_running || !logs.empty?
-          message = logs.pop.strip
-          log(message) if message.present?
+      log_thread =
+        Thread.new do
+          RailsMultisite::ConnectionManagement.establish_connection(db: @current_db)
+          while psql_running || !logs.empty?
+            message = logs.pop.strip
+            log(message) if message.present?
+          end
         end
-      end
 
       IO.popen(restore_dump_command) do |pipe|
         begin
@@ -89,7 +91,9 @@ module BackupRestore
       logs << ""
       log_thread.join
 
-      raise DatabaseRestoreError.new("psql failed: #{last_line}") if Process.last_status&.exitstatus != 0
+      if Process.last_status&.exitstatus != 0
+        raise DatabaseRestoreError.new("psql failed: #{last_line}")
+      end
     end
 
     # Removes unwanted SQL added by certain versions of pg_dump and modifies
@@ -99,7 +103,7 @@ module BackupRestore
         "DROP SCHEMA", # Discourse <= v1.5
         "CREATE SCHEMA", # PostgreSQL 11+
         "COMMENT ON SCHEMA", # PostgreSQL 11+
-        "SET default_table_access_method" # PostgreSQL 12
+        "SET default_table_access_method", # PostgreSQL 12
       ].join("|")
 
       command = "sed -E '/^(#{unwanted_sql})/d' #{@db_dump_path}"
@@ -117,40 +121,52 @@ module BackupRestore
       db_conf = BackupRestore.database_configuration
 
       password_argument = "PGPASSWORD='#{db_conf.password}'" if db_conf.password.present?
-      host_argument     = "--host=#{db_conf.host}"           if db_conf.host.present?
-      port_argument     = "--port=#{db_conf.port}"           if db_conf.port.present?
-      username_argument = "--username=#{db_conf.username}"   if db_conf.username.present?
+      host_argument = "--host=#{db_conf.host}" if db_conf.host.present?
+      port_argument = "--port=#{db_conf.port}" if db_conf.port.present?
+      username_argument = "--username=#{db_conf.username}" if db_conf.username.present?
 
-      [ password_argument,                # pass the password to psql (if any)
-        "psql",                           # the psql command
+      [
+        password_argument, # pass the password to psql (if any)
+        "psql", # the psql command
         "--dbname='#{db_conf.database}'", # connect to database *dbname*
-        "--single-transaction",           # all or nothing (also runs COPY commands faster)
-        "--variable=ON_ERROR_STOP=1",     # stop on first error
-        host_argument,                    # the hostname to connect to (if any)
-        port_argument,                    # the port to connect to (if any)
-        username_argument                 # the username to connect as (if any)
+        "--single-transaction", # all or nothing (also runs COPY commands faster)
+        "--variable=ON_ERROR_STOP=1", # stop on first error
+        host_argument, # the hostname to connect to (if any)
+        port_argument, # the port to connect to (if any)
+        username_argument, # the username to connect as (if any)
       ].compact.join(" ")
+    end
+
+    def pause_before_migration
+      puts ""
+      puts "Attention! Pausing restore before migrating database.".red.bold
+      puts "You can work on the restored database in a separate Rails console."
+      puts ""
+      puts "Press any key to continue with the restore.".bold
+      puts ""
+      STDIN.getch
     end
 
     def migrate_database
       log "Migrating the database..."
 
       log Discourse::Utils.execute_command(
-        {
-          "SKIP_POST_DEPLOYMENT_MIGRATIONS" => "0",
-          "SKIP_OPTIMIZE_ICONS" => "1",
-          "DISABLE_TRANSLATION_OVERRIDES" => "1"
-        },
-        "rake", "db:migrate",
-        failure_message: "Failed to migrate database.",
-        chdir: Rails.root
-      )
+            {
+              "SKIP_POST_DEPLOYMENT_MIGRATIONS" => "0",
+              "SKIP_OPTIMIZE_ICONS" => "1",
+              "DISABLE_TRANSLATION_OVERRIDES" => "1",
+            },
+            "rake",
+            "db:migrate",
+            failure_message: "Failed to migrate database.",
+            chdir: Rails.root,
+          )
     end
 
     def reconnect_database
       log "Reconnecting to the database..."
-      RailsMultisite::ConnectionManagement::reload if RailsMultisite::ConnectionManagement::instance
-      RailsMultisite::ConnectionManagement::establish_connection(db: @current_db)
+      RailsMultisite::ConnectionManagement.reload if RailsMultisite::ConnectionManagement.instance
+      RailsMultisite::ConnectionManagement.establish_connection(db: @current_db)
     end
 
     def create_missing_discourse_functions
@@ -159,9 +175,12 @@ module BackupRestore
       @created_functions_for_table_columns = []
       all_readonly_table_columns = []
 
-      DatabaseRestorer.core_migration_files.each do |path|
+      DatabaseRestorer.all_migration_files.each do |path|
+        file_content = File.read(path)
+        next if file_content.exclude?("DROPPED_TABLES") && file_content.exclude?("DROPPED_COLUMNS")
+
         require path
-        class_name = File.basename(path, ".rb").sub(/^\d+_/, "").camelize
+        class_name = File.basename(path, ".rb").sub(/\A\d+_/, "").camelize
         migration_class = class_name.constantize
 
         if migration_class.const_defined?(:DROPPED_TABLES)
@@ -179,10 +198,12 @@ module BackupRestore
         end
       end
 
-      existing_function_names = Migration::BaseDropper.existing_discourse_function_names.map { |name| "#{name}()" }
+      existing_function_names =
+        Migration::BaseDropper.existing_discourse_function_names.map { |name| "#{name}()" }
 
       all_readonly_table_columns.each do |table_name, column_name|
-        function_name = Migration::BaseDropper.readonly_function_name(table_name, column_name, with_schema: false)
+        function_name =
+          Migration::BaseDropper.readonly_function_name(table_name, column_name, with_schema: false)
 
         if !existing_function_names.include?(function_name)
           Migration::BaseDropper.create_readonly_function(table_name, column_name)

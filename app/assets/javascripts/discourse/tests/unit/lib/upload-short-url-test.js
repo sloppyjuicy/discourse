@@ -1,13 +1,14 @@
+import { settled } from "@ember/test-helpers";
+import { setupTest } from "ember-qunit";
 import {
   lookupCachedUploadUrl,
   resetCache,
   resolveAllShortUrls,
 } from "pretty-text/upload-short-url";
 import { module, test } from "qunit";
-import pretender, { response } from "discourse/tests/helpers/create-pretender";
 import { ajax } from "discourse/lib/ajax";
+import pretender, { response } from "discourse/tests/helpers/create-pretender";
 import { fixture } from "discourse/tests/helpers/qunit-helpers";
-import { settled } from "@ember/test-helpers";
 
 function stubUrls(imageSrcs, attachmentSrcs, otherMediaSrcs) {
   if (!imageSrcs) {
@@ -75,7 +76,7 @@ function stubUrls(imageSrcs, attachmentSrcs, otherMediaSrcs) {
     `<div class="scoped-area"><img data-orig-src="${imageSrcs[2].url}"></div>` +
     otherMediaSrcs
       .map((src) => {
-        if (src.short_url.indexOf("mp3") > -1) {
+        if (src.short_url.includes("mp3")) {
           return `<audio controls><source data-orig-src="${src.short_url}"></audio>`;
         } else {
           return `<video controls><source data-orig-src="${src.short_url}"></video>`;
@@ -85,6 +86,8 @@ function stubUrls(imageSrcs, attachmentSrcs, otherMediaSrcs) {
 }
 
 module("Unit | Utility | pretty-text/upload-short-url", function (hooks) {
+  setupTest(hooks);
+
   hooks.afterEach(function () {
     resetCache();
   });
@@ -96,7 +99,7 @@ module("Unit | Utility | pretty-text/upload-short-url", function (hooks) {
     lookup = lookupCachedUploadUrl("upload://a.jpeg");
     assert.deepEqual(lookup, {});
 
-    await resolveAllShortUrls(ajax, { secure_media: false }, fixture());
+    await resolveAllShortUrls(ajax, { secure_uploads: false }, fixture());
     await settled();
 
     lookup = lookupCachedUploadUrl("upload://a.jpeg");
@@ -143,7 +146,7 @@ module("Unit | Utility | pretty-text/upload-short-url", function (hooks) {
 
   test("resolveAllShortUrls - href + src replaced correctly", async function (assert) {
     stubUrls();
-    await resolveAllShortUrls(ajax, { secure_media: false }, fixture());
+    await resolveAllShortUrls(ajax, { secure_uploads: false }, fixture());
     await settled();
 
     let image1 = fixture().querySelector("img");
@@ -152,51 +155,50 @@ module("Unit | Utility | pretty-text/upload-short-url", function (hooks) {
     let video = fixture().querySelector("video");
     let link = fixture().querySelector("a");
 
-    assert.equal(image1.getAttribute("src"), "/images/avatar.png?a");
-    assert.equal(image2.getAttribute("src"), "/images/avatar.png?b");
-    assert.equal(link.getAttribute("href"), "/uploads/short-url/c.pdf");
-    assert.equal(
-      video.querySelector("source").getAttribute("src"),
-      "/uploads/default/original/3X/c/b/4.mp4"
-    );
-    assert.equal(
-      audio.querySelector("source").getAttribute("src"),
-      "/uploads/default/original/3X/c/b/5.mp3"
-    );
+    assert.dom(image1).hasAttribute("src", "/images/avatar.png?a");
+    assert.dom(image2).hasAttribute("src", "/images/avatar.png?b");
+    assert.dom(link).hasAttribute("href", "/uploads/short-url/c.pdf");
+    assert
+      .dom("source", video)
+      .hasAttribute("src", "/uploads/default/original/3X/c/b/4.mp4");
+    assert
+      .dom("source", audio)
+      .hasAttribute("src", "/uploads/default/original/3X/c/b/5.mp3");
   });
 
   test("resolveAllShortUrls - url with full origin replaced correctly", async function (assert) {
     stubUrls();
-    await resolveAllShortUrls(ajax, { secure_media: false }, fixture());
+    await resolveAllShortUrls(ajax, { secure_uploads: false }, fixture());
     await settled();
     let video = fixture().querySelectorAll("video")[1];
 
-    assert.equal(
-      video.querySelector("source").getAttribute("src"),
-      "http://localhost:3000/uploads/default/original/3X/c/b/6.mp4"
-    );
+    assert
+      .dom("source", video)
+      .hasAttribute(
+        "src",
+        "http://localhost:3000/uploads/default/original/3X/c/b/6.mp4"
+      );
   });
 
-  test("resolveAllShortUrls - when secure media is enabled use the attachment full URL", async function (assert) {
+  test("resolveAllShortUrls - when secure uploads is enabled use the attachment full URL", async function (assert) {
     stubUrls(
       null,
       [
         {
           short_url: "upload://c.pdf",
-          url: "/secure-media-uploads/default/original/3X/c/b/3.pdf",
+          url: "/secure-uploads/default/original/3X/c/b/3.pdf",
           short_path: "/uploads/short-url/c.pdf",
         },
       ],
       null
     );
-    await resolveAllShortUrls(ajax, { secure_media: true }, fixture());
+    await resolveAllShortUrls(ajax, { secure_uploads: true }, fixture());
     await settled();
 
     let link = fixture().querySelector("a");
-    assert.equal(
-      link.getAttribute("href"),
-      "/secure-media-uploads/default/original/3X/c/b/3.pdf"
-    );
+    assert
+      .dom(link)
+      .hasAttribute("href", "/secure-uploads/default/original/3X/c/b/3.pdf");
   });
 
   test("resolveAllShortUrls - scoped", async function (assert) {

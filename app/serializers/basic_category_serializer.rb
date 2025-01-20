@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class BasicCategorySerializer < ApplicationSerializer
-
   attributes :id,
              :name,
              :color,
@@ -21,6 +20,7 @@ class BasicCategorySerializer < ApplicationSerializer
              :can_edit,
              :topic_template,
              :has_children,
+             :subcategory_count,
              :sort_order,
              :sort_ascending,
              :show_subcategory_list,
@@ -34,26 +34,44 @@ class BasicCategorySerializer < ApplicationSerializer
              :custom_fields
 
   has_one :uploaded_logo, embed: :object, serializer: CategoryUploadSerializer
+  has_one :uploaded_logo_dark, embed: :object, serializer: CategoryUploadSerializer
   has_one :uploaded_background, embed: :object, serializer: CategoryUploadSerializer
+  has_one :uploaded_background_dark, embed: :object, serializer: CategoryUploadSerializer
 
   def include_parent_category_id?
     parent_category_id
   end
 
   def name
-    object.uncategorized? ? I18n.t('uncategorized_category_name', locale: SiteSetting.default_locale) : object.name
+    if object.uncategorized?
+      I18n.t("uncategorized_category_name", locale: SiteSetting.default_locale)
+    else
+      object.name
+    end
   end
 
   def description_text
-    object.uncategorized? ? I18n.t('category.uncategorized_description', locale: SiteSetting.default_locale) : object.description_text
+    if object.uncategorized?
+      I18n.t("category.uncategorized_description", locale: SiteSetting.default_locale)
+    else
+      object.description_text
+    end
   end
 
   def description
-    object.uncategorized? ? I18n.t('category.uncategorized_description', locale: SiteSetting.default_locale) : object.description
+    if object.uncategorized?
+      I18n.t("category.uncategorized_description", locale: SiteSetting.default_locale)
+    else
+      object.description
+    end
   end
 
   def description_excerpt
-    object.uncategorized? ? I18n.t('category.uncategorized_description', locale: SiteSetting.default_locale) : object.description_excerpt
+    if object.uncategorized?
+      I18n.t("category.uncategorized_description", locale: SiteSetting.default_locale)
+    else
+      object.description_excerpt
+    end
   end
 
   def can_edit

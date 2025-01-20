@@ -1,6 +1,6 @@
-import { acceptance, exists } from "discourse/tests/helpers/qunit-helpers";
-import { test } from "qunit";
 import { visit } from "@ember/test-helpers";
+import { test } from "qunit";
+import { acceptance } from "discourse/tests/helpers/qunit-helpers";
 
 acceptance("Reports", function (needs) {
   needs.user();
@@ -8,21 +8,26 @@ acceptance("Reports", function (needs) {
   test("Visit reports page", async function (assert) {
     await visit("/admin/reports");
 
-    assert.equal($(".reports-list .report").length, 1);
+    assert
+      .dom(".admin-reports-list .admin-section-landing-item__content")
+      .exists({ count: 1 });
 
-    const $report = $(".reports-list .report:first-child");
+    assert
+      .dom(
+        ".admin-reports-list .admin-section-landing-item__content .admin-section-landing-item__title"
+      )
+      .hasHtml("My report");
 
-    assert.equal($report.find(".report-title").html().trim(), "My report");
-
-    assert.equal(
-      $report.find(".report-description").html().trim(),
-      "List of my activities"
-    );
+    assert
+      .dom(
+        ".admin-reports-list .admin-section-landing-item__content .admin-section-landing-item__description"
+      )
+      .hasHtml("List of my activities");
   });
 
   test("Visit report page", async function (assert) {
     await visit("/admin/reports/staff_logins");
 
-    assert.ok(exists(".export-csv-btn"));
+    assert.dom(".export-csv-btn").exists();
   });
 });

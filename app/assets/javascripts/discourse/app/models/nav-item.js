@@ -1,117 +1,29 @@
-import Category from "discourse/models/category";
+import { tracked } from "@glimmer/tracking";
 import EmberObject from "@ember/object";
-import I18n from "I18n";
+import { dependentKeyCompat } from "@ember/object/compat";
+import { reads } from "@ember/object/computed";
+import { service } from "@ember/service";
+import discourseComputed from "discourse/lib/decorators";
+import deprecated from "discourse/lib/deprecated";
+import { getOwnerWithFallback } from "discourse/lib/get-owner";
+import getURL from "discourse/lib/get-url";
+import { deepMerge } from "discourse/lib/object";
+import { emojiUnescape } from "discourse/lib/text";
+import {
+  hasTrackedFilter,
+  isTrackedTopic,
+} from "discourse/lib/topic-list-tracked-filter";
+import Category from "discourse/models/category";
 import Site from "discourse/models/site";
 import User from "discourse/models/user";
-import { deepMerge } from "discourse-common/lib/object";
-import deprecated from "discourse-common/lib/deprecated";
-import discourseComputed from "discourse-common/utils/decorators";
-import { emojiUnescape } from "discourse/lib/text";
-import { getOwner } from "discourse-common/lib/get-owner";
-import getURL from "discourse-common/lib/get-url";
-import { reads } from "@ember/object/computed";
+import { i18n } from "discourse-i18n";
 
-const NavItem = EmberObject.extend({
-  @discourseComputed("name")
-  title(name) {
-    return I18n.t("filters." + name.replace("/", ".") + ".help", {});
-  },
+export default class NavItem extends EmberObject {
+  static extraArgsCallbacks = [];
+  static customNavItemHrefs = [];
+  static extraNavItemDescriptors = [];
 
-  @discourseComputed("name", "count")
-  displayName(name, count) {
-    count = count || 0;
-
-    if (
-      name === "latest" &&
-      (!Site.currentProp("mobileView") || this.tagId !== undefined)
-    ) {
-      count = 0;
-    }
-
-    let extra = { count: count };
-    const titleKey = count === 0 ? ".title" : ".title_with_count";
-
-    return emojiUnescape(
-      I18n.t(`filters.${name.replace("/", ".") + titleKey}`, extra)
-    );
-  },
-
-  @discourseComputed("filterType", "category", "noSubcategories", "tagId")
-  href(filterType, category, noSubcategories, tagId) {
-    let customHref = null;
-
-    NavItem.customNavItemHrefs.forEach(function (cb) {
-      customHref = cb.call(this, this);
-      if (customHref) {
-        return false;
-      }
-    }, this);
-
-    if (customHref) {
-      return getURL(customHref);
-    }
-
-    const context = { category, noSubcategories, tagId };
-    return NavItem.pathFor(filterType, context);
-  },
-
-  filterType: reads("name"),
-
-  @discourseComputed("name", "category", "noSubcategories")
-  filterMode(name, category, noSubcategories) {
-    let mode = "";
-    if (category) {
-      mode += "c/";
-      mode += Category.slugFor(category);
-      if (noSubcategories) {
-        mode += "/none";
-      }
-      mode += "/l/";
-    }
-    return mode + name.replace(" ", "-");
-  },
-
-  @discourseComputed(
-    "name",
-    "category",
-    "tagId",
-    "noSubcategories",
-    "topicTrackingState.messageCount"
-  )
-  count(name, category, tagId, noSubcategories) {
-    const state = this.topicTrackingState;
-    if (state) {
-      return state.lookupCount(name, category, tagId, noSubcategories);
-    }
-  },
-});
-
-const ExtraNavItem = NavItem.extend({
-  href: discourseComputed("href", {
-    get() {
-      if (this._href) {
-        return this._href;
-      }
-
-      return this.href;
-    },
-
-    set(key, value) {
-      return (this._href = value);
-    },
-  }),
-
-  count: 0,
-
-  customFilter: null,
-});
-
-NavItem.reopenClass({
-  extraArgsCallbacks: [],
-  customNavItemHrefs: [],
-  extraNavItemDescriptors: [],
-
-  pathFor(filterType, context) {
+  static pathFor(filterType, context) {
     let path = getURL("");
     let includesCategoryContext = false;
     let includesTagContext = false;
@@ -154,11 +66,11 @@ NavItem.reopenClass({
     // period has its own selector just below
 
     return path;
-  },
+  }
 
   // Create a nav item given a filterType. It returns null if there is not
   // valid nav item. The name is a historical artifact.
-  fromText(filterType, opts) {
+  static fromText(filterType, opts) {
     const anonymous = !User.current();
 
     opts = opts || {};
@@ -194,11 +106,11 @@ NavItem.reopenClass({
       deepMerge(args, cb.call(this, filterType, opts))
     );
 
-    let store = getOwner(this).lookup("service:store");
+    let store = getOwnerWithFallback(this).lookup("service:store");
     return store.createRecord("nav-item", args);
-  },
+  }
 
-  buildList(category, args) {
+  static buildList(category, args) {
     args = args || {};
 
     if (category) {
@@ -209,11 +121,18 @@ NavItem.reopenClass({
       deprecated("You must supply `buildList` with a `siteSettings` object", {
         since: "2.6.0",
         dropFrom: "2.7.0",
+        id: "discourse.nav-item.built-list-site-settings",
       });
-      args.siteSettings = getOwner(this).lookup("site-settings:main");
+      args.siteSettings = getOwnerWithFallback(this).lookup(
+        "service:site-settings"
+      );
     }
     let items = args.siteSettings.top_menu.split("|");
 
+    const user = getOwnerWithFallback(this).lookup("service:current-user");
+    if (user?.new_new_view_enabled) {
+      items = items.reject((item) => item === "unread");
+    }
     const filterType = (args.filterMode || "").split("/").pop();
 
     if (!items.some((i) => filterType === i)) {
@@ -222,10 +141,20 @@ NavItem.reopenClass({
 
     items = items
       .map((i) => NavItem.fromText(i, args))
-      .filter(
-        (i) =>
-          i !== null && !(category && i.get("name").indexOf("categor") === 0)
-      );
+      .filter((i) => {
+        if (i === null) {
+          return false;
+        }
+
+        if (
+          (category || args.skipCategoriesNavItem) &&
+          i.name.startsWith("categor")
+        ) {
+          return false;
+        }
+
+        return true;
+      });
 
     const context = {
       category: args.category,
@@ -251,10 +180,6 @@ NavItem.reopenClass({
         item.init(item, category, args);
       }
 
-      if (item.href) {
-        item.href = getURL(item.href);
-      }
-
       const before = item.before;
       if (before) {
         let i = 0;
@@ -269,7 +194,9 @@ NavItem.reopenClass({
       }
 
       if (item.customHref) {
-        item.set("href", item.customHref(category, args));
+        item.href = item.customHref(category, args);
+      } else if (item.href) {
+        item.href = getURL(item.href);
       }
 
       if (item.forceActive && item.forceActive(category, args)) {
@@ -288,10 +215,115 @@ NavItem.reopenClass({
       });
     }
     return items;
-  },
-});
+  }
 
-export default NavItem;
+  @service topicTrackingState;
+
+  @tracked name;
+  @reads("name") filterType;
+
+  @tracked _title;
+  @tracked _displayName;
+
+  @dependentKeyCompat
+  get title() {
+    if (this._title) {
+      return this._title;
+    }
+
+    return i18n("filters." + this.name.replace("/", ".") + ".help", {});
+  }
+
+  set title(value) {
+    this._title = value;
+  }
+
+  @dependentKeyCompat
+  get displayName() {
+    if (this._displayName) {
+      return this._displayName;
+    }
+
+    let count = this.count || 0;
+
+    if (
+      this.name === "latest" &&
+      (Site.currentProp("desktopView") || this.tagId !== undefined)
+    ) {
+      count = 0;
+    }
+
+    let extra = { count };
+    const titleKey = count === 0 ? ".title" : ".title_with_count";
+
+    return emojiUnescape(
+      i18n(`filters.${this.name.replace("/", ".") + titleKey}`, extra)
+    );
+  }
+
+  set displayName(value) {
+    this._displayName = value;
+  }
+
+  @discourseComputed("filterType", "category", "noSubcategories", "tagId")
+  href(filterType, category, noSubcategories, tagId) {
+    let customHref = null;
+
+    NavItem.customNavItemHrefs.forEach(function (cb) {
+      customHref = cb.call(this, this);
+      if (customHref) {
+        return false;
+      }
+    }, this);
+
+    if (customHref) {
+      return getURL(customHref);
+    }
+
+    const context = { category, noSubcategories, tagId };
+    return NavItem.pathFor(filterType, context);
+  }
+
+  @discourseComputed("name", "category", "noSubcategories")
+  filterMode(name, category, noSubcategories) {
+    let mode = "";
+    if (category) {
+      mode += "c/";
+      mode += Category.slugFor(category);
+      if (noSubcategories) {
+        mode += "/none";
+      }
+      mode += "/l/";
+    }
+    return mode + name.replace(" ", "-");
+  }
+
+  @discourseComputed(
+    "name",
+    "category",
+    "tagId",
+    "noSubcategories",
+    "currentRouteQueryParams",
+    "topicTrackingState.messageCount"
+  )
+  count(name, category, tagId, noSubcategories, currentRouteQueryParams) {
+    return this.topicTrackingState?.lookupCount({
+      type: name,
+      category,
+      tagId,
+      noSubcategories,
+      customFilterFn: hasTrackedFilter(currentRouteQueryParams)
+        ? isTrackedTopic
+        : undefined,
+    });
+  }
+}
+
+export class ExtraNavItem extends NavItem {
+  @tracked href;
+  @tracked count = 0;
+  customFilter = null;
+}
 
 export function extraNavItemProperties(cb) {
   NavItem.extraArgsCallbacks.push(cb);

@@ -1,13 +1,11 @@
 import DiscourseRoute from "discourse/routes/discourse";
 
-export default DiscourseRoute.extend({
-  showFooter: true,
-
+export default class TagGroupsEdit extends DiscourseRoute {
   model(params) {
     return this.store.find("tagGroup", params.id);
-  },
+  }
 
   afterModel(tagGroup) {
     tagGroup.set("savingStatus", null);
-  },
-});
+  }
+}

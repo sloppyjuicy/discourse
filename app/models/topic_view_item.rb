@@ -1,17 +1,18 @@
 # frozen_string_literal: true
 
-require 'ipaddr'
+require "ipaddr"
 
 # awkward TopicView is taken
 class TopicViewItem < ActiveRecord::Base
-  self.table_name = 'topic_views'
+  self.table_name = "topic_views"
   belongs_to :user
   belongs_to :topic
   validates_presence_of :topic_id, :ip_address, :viewed_at
 
   def self.add(topic_id, ip, user_id = nil, at = nil, skip_redis = false)
     # Only store a view once per day per thing per (user || ip)
-    at ||= Date.today
+    at ||= Time.zone.today
+
     redis_key = +"view:#{topic_id}:#{at}"
     if user_id
       redis_key << ":user-#{user_id}"
@@ -24,12 +25,14 @@ class TopicViewItem < ActiveRecord::Base
 
       TopicViewItem.transaction do
         # this is called real frequently, working hard to avoid exceptions
-        sql = "INSERT INTO topic_views (topic_id, ip_address, viewed_at, user_id)
-               SELECT :topic_id, :ip_address, :viewed_at, :user_id
-               WHERE NOT EXISTS (
-                 SELECT 1 FROM topic_views
-                 /*where*/
-               )"
+        sql = <<~SQL
+          INSERT INTO topic_views (topic_id, ip_address, viewed_at, user_id)
+          SELECT :topic_id, :ip_address, :viewed_at, :user_id
+          WHERE NOT EXISTS (
+            SELECT 1 FROM topic_views
+            /*where*/
+          )
+        SQL
 
         builder = DB.build(sql)
 
@@ -42,17 +45,23 @@ class TopicViewItem < ActiveRecord::Base
 
         result = builder.exec(topic_id: topic_id, ip_address: ip, viewed_at: at, user_id: user_id)
 
-        Topic.where(id: topic_id).update_all 'views = views + 1'
-
         if result > 0
-          UserStat.where(user_id: user_id).update_all 'topics_entered = topics_entered + 1' if user_id
+          if user_id
+            UserStat.where(user_id: user_id).update_all "topics_entered = topics_entered + 1"
+          end
         end
 
-        # Update the views count in the parent, if it exists.
+        Topic.where(id: topic_id).update_all "views = views + 1"
+
+        TopicViewStat.add(
+          topic_id: topic_id,
+          date: at,
+          anonymous_views: user_id ? 0 : 1,
+          logged_in_views: user_id ? 1 : 0,
+        )
       end
     end
   end
-
 end
 
 # == Schema Information

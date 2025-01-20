@@ -1,66 +1,64 @@
 import Component from "@ember/component";
-import { bind } from "@ember/runloop";
 import { computed } from "@ember/object";
-import layout from "select-kit/templates/components/select-kit/select-kit-body";
+import { next } from "@ember/runloop";
+import { classNameBindings, classNames } from "@ember-decorators/component";
+import { bind } from "discourse/lib/decorators";
 
-export default Component.extend({
-  layout,
-  classNames: ["select-kit-body"],
-  classNameBindings: ["emptyBody:empty-body"],
-
-  emptyBody: computed("selectKit.{filter,hasNoContent}", function () {
+@classNames("select-kit-body")
+@classNameBindings("emptyBody:empty-body")
+export default class SelectKitBody extends Component {
+  @computed("selectKit.{filter,hasNoContent}")
+  get emptyBody() {
     return false;
-  }),
-
-  rootEventType: "click",
-
-  init() {
-    this._super(...arguments);
-
-    this.handleRootMouseDownHandler = bind(this, this.handleRootMouseDown);
-  },
+  }
 
   didInsertElement() {
-    this._super(...arguments);
+    super.didInsertElement(...arguments);
 
     this.element.style.position = "relative";
-
-    document.addEventListener(
-      this.rootEventType,
-      this.handleRootMouseDownHandler,
-      true
-    );
-  },
+    document.addEventListener("click", this.handleClick, true);
+    this.selectKit
+      .mainElement()
+      .addEventListener("keydown", this._handleKeydown, true);
+  }
 
   willDestroyElement() {
-    this._super(...arguments);
+    super.willDestroyElement(...arguments);
+    document.removeEventListener("click", this.handleClick, true);
+    this.selectKit
+      .mainElement()
+      ?.removeEventListener("keydown", this._handleKeydown, true);
+  }
 
-    document.removeEventListener(
-      this.rootEventType,
-      this.handleRootMouseDownHandler,
-      true
-    );
-  },
-
-  handleRootMouseDown(event) {
-    if (!this.selectKit.isExpanded) {
+  @bind
+  handleClick(event) {
+    if (!this.selectKit.isExpanded || !this.selectKit.mainElement()) {
       return;
     }
 
-    const headerElement = document.querySelector(
-      `#${this.selectKit.uniqueID}-header`
-    );
-
-    if (headerElement && headerElement.contains(event.target)) {
+    if (this.selectKit.mainElement().contains(event.target)) {
       return;
     }
 
-    if (this.element.contains(event.target)) {
+    this.selectKit.close(event);
+  }
+
+  @bind
+  _handleKeydown(event) {
+    if (!this.selectKit.isExpanded || event.key !== "Tab") {
       return;
     }
 
-    if (this.selectKit.mainElement()) {
+    next(() => {
+      if (
+        this.isDestroying ||
+        this.isDestroyed ||
+        this.selectKit.mainElement()?.contains(document.activeElement)
+      ) {
+        return;
+      }
+
       this.selectKit.close(event);
-    }
-  },
-});
+    });
+  }
+}

@@ -1,18 +1,19 @@
+import { service } from "@ember/service";
 import DiscourseRoute from "discourse/routes/discourse";
-import I18n from "I18n";
+import { i18n } from "discourse-i18n";
 
-export default DiscourseRoute.extend({
-  showFooter: true,
+export default class TagGroupsNew extends DiscourseRoute {
+  @service router;
 
   beforeModel() {
     if (!this.siteSettings.tagging_enabled) {
-      this.transitionTo("tagGroups");
+      this.router.transitionTo("tagGroups");
     }
-  },
+  }
 
   model() {
     return this.store.createRecord("tagGroup", {
-      name: I18n.t("tagging.groups.new_name"),
+      name: i18n("tagging.groups.new_name"),
     });
-  },
-});
+  }
+}

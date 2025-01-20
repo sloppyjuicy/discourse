@@ -1,12 +1,32 @@
-import getURL, { getURLWithCDN } from "discourse-common/lib/get-url";
 import Handlebars from "handlebars";
-import I18n from "I18n";
-import { deepMerge } from "discourse-common/lib/object";
-import { escape } from "pretty-text/sanitizer";
-import { helperContext } from "discourse-common/lib/helpers";
+import $ from "jquery";
+import * as AvatarUtils from "discourse/lib/avatar-utils";
+import deprecated from "discourse/lib/deprecated";
+import escape from "discourse/lib/escape";
+import getURL from "discourse/lib/get-url";
+import { parseAsync } from "discourse/lib/text";
 import toMarkdown from "discourse/lib/to-markdown";
+import { capabilities } from "discourse/services/capabilities";
+import { i18n } from "discourse-i18n";
 
 let _defaultHomepage;
+
+function deprecatedAvatarUtil(name) {
+  return function () {
+    deprecated(
+      `${name} should be imported from discourse/lib/avatar-utils instead of discourse/lib/utilities`,
+      { id: "discourse.avatar-utils" }
+    );
+    return AvatarUtils[name](...arguments);
+  };
+}
+
+export const translateSize = deprecatedAvatarUtil("translateSize");
+export const getRawSize = deprecatedAvatarUtil("getRawSize");
+export const getRawAvatarSize = deprecatedAvatarUtil("getRawAvatarSize");
+export const avatarUrl = deprecatedAvatarUtil("avatarUrl");
+export const avatarImg = deprecatedAvatarUtil("avatarImg");
+export const tinyAvatar = deprecatedAvatarUtil("tinyAvatar");
 
 export function splitString(str, separator = ",") {
   if (typeof str === "string") {
@@ -14,24 +34,6 @@ export function splitString(str, separator = ",") {
   } else {
     return [];
   }
-}
-
-export function translateSize(size) {
-  switch (size) {
-    case "tiny":
-      return 20;
-    case "small":
-      return 25;
-    case "medium":
-      return 32;
-    case "large":
-      return 45;
-    case "extra_large":
-      return 60;
-    case "huge":
-      return 120;
-  }
-  return size;
 }
 
 export function escapeExpression(string) {
@@ -57,53 +59,6 @@ export function replaceFormatter(fn) {
   _usernameFormatDelegate = fn;
 }
 
-export function avatarUrl(template, size) {
-  if (!template) {
-    return "";
-  }
-  const rawSize = getRawSize(translateSize(size));
-  return template.replace(/\{size\}/g, rawSize);
-}
-
-export function getRawSize(size) {
-  const pixelRatio = window.devicePixelRatio || 1;
-  let rawSize = 1;
-  if (pixelRatio > 1.1 && pixelRatio < 2.1) {
-    rawSize = 2;
-  } else if (pixelRatio >= 2.1) {
-    rawSize = 3;
-  }
-  return size * rawSize;
-}
-
-export function avatarImg(options, customGetURL) {
-  const size = translateSize(options.size);
-  let path = avatarUrl(options.avatarTemplate, size);
-
-  // We won't render an invalid url
-  if (!path || path.length === 0) {
-    return "";
-  }
-  path = (customGetURL || getURLWithCDN)(path);
-
-  const classes =
-    "avatar" + (options.extraClasses ? " " + options.extraClasses : "");
-
-  let title = "";
-  if (options.title) {
-    const escaped = escapeExpression(options.title || "");
-    title = ` title='${escaped}' aria-label='${escaped}'`;
-  }
-
-  return `<img alt='' width='${size}' height='${size}' src='${path}' class='${classes}'${title}>`;
-}
-
-export function tinyAvatar(avatarTemplate, options) {
-  return avatarImg(
-    deepMerge({ avatarTemplate: avatarTemplate, size: "tiny" }, options)
-  );
-}
-
 export function postUrl(slug, topicId, postNumber) {
   let url = getURL("/t/");
   if (slug) {
@@ -123,28 +78,40 @@ export function highlightPost(postNumber) {
   if (!container) {
     return;
   }
-  const element = container.querySelector(".topic-body");
-  if (!element || element.classList.contains("highlighted")) {
+
+  const element = container.querySelector(".topic-body, .small-action-desc");
+  if (!element) {
     return;
   }
 
-  element.classList.add("highlighted");
-
-  const removeHighlighted = function () {
-    element.classList.remove("highlighted");
-    element.removeEventListener("animationend", removeHighlighted);
-  };
-  element.addEventListener("animationend", removeHighlighted);
+  if (postNumber > 1) {
+    // Transport screenreader to correct post by focusing it
+    element.setAttribute("tabindex", "0");
+    element.addEventListener(
+      "focusin",
+      () => element.removeAttribute("tabindex"),
+      { once: true }
+    );
+    element.focus();
+  }
 }
 
 export function emailValid(email) {
   // see:  http://stackoverflow.com/questions/46155/validate-email-address-in-javascript
-  const re = /^[a-zA-Z0-9!#$%&'*+\/=?\^_`{|}~\-]+(?:\.[a-zA-Z0-9!#$%&'\*+\/=?\^_`{|}~\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?$/;
+  const re =
+    /^[a-zA-Z0-9!#$%&'*+\/=?\^_`{|}~\-]+(?:\.[a-zA-Z0-9!#$%&'\*+\/=?\^_`{|}~\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?$/;
   return re.test(email);
 }
 
+export function hostnameValid(hostname) {
+  // see:  https://stackoverflow.com/questions/106179/regular-expression-to-match-dns-hostname-or-ip-address
+  const re =
+    /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)+([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
+  return hostname && re.test(hostname);
+}
+
 export function extractDomainFromUrl(url) {
-  if (url.indexOf("://") > -1) {
+  if (url.includes("://")) {
     url = url.split("/")[2];
   } else {
     url = url.split("/")[0];
@@ -158,52 +125,64 @@ export function selectedText() {
     return "";
   }
 
-  const $div = $("<div>");
+  const div = document.createElement("div");
   for (let r = 0; r < selection.rangeCount; r++) {
     const range = selection.getRangeAt(r);
-    const $ancestor = $(range.commonAncestorContainer);
+    const ancestor =
+      range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+        ? range.commonAncestorContainer
+        : range.commonAncestorContainer.parentElement;
 
     // ensure we never quote text in the post menu area
-    const $postMenuArea = $ancestor.find(".post-menu-area")[0];
-    if ($postMenuArea) {
-      range.setEndBefore($postMenuArea);
+    const postMenuArea = ancestor.querySelector(".post-menu-area");
+    if (postMenuArea) {
+      range.setEndBefore(postMenuArea);
     }
 
-    const $oneboxTest = $ancestor.closest("aside.onebox[data-onebox-src]");
-    const $codeBlockTest = $ancestor.parents("pre");
-    if ($codeBlockTest.length) {
-      const $code = $("<code>");
-      $code.append(range.cloneContents());
+    const oneboxTest = ancestor.closest("aside.onebox[data-onebox-src]");
+    const codeBlockTest = ancestor.closest("pre");
+    if (codeBlockTest) {
+      const code = document.createElement("code");
+      code.append(range.cloneContents());
+
       // Even though this was a code block, produce a non-block quote if it's a single line.
-      if (/\n/.test($code.text())) {
-        const $pre = $("<pre>");
-        $pre.append($code);
-        $div.append($pre);
+      if (/\n/.test(code.innerText)) {
+        const pre = document.createElement("pre");
+        pre.append(code);
+        div.append(pre);
       } else {
-        $div.append($code);
+        div.append(code);
       }
-    } else if ($oneboxTest.length) {
+    } else if (oneboxTest) {
       // This is a partial quote from a onebox.
       // Treat it as though the entire onebox was quoted.
-      const oneboxUrl = $($oneboxTest).data("onebox-src");
-      $div.append(oneboxUrl);
+      div.append(oneboxTest.dataset.oneboxSrc);
     } else {
-      $div.append(range.cloneContents());
+      div.append(range.cloneContents());
     }
   }
 
-  $div.find("aside.onebox[data-onebox-src]").each(function () {
-    const oneboxUrl = $(this).data("onebox-src");
-    $(this).replaceWith(oneboxUrl);
+  div.querySelectorAll("aside.onebox[data-onebox-src]").forEach((element) => {
+    element.replaceWith(element.dataset.oneboxSrc);
   });
 
-  return toMarkdown($div.html());
+  div
+    .querySelectorAll("div.video-placeholder-container[data-video-src]")
+    .forEach((element) => {
+      element.replaceWith(`![|video](${element.dataset.videoSrc})`);
+    });
+
+  return toMarkdown(div.outerHTML);
 }
 
-export function selectedElement() {
+export function selectedNode() {
+  return selectedRange()?.commonAncestorContainer;
+}
+
+export function selectedRange() {
   const selection = window.getSelection();
   if (selection.rangeCount > 0) {
-    return selection.getRangeAt(0).commonAncestorContainer;
+    return selection.getRangeAt(0);
   }
 }
 
@@ -219,7 +198,7 @@ export function caretRowCol(el) {
       return sum + row.length + 1;
     }, 0);
 
-  return { rowNum: rowNum, colNum: colNum };
+  return { rowNum, colNum };
 }
 
 // Determine the position of the caret in an element
@@ -245,14 +224,10 @@ export function setCaretPosition(ctrl, pos) {
 }
 
 export function initializeDefaultHomepage(siteSettings) {
-  let homepage;
-  let sel = document.querySelector("meta[name='discourse_current_homepage']");
-  if (sel) {
-    homepage = sel.getAttribute("content");
-  }
-  if (!homepage) {
-    homepage = siteSettings.top_menu.split("|")[0].split(",")[0];
-  }
+  const sel = document.querySelector("meta[name='discourse_current_homepage']");
+  const homepage =
+    sel?.getAttribute("content") ||
+    siteSettings.top_menu.split("|")[0].split(",")[0];
   setDefaultHomepage(homepage);
 }
 
@@ -302,36 +277,32 @@ export function determinePostReplaceSelection({
 export function isAppleDevice() {
   // IE has no DOMNodeInserted so can not get this hack despite saying it is like iPhone
   // This will apply hack on all iDevices
-  let caps = helperContext().capabilities;
-  return caps.isIOS && !navigator.userAgent.match(/Trident/g);
+  let caps = capabilities;
+  return caps.isIOS && !window.navigator.userAgent.match(/Trident/g);
 }
 
 let iPadDetected = undefined;
 
-export function iOSWithVisualViewport() {
-  return isAppleDevice() && window.visualViewport !== undefined;
-}
-
 export function isiPad() {
   if (iPadDetected === undefined) {
     iPadDetected =
-      navigator.userAgent.match(/iPad/g) &&
-      !navigator.userAgent.match(/Trident/g);
+      window.navigator.userAgent.match(/iPad/g) &&
+      !window.navigator.userAgent.match(/Trident/g);
   }
   return iPadDetected;
 }
 
 export function safariHacksDisabled() {
-  if (iOSWithVisualViewport()) {
-    return false;
-  }
+  deprecated(
+    "`safariHacksDisabled()` is deprecated, it now always returns `false`",
+    {
+      since: "2.8.0.beta8",
+      dropFrom: "2.9.0.beta1",
+      id: "discourse.safari-hacks-disabled",
+    }
+  );
 
-  let pref = localStorage.getItem("safari-hacks-disabled");
-  let result = false;
-  if (pref !== null) {
-    result = pref === "true";
-  }
-  return result;
+  return false;
 }
 
 const toArray = (items) => {
@@ -342,6 +313,15 @@ const toArray = (items) => {
   }
 
   return items;
+};
+
+const gifInDisguise = (clipboard) => {
+  return (
+    clipboard.files.length === 1 &&
+    clipboard.files[0].type === "image/png" &&
+    clipboard.types.every((e) => ["text/html", "Files"].includes(e)) &&
+    /<img.*src=.*\.gif/.test(clipboard.getData("text/html"))
+  );
 };
 
 export function clipboardHelpers(e, opts) {
@@ -360,7 +340,9 @@ export function clipboardHelpers(e, opts) {
 
   let canUpload = files && opts.canUpload && types.includes("Files");
   const canUploadImage =
-    canUpload && files.filter((f) => f.type.match("^image/"))[0];
+    canUpload &&
+    files.filter((f) => f.type.match("^image/"))[0] &&
+    !gifInDisguise(clipboard);
   const canPasteHtml =
     opts.siteSettings.enable_rich_text_paste &&
     types.includes("text/html") &&
@@ -389,6 +371,24 @@ export function slugify(string) {
     .replace(/\-\-+/g, "-") // Replace multiple dashes with a single dash
     .replace(/^-+/, "") // Remove leading dashes
     .replace(/-+$/, ""); // Remove trailing dashes
+}
+
+export function unicodeSlugify(string) {
+  try {
+    return string
+      .trim()
+      .toLowerCase()
+      .normalize("NFD") // normalize the string to remove diacritics
+      .replace(/\s|_+/g, "-") // replace spaces and underscores with dashes
+      .replace(/[^\p{Letter}\d\-]+/gu, "") // Remove non-letter characters except for dashes
+      .replace(/--+/g, "-") // replace multiple dashes with a single dash
+      .replace(/^-+/, "") // Remove leading dashes
+      .replace(/-+$/, ""); // Remove trailing dashes
+  } catch {
+    // in case the regex construct \p{Letter} is not supported by the browser
+    // fall back to the basic slugify function
+    return slugify(string);
+  }
 }
 
 export function toNumber(input) {
@@ -423,25 +423,16 @@ export function areCookiesEnabled() {
   // see: https://github.com/Modernizr/Modernizr/blob/400db4043c22af98d46e1d2b9cbc5cb062791192/feature-detects/cookies.js
   try {
     document.cookie = "cookietest=1";
-    let ret = document.cookie.indexOf("cookietest=") !== -1;
+    let ret = document.cookie.includes("cookietest=");
     document.cookie = "cookietest=1; expires=Thu, 01-Jan-1970 00:00:01 GMT";
     return ret;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
 
-export function isiOSPWA() {
-  let caps = helperContext().capabilities;
-  return window.matchMedia("(display-mode: standalone)").matches && caps.isIOS;
-}
-
 export function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-export function isAppWebview() {
-  return window.ReactNativeWebView !== undefined;
 }
 
 export function postRNWebviewMessage(prop, value) {
@@ -450,53 +441,348 @@ export function postRNWebviewMessage(prop, value) {
   }
 }
 
-const CODE_BLOCKS_REGEX = /^(    |\t).*|`[^`]+`|^```[^]*?^```|\[code\][^]*?\[\/code\]/gm;
-//                        |      ^     |   ^   |      ^      |           ^           |
-//                               |         |          |                  |
-//                               |         |          |       code blocks between [code]
-//                               |         |          |
-//                               |         |          +--- code blocks between three backticks
-//                               |         |
-//                               |         +----- inline code between backticks
-//                               |
-//                               +------- paragraphs starting with 4 spaces or tab
-
-const OPEN_CODE_BLOCKS_REGEX = /`[^`]+|^```[^]*?|\[code\][^]*?/gm;
-
-export function inCodeBlock(text, pos) {
-  let end = 0;
-  for (const match of text.matchAll(CODE_BLOCKS_REGEX)) {
-    end = match.index + match[0].length;
-    if (match.index <= pos && pos <= end) {
-      return true;
+function pickMarker(text) {
+  // Uses the private use area (U+E000 to U+F8FF) to find a character that
+  // is not present in the text. This character will be used as a marker in
+  // place of the caret.
+  for (let code = 0xe000; code <= 0xf8ff; ++code) {
+    const char = String.fromCharCode(code);
+    if (!text.includes(char)) {
+      return char;
     }
   }
+  return null;
+}
 
-  // Character at position `pos` can be in a code block that is unfinished.
-  // To check this case, we look for any open code blocks after the last closed
-  // code block.
-  const lastOpenBlock = text.substr(end).search(OPEN_CODE_BLOCKS_REGEX);
-  return lastOpenBlock !== -1 && pos >= end + lastOpenBlock;
+function findToken(tokens, marker, level = 0) {
+  if (level > 50) {
+    return null;
+  }
+  const token = tokens.find((t) => (t.content ?? "").includes(marker));
+  return token?.children ? findToken(token.children, marker, level + 1) : token;
+}
+
+const CODE_MARKERS_REGEX = /    |```|~~~|[^`]`[^`]|\[code\]/;
+const CODE_TOKEN_TYPES = ["code_inline", "code_block", "fence"];
+
+export async function inCodeBlock(text, pos) {
+  if (!CODE_MARKERS_REGEX.test(text)) {
+    return false;
+  }
+
+  const marker = pickMarker(text);
+  if (!marker) {
+    return false;
+  }
+
+  const markedText = text.slice(0, pos) + marker + text.slice(pos);
+  const tokens = await parseAsync(markedText);
+  const type = findToken(tokens, marker)?.type;
+
+  return CODE_TOKEN_TYPES.includes(type);
 }
 
 export function translateModKey(string) {
-  const mac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-  // Mac users are used to glyphs for shortcut keys
-  if (mac) {
+  const { isApple } = capabilities;
+  // Apple device users are used to glyphs for shortcut keys
+  if (isApple) {
     string = string
-      .replace("Shift", "\u21E7")
-      .replace("Meta", "\u2318")
-      .replace("Alt", "\u2325")
+      .toLowerCase()
+      .replace("shift", "\u21E7")
+      .replace("meta", "\u2318")
+      .replace("alt", "\u2325")
       .replace(/\+/g, "");
   } else {
     string = string
-      .replace("Shift", I18n.t("shortcut_modifier_key.shift"))
-      .replace("Ctrl", I18n.t("shortcut_modifier_key.ctrl"))
-      .replace("Meta", I18n.t("shortcut_modifier_key.ctrl"))
-      .replace("Alt", I18n.t("shortcut_modifier_key.alt"));
+      .toLowerCase()
+      .replace("shift", i18n("shortcut_modifier_key.shift"))
+      .replace("ctrl", i18n("shortcut_modifier_key.ctrl"))
+      .replace("meta", i18n("shortcut_modifier_key.ctrl"))
+      .replace("alt", i18n("shortcut_modifier_key.alt"));
   }
 
   return string;
 }
-// This prevents a mini racer crash
-export default {};
+
+// Use this version of clipboardCopy if you already have the text to
+// be copied in memory, and you do not need to make an AJAX call to
+// the API to generate any text. See clipboardCopyAsync for the latter.
+export function clipboardCopy(text) {
+  // Use the Async Clipboard API when available.
+  // Requires a secure browsing context (i.e. HTTPS)
+  if (window.navigator.clipboard) {
+    return window.navigator.clipboard.writeText(text).catch(function (err) {
+      throw err !== undefined
+        ? err
+        : new DOMException("The request is not allowed", "NotAllowedError");
+    });
+  }
+
+  // ...Otherwise, use document.execCommand() fallback
+  if (clipboardCopyFallback(text)) {
+    return Promise.resolve();
+  } else {
+    return Promise.reject();
+  }
+}
+
+// Use this version of clipboardCopy if you must use an AJAX call
+// to retrieve/generate server-side text to copy to the clipboard,
+// otherwise this write function will error in certain browsers, because
+// the time taken from the user event to the clipboard text being copied
+// will be too long.
+//
+// Note that the promise passed in should return a Blob with type of
+// text/plain.
+export function clipboardCopyAsync(functionReturningPromise) {
+  // Use the Async Clipboard API when available.
+  // Requires a secure browsing context (i.e. HTTPS)
+  if (window.navigator.clipboard) {
+    // Firefox does not support window.ClipboardItem yet (it is behind
+    // a flag (dom.events.asyncClipboard.clipboardItem) as at version 87.)
+    // so we need to fall back to the normal non-async clipboard copy, that
+    // works in every browser except Safari.
+    //
+    // TODO: (martin) Look at this on 2022-07-01 to see if support has
+    // changed.
+    if (!window.ClipboardItem) {
+      return functionReturningPromise().then((textBlob) => {
+        return textBlob.text().then((text) => {
+          return clipboardCopy(text);
+        });
+      });
+    }
+
+    return window.navigator.clipboard
+      .write([
+        new window.ClipboardItem({ "text/plain": functionReturningPromise() }),
+      ])
+      .catch(function (err) {
+        throw err !== undefined
+          ? err
+          : new DOMException("The request is not allowed", "NotAllowedError");
+      });
+  }
+
+  // ...Otherwise, use document.execCommand() fallback
+  return functionReturningPromise().then((textBlob) => {
+    textBlob.text().then((text) => {
+      return clipboardCopyFallback(text);
+    });
+  });
+}
+
+function clipboardCopyFallback(text) {
+  // Put the text to copy into a <span>
+  const span = document.createElement("span");
+  span.textContent = text;
+
+  // Preserve consecutive spaces and newlines
+  span.style.whiteSpace = "pre";
+
+  // Add the <span> to the page
+  document.body.appendChild(span);
+
+  // Make a selection object representing the range of text selected by the user
+  const selection = window.getSelection();
+  const range = window.document.createRange();
+  selection.removeAllRanges();
+  range.selectNode(span);
+  selection.addRange(range);
+
+  // Copy text to the clipboard
+  let success = false;
+  try {
+    success = window.document.execCommand("copy");
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.log("error", err);
+  }
+
+  // Cleanup
+  selection.removeAllRanges();
+  window.document.body.removeChild(span);
+  return success;
+}
+
+// this function takes 2 sorted lists and returns another sorted list that
+// contains both of the original lists.
+// you need to provide a callback as the 3rd argument that will be called with
+// an item from the first list (1st callback argument) and another item from
+// the second list (2nd callback argument). The callback should return true if
+// its 2nd argument should go before its 1st argument and return false
+// otherwise.
+export function mergeSortedLists(list1, list2, comparator) {
+  let index1 = 0;
+  let index2 = 0;
+  const merged = [];
+  while (index1 < list1.length || index2 < list2.length) {
+    if (
+      index1 === list1.length ||
+      (index2 < list2.length && comparator(list1[index1], list2[index2]))
+    ) {
+      merged.push(list2[index2]);
+      index2++;
+    } else {
+      merged.push(list1[index1]);
+      index1++;
+    }
+  }
+  return merged;
+}
+
+export function getCaretPosition(element, options) {
+  const jqueryElement = $(element);
+  const position = jqueryElement.caretPosition(options);
+
+  // Get the position of the textarea on the page
+  const textareaRect = element.getBoundingClientRect();
+
+  // Calculate the x and y coordinates by adding the element's position
+  const adjustedPosition = {
+    x: position.left + textareaRect.left,
+    y: position.top + textareaRect.top,
+  };
+
+  return adjustedPosition;
+}
+
+/**
+ * Generate markdown table from an array of objects
+ * Inspired by https://github.com/Ygilany/array-to-table
+ *
+ * @param  {Array<Record<string, string | undefined>>}          array       Array of objects
+ * @param  {String[]}                                           columns     Column headings
+ * @param  {String}                                             colPrefix   Table column prefix
+ * @param  {("left" | "center" | "right" | null)[] | undefined} alignments  Table alignments
+ *
+ * @return {String} Markdown table
+ */
+export function arrayToTable(array, cols, colPrefix = "col", alignments) {
+  let table = "";
+
+  // Generate table headers
+  table += "|";
+  table += cols.join(" | ");
+  table += "|\n|";
+
+  const alignMap = {
+    left: ":--",
+    center: ":-:",
+    right: "--:",
+  };
+
+  // Generate table header separator
+  table += cols
+    .map((_, index) => alignMap[String(alignments?.[index])] || "---")
+    .join(" | ");
+  table += "|\n";
+
+  // Generate table body
+  array.forEach(function (item) {
+    table += "|";
+
+    table +=
+      cols
+        .map(function (_key, index) {
+          return String(item[`${colPrefix}${index}`] || "")
+            .replace(/\r?\n|\r/g, " ")
+            .replaceAll("|", "\\|");
+        })
+        .join(" | ") + "|\n";
+  });
+
+  return table;
+}
+
+/**
+ *
+ * @returns a regular expression finding all markdown tables
+ */
+export function findTableRegex() {
+  return /((\r?){2}|^)(^\|[^\r\n]*(\r?\n)?)+(?=(\r?\n){2}|$)/gm;
+}
+
+export function tokenRange(tokens, start, end) {
+  const contents = [];
+  let startPushing = false;
+  let items = [];
+
+  tokens.forEach((token) => {
+    if (token.type === start) {
+      startPushing = true;
+    }
+
+    if (token.type === end) {
+      contents.push(items);
+      items = [];
+      startPushing = false;
+    }
+
+    if (startPushing) {
+      items.push(token);
+    }
+  });
+
+  return contents;
+}
+
+export function allowOnlyNumericInput(event, allowNegative = false) {
+  const ALLOWED_KEYS = [
+    "Enter",
+    "Backspace",
+    "Tab",
+    "Delete",
+    "ArrowLeft",
+    "ArrowUp",
+    "ArrowRight",
+    "ArrowDown",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+  ];
+
+  if (!ALLOWED_KEYS.includes(event.key)) {
+    if (allowNegative && event.key === "-") {
+      return;
+    } else {
+      event.preventDefault();
+    }
+  }
+}
+
+export function cleanNullQueryParams(params) {
+  for (const [key, val] of Object.entries(params)) {
+    if (val === "undefined" || val === "null") {
+      params[key] = null;
+    }
+  }
+  return params;
+}
+
+export function getElement(node) {
+  return node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+}
+
+export function isPrimaryTab() {
+  return new Promise((resolve) => {
+    if (capabilities.supportsServiceWorker) {
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        resolve(event.data.primaryTab);
+      });
+
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.active.postMessage({ action: "primaryTab" });
+      });
+    } else {
+      resolve(true);
+    }
+  });
+}

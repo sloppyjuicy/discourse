@@ -1,6 +1,6 @@
-import User from "discourse/models/user";
 import { h } from "virtual-dom";
-import { renderIcon } from "discourse-common/lib/icon-library";
+import { renderIcon } from "discourse/lib/icon-library";
+import User from "discourse/models/user";
 
 const _decorators = [];
 
@@ -10,7 +10,9 @@ export function addFeaturedLinkMetaDecorator(decorator) {
 
 export function extractLinkMeta(topic) {
   const href = topic.get("featured_link");
-  const target = User.currentProp("external_links_in_new_tab") ? "_blank" : "";
+  const target = User.currentProp("user_option.external_links_in_new_tab")
+    ? "_blank"
+    : "";
   const domain = topic.get("featured_link_root_domain");
   let allowList = topic.siteSettings.exclude_rel_nofollow_domains;
   let rel = "nofollow ugc";
@@ -27,10 +29,10 @@ export function extractLinkMeta(topic) {
   }
 
   const meta = {
-    target: target,
+    target,
     href,
-    domain: domain,
-    rel: rel,
+    domain,
+    rel,
   };
 
   if (_decorators.length) {
@@ -45,13 +47,14 @@ export default function renderTopicFeaturedLink(topic) {
   if (meta) {
     return `<a class="topic-featured-link" rel="${meta.rel}" target="${
       meta.target
-    }" href="${meta.href}">${renderIcon("string", "external-link-alt")} ${
+    }" href="${meta.href}">${renderIcon("string", "up-right-from-square")} ${
       meta.domain
     }</a>`;
   } else {
     return "";
   }
 }
+// deprecated per components/header/topic/featured-link.gjs
 export function topicFeaturedLinkNode(topic) {
   const meta = extractLinkMeta(topic);
   if (meta) {
@@ -60,7 +63,7 @@ export function topicFeaturedLinkNode(topic) {
       {
         attributes: { href: meta.href, rel: meta.rel, target: meta.target },
       },
-      [renderIcon("node", "external-link-alt"), meta.domain]
+      [renderIcon("node", "up-right-from-square"), meta.domain]
     );
   }
 }

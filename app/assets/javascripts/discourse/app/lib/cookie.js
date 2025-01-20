@@ -1,9 +1,9 @@
-import deprecated from "discourse-common/lib/deprecated";
+import deprecated from "discourse/lib/deprecated";
 
 const pluses = /\+/g;
 
 function parseCookieValue(s) {
-  if (s.indexOf('"') === 0) {
+  if (s.startsWith('"')) {
     // This is a quoted cookie as according to RFC2068, unescape...
     s = s.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
   }
@@ -14,13 +14,13 @@ function parseCookieValue(s) {
     // If we can't parse the cookie, ignore it, it's unusable.
     s = decodeURIComponent(s.replace(pluses, " "));
     return s;
-  } catch (e) {}
+  } catch {}
 }
 
 function cookie(key, value, options) {
   // Write
   if (value !== undefined) {
-    options = Object.assign({}, options || {});
+    options = { ...(options || {}) };
 
     if (typeof options.expires === "number") {
       let days = options.expires,
@@ -36,6 +36,7 @@ function cookie(key, value, options) {
       options.path ? "; path=" + options.path : "",
       options.domain ? "; domain=" + options.domain : "",
       options.secure ? "; secure" : "",
+      ";samesite=Lax",
     ].join(""));
   }
 
@@ -71,12 +72,16 @@ export function removeCookie(key, options) {
   }
 
   // Must not alter options, thus extending a fresh object...
-  cookie(key, "", Object.assign({}, options || {}, { expires: -1 }));
+  cookie(key, "", { ...(options || {}), expires: -1 });
   return !cookie(key);
 }
 
 if (window && window.$) {
-  const depOpts = { since: "2.6.0", dropFrom: "2.7.0" };
+  const depOpts = {
+    since: "2.6.0",
+    dropFrom: "2.7.0",
+    id: "discourse.jquery-cookie",
+  };
   window.$.cookie = function () {
     deprecated(
       "$.cookie is being removed from Discourse. Please import our cookie module and use that instead.",

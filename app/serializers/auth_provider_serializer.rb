@@ -1,9 +1,14 @@
 # frozen_string_literal: true
 
 class AuthProviderSerializer < ApplicationSerializer
-
-  attributes :name, :custom_url, :pretty_name_override, :title_override,
-             :frame_width, :frame_height, :can_connect, :can_revoke,
+  attributes :name,
+             :custom_url,
+             :pretty_name_override,
+             :title_override,
+             :frame_width,
+             :frame_height,
+             :can_connect,
+             :can_revoke,
              :icon
 
   def title_override
@@ -16,4 +21,8 @@ class AuthProviderSerializer < ApplicationSerializer
     object.pretty_name
   end
 
+  def custom_url
+    # ensures that the "/custom" route doesn't trigger the magic custom_url helper in ActionDispatch
+    object.custom_url
+  end
 end

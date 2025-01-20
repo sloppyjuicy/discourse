@@ -8,14 +8,11 @@ class ThreadDetective
   def self.test_thread
     Thread.new { sleep 1 }
   end
-  def self.start(max_threads)
-    @thread ||= Thread.new do
-      self.new.monitor(max_threads)
-    end
 
-    @trace = TracePoint.new(:thread_begin) do |tp|
-      Thread.current.origin = Thread.current.inspect
-    end
+  def self.start(max_threads)
+    @thread ||= Thread.new { self.new.monitor(max_threads) }
+
+    @trace = TracePoint.new(:thread_begin) { |tp| Thread.current.origin = Thread.current.inspect }
     @trace.enable
   end
 
@@ -52,5 +49,4 @@ class ThreadDetective
       sleep 1
     end
   end
-
 end

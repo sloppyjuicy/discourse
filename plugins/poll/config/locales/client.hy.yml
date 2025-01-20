@@ -26,7 +26,7 @@ hy:
         label: "Քվեարկեք հիմա !"
       show-results:
         title: "Ցուցադրել հարցման արդյունքները"
-        label: "Ցուցադրել արդյունքները"
+        label: "Արդյունքները"
       hide-results:
         title: "Վերադառնալ դեպի Ձեր քվեները"
       export-results:
@@ -44,6 +44,10 @@ hy:
         age: "Փակված է՝ <strong>%{age}</strong>"
       breakdown:
         count: "Քանակ"
+      ranked_choice:
+        none: "Ոչ մի"
+      options:
+        label: "Տարբերակներ"
       error_while_toggling_status: "Ներողություն, այս հարցման կարգավիճակը փոխելիս տեղի է ունեցել սխալ:"
       error_while_casting_votes: "Ներողություն, Ձեր քվեարկելիս տեղի է ունեցել սխալ:"
       error_while_fetching_voters: "Ներողություն, քվեարկողներին ցուցադրելիս տեղի է ունեցել սխալ:"
@@ -66,3 +70,5 @@ hy:
           label: Ցուցադրել քվեարկողներին
         automatic_close:
           label: Ավտոմատ կերպով փակել հարցումը
+        show_advanced: "Ցույց տալ Ընդլայնված Տարբերակները"
+        hide_advanced: "Թաքցնել Ընդլայնված Տարբերակները"

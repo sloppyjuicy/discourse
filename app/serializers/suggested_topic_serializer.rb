@@ -7,10 +7,15 @@ class SuggestedTopicSerializer < ListableTopicSerializer
   # front page json gets away without embedding
   class SuggestedPosterSerializer < ApplicationSerializer
     attributes :extras, :description
-    has_one :user, serializer: BasicUserSerializer, embed: :objects
+    has_one :user, serializer: PosterSerializer, embed: :objects
   end
 
-  attributes :archetype, :like_count, :views, :category_id, :featured_link, :featured_link_root_domain
+  attributes :archetype,
+             :like_count,
+             :views,
+             :category_id,
+             :featured_link,
+             :featured_link_root_domain
   has_many :posters, serializer: SuggestedPosterSerializer, embed: :objects
 
   def posters

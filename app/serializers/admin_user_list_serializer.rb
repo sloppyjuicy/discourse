@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class AdminUserListSerializer < BasicUserSerializer
-
   attributes :email,
              :secondary_emails,
              :active,
@@ -15,7 +14,6 @@ class AdminUserListSerializer < BasicUserSerializer
              :created_at_age,
              :trust_level,
              :manual_locked_trust_level,
-             :flag_level,
              :username,
              :title,
              :avatar_template,
@@ -26,9 +24,11 @@ class AdminUserListSerializer < BasicUserSerializer
              :silenced_till,
              :time_read,
              :staged,
-             :second_factor_enabled
+             :second_factor_enabled,
+             :can_be_deleted,
+             :silence_reason
 
-  [:days_visited, :posts_read_count, :topics_entered, :post_count].each do |sym|
+  %i[days_visited posts_read_count topics_entered post_count].each do |sym|
     attributes sym
     define_method sym do
       object.user_stat.public_send(sym)
@@ -106,8 +106,7 @@ class AdminUserListSerializer < BasicUserSerializer
   end
 
   def include_second_factor_enabled?
-    !SiteSetting.enable_discourse_connect &&
-      SiteSetting.enable_local_logins &&
+    !SiteSetting.enable_discourse_connect && SiteSetting.enable_local_logins &&
       object.has_any_second_factor_methods_enabled?
   end
 
@@ -115,4 +114,15 @@ class AdminUserListSerializer < BasicUserSerializer
     true
   end
 
+  def can_be_deleted
+    scope.can_delete_user?(object)
+  end
+
+  def include_can_be_deleted?
+    @options[:include_can_be_deleted]
+  end
+
+  def include_silence_reason?
+    @options[:include_silence_reason]
+  end
 end

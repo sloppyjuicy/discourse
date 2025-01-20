@@ -27,7 +27,7 @@
 
     .select-kit-header {
       background: var(--secondary);
-      border-color: var(--primary-medium);
+      border-color: var(--primary-400);
 
       &.is-focused {
         @include default-focus;
@@ -44,7 +44,7 @@
         a {
           white-space: nowrap;
           color: var(--primary);
-          line-height: $line-height-medium;
+          line-height: var(--line-height-medium);
           font-weight: bold;
           display: block;
           padding: 0.75em;

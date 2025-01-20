@@ -1,17 +1,18 @@
+import { service } from "@ember/service";
 import DiscourseRoute from "discourse/routes/discourse";
-import I18n from "I18n";
+import { i18n } from "discourse-i18n";
 
-export default DiscourseRoute.extend({
-  showFooter: true,
+export default class GroupManageEmail extends DiscourseRoute {
+  @service router;
 
   beforeModel() {
     // cannot configure IMAP without SMTP being enabled
     if (!this.siteSettings.enable_smtp) {
-      return this.transitionTo("group.manage.profile");
+      return this.router.transitionTo("group.manage.profile");
     }
-  },
+  }
 
   titleToken() {
-    return I18n.t("groups.manage.email.title");
-  },
-});
+    return i18n("groups.manage.email.title");
+  }
+}

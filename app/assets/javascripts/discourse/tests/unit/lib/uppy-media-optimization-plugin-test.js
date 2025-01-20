@@ -1,18 +1,20 @@
-import UppyMediaOptimization from "discourse/lib/uppy-media-optimization-plugin";
+import { setupTest } from "ember-qunit";
 import { module, test } from "qunit";
-import { Promise } from "rsvp";
+import UppyMediaOptimization from "discourse/lib/uppy-media-optimization-plugin";
 
 class FakeUppy {
   constructor() {
     this.preprocessors = [];
     this.emitted = [];
     this.files = {
-      "uppy-test/file/vv2/xvejg5w/blah/jpg-1d-1d-2v-1d-1e-image/jpeg-9043429-1624921727764": {
-        data: "old file state",
-      },
-      "uppy-test/file/blah1/ads37x2/blah1/jpg-1d-1d-2v-1d-1e-image/jpeg-99999-1837921727764": {
-        data: "old file state 1",
-      },
+      "uppy-test/file/vv2/xvejg5w/blah/jpg-1d-1d-2v-1d-1e-image/jpeg-9043429-1624921727764":
+        {
+          data: "old file state",
+        },
+      "uppy-test/file/blah1/ads37x2/blah1/jpg-1d-1d-2v-1d-1e-image/jpeg-99999-1837921727764":
+        {
+          data: "old file state 1",
+        },
     };
   }
 
@@ -33,7 +35,9 @@ class FakeUppy {
   }
 }
 
-module("Unit | Utility | UppyMediaOptimization Plugin", function () {
+module("Unit | Utility | UppyMediaOptimization Plugin", function (hooks) {
+  setupTest(hooks);
+
   test("sets the options passed in", function (assert) {
     const fakeUppy = new FakeUppy();
     const plugin = new UppyMediaOptimization(fakeUppy, {
@@ -42,9 +46,9 @@ module("Unit | Utility | UppyMediaOptimization Plugin", function () {
         return "wow such optimized";
       },
     });
-    assert.equal(plugin.id, "uppy-media-optimization");
-    assert.equal(plugin.runParallel, true);
-    assert.equal(plugin.optimizeFn(), "wow such optimized");
+    assert.strictEqual(plugin.id, "uppy-media-optimization");
+    assert.true(plugin.runParallel);
+    assert.strictEqual(plugin.optimizeFn(), "wow such optimized");
   });
 
   test("installation uses the correct function", function (assert) {
@@ -52,27 +56,28 @@ module("Unit | Utility | UppyMediaOptimization Plugin", function () {
     const plugin = new UppyMediaOptimization(fakeUppy, {
       runParallel: true,
     });
-    plugin._optimizeParallel = function () {
-      return "using parallel";
-    };
-    plugin._optimizeSerial = function () {
-      return "using serial";
-    };
+
+    Object.defineProperty(plugin, "_optimizeParallel", {
+      value: () => "using parallel",
+    });
+
+    Object.defineProperty(plugin, "_optimizeSerial", {
+      value: () => "using serial",
+    });
+
     plugin.install();
-    assert.equal(plugin.uppy.preprocessors[0](), "using parallel");
+    assert.strictEqual(plugin.uppy.preprocessors[0](), "using parallel");
     plugin.runParallel = false;
     plugin.uppy.preprocessors = [];
     plugin.install();
-    assert.equal(plugin.uppy.preprocessors[0](), "using serial");
+    assert.strictEqual(plugin.uppy.preprocessors[0](), "using serial");
   });
 
   test("sets the file state when successfully optimizing the file and emits events", function (assert) {
     const fakeUppy = new FakeUppy();
     const plugin = new UppyMediaOptimization(fakeUppy, {
       runParallel: true,
-      optimizeFn: () => {
-        return Promise.resolve("new file state");
-      },
+      optimizeFn: async () => "new file state",
     });
     plugin.install();
     const done = assert.async();
@@ -80,9 +85,9 @@ module("Unit | Utility | UppyMediaOptimization Plugin", function () {
       "uppy-test/file/vv2/xvejg5w/blah/jpg-1d-1d-2v-1d-1e-image/jpeg-9043429-1624921727764";
 
     plugin.uppy.preprocessors[0]([fileId]).then(() => {
-      assert.equal(plugin.uppy.emitted[0].event, "preprocess-progress");
-      assert.equal(plugin.uppy.emitted[1].event, "preprocess-complete");
-      assert.equal(plugin.uppy.getFile(fileId).data, "new file state");
+      assert.strictEqual(plugin.uppy.emitted[0].event, "preprocess-progress");
+      assert.strictEqual(plugin.uppy.emitted[1].event, "preprocess-complete");
+      assert.strictEqual(plugin.uppy.getFile(fileId).data, "new file state");
       done();
     });
   });
@@ -91,10 +96,8 @@ module("Unit | Utility | UppyMediaOptimization Plugin", function () {
     const fakeUppy = new FakeUppy();
     const plugin = new UppyMediaOptimization(fakeUppy, {
       runParallel: true,
-      optimizeFn: () => {
-        return new Promise(() => {
-          throw new Error("bad stuff");
-        });
+      optimizeFn: async () => {
+        throw new Error("bad stuff");
       },
     });
     plugin.install();
@@ -103,9 +106,9 @@ module("Unit | Utility | UppyMediaOptimization Plugin", function () {
       "uppy-test/file/vv2/xvejg5w/blah/jpg-1d-1d-2v-1d-1e-image/jpeg-9043429-1624921727764";
 
     plugin.uppy.preprocessors[0]([fileId]).then(() => {
-      assert.equal(plugin.uppy.emitted[0].event, "preprocess-progress");
-      assert.equal(plugin.uppy.emitted[1].event, "preprocess-complete");
-      assert.equal(plugin.uppy.getFile(fileId).data, "old file state");
+      assert.strictEqual(plugin.uppy.emitted[0].event, "preprocess-progress");
+      assert.strictEqual(plugin.uppy.emitted[1].event, "preprocess-complete");
+      assert.strictEqual(plugin.uppy.getFile(fileId).data, "old file state");
       done();
     });
   });
@@ -114,9 +117,7 @@ module("Unit | Utility | UppyMediaOptimization Plugin", function () {
     const fakeUppy = new FakeUppy();
     const plugin = new UppyMediaOptimization(fakeUppy, {
       runParallel: false,
-      optimizeFn: () => {
-        return Promise.resolve("new file state");
-      },
+      optimizeFn: async () => "new file state",
     });
     plugin.install();
     const done = assert.async();
@@ -126,12 +127,18 @@ module("Unit | Utility | UppyMediaOptimization Plugin", function () {
     ];
 
     plugin.uppy.preprocessors[0](fileIds).then(() => {
-      assert.equal(plugin.uppy.emitted[0].event, "preprocess-progress");
-      assert.equal(plugin.uppy.emitted[1].event, "preprocess-complete");
-      assert.equal(plugin.uppy.emitted[2].event, "preprocess-progress");
-      assert.equal(plugin.uppy.emitted[3].event, "preprocess-complete");
-      assert.equal(plugin.uppy.getFile(fileIds[0]).data, "new file state");
-      assert.equal(plugin.uppy.getFile(fileIds[1]).data, "new file state");
+      assert.strictEqual(plugin.uppy.emitted[0].event, "preprocess-progress");
+      assert.strictEqual(plugin.uppy.emitted[1].event, "preprocess-complete");
+      assert.strictEqual(plugin.uppy.emitted[2].event, "preprocess-progress");
+      assert.strictEqual(plugin.uppy.emitted[3].event, "preprocess-complete");
+      assert.strictEqual(
+        plugin.uppy.getFile(fileIds[0]).data,
+        "new file state"
+      );
+      assert.strictEqual(
+        plugin.uppy.getFile(fileIds[1]).data,
+        "new file state"
+      );
       done();
     });
   });
@@ -140,9 +147,7 @@ module("Unit | Utility | UppyMediaOptimization Plugin", function () {
     const fakeUppy = new FakeUppy();
     const plugin = new UppyMediaOptimization(fakeUppy, {
       runParallel: true,
-      optimizeFn: () => {
-        return Promise.resolve("new file state");
-      },
+      optimizeFn: async () => "new file state",
     });
     plugin.install();
     const done = assert.async();
@@ -152,12 +157,18 @@ module("Unit | Utility | UppyMediaOptimization Plugin", function () {
     ];
 
     plugin.uppy.preprocessors[0](fileIds).then(() => {
-      assert.equal(plugin.uppy.emitted[0].event, "preprocess-progress");
-      assert.equal(plugin.uppy.emitted[1].event, "preprocess-progress");
-      assert.equal(plugin.uppy.emitted[2].event, "preprocess-complete");
-      assert.equal(plugin.uppy.emitted[3].event, "preprocess-complete");
-      assert.equal(plugin.uppy.getFile(fileIds[0]).data, "new file state");
-      assert.equal(plugin.uppy.getFile(fileIds[1]).data, "new file state");
+      assert.strictEqual(plugin.uppy.emitted[0].event, "preprocess-progress");
+      assert.strictEqual(plugin.uppy.emitted[1].event, "preprocess-progress");
+      assert.strictEqual(plugin.uppy.emitted[2].event, "preprocess-complete");
+      assert.strictEqual(plugin.uppy.emitted[3].event, "preprocess-complete");
+      assert.strictEqual(
+        plugin.uppy.getFile(fileIds[0]).data,
+        "new file state"
+      );
+      assert.strictEqual(
+        plugin.uppy.getFile(fileIds[1]).data,
+        "new file state"
+      );
       done();
     });
   });

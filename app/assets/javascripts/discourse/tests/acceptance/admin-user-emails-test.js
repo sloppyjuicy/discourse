@@ -1,34 +1,29 @@
-import { acceptance, queryAll } from "discourse/tests/helpers/qunit-helpers";
 import { click, visit } from "@ember/test-helpers";
-import I18n from "I18n";
 import { test } from "qunit";
+import { acceptance } from "discourse/tests/helpers/qunit-helpers";
+import { i18n } from "discourse-i18n";
 
 function assertNoSecondary(assert) {
-  assert.equal(
-    queryAll(".display-row.email .value a").text(),
-    "eviltrout@example.com",
-    "it should display the primary email"
-  );
+  assert
+    .dom(".display-row.email .value a")
+    .hasText("eviltrout@example.com", "displays the primary email");
 
-  assert.equal(
-    queryAll(".display-row.secondary-emails .value").text().trim(),
-    I18n.t("user.email.no_secondary"),
-    "it should not display secondary emails"
-  );
+  assert
+    .dom(".display-row.secondary-emails .value")
+    .hasText(
+      i18n("user.email.no_secondary"),
+      "does not display secondary emails"
+    );
 }
 
 function assertMultipleSecondary(assert, firstEmail, secondEmail) {
-  assert.equal(
-    queryAll(".display-row.secondary-emails .value li:first-of-type a").text(),
-    firstEmail,
-    "it should display the first secondary email"
-  );
+  assert
+    .dom(".display-row.secondary-emails .value li:first-of-type a")
+    .hasText(firstEmail, "displays the first secondary email");
 
-  assert.equal(
-    queryAll(".display-row.secondary-emails .value li:last-of-type a").text(),
-    secondEmail,
-    "it should display the second secondary email"
-  );
+  assert
+    .dom(".display-row.secondary-emails .value li:last-of-type a")
+    .hasText(secondEmail, "displays the second secondary email");
 }
 
 acceptance("Admin - User Emails", function (needs) {
@@ -43,11 +38,9 @@ acceptance("Admin - User Emails", function (needs) {
   test("viewing self with multiple secondary emails", async function (assert) {
     await visit("/admin/users/3/markvanlan");
 
-    assert.equal(
-      queryAll(".display-row.email .value a").text(),
-      "markvanlan@example.com",
-      "it should display the user's primary email"
-    );
+    assert
+      .dom(".display-row.email .value a")
+      .hasText("markvanlan@example.com", "displays the user's primary email");
 
     assertMultipleSecondary(
       assert,

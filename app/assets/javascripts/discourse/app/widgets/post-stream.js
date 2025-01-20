@@ -1,16 +1,19 @@
-import DiscourseURL from "discourse/lib/url";
-import I18n from "I18n";
-import { Placeholder } from "discourse/lib/posts-with-placeholders";
-import { addWidgetCleanCallback } from "discourse/components/mount-widget";
-import { avatarFor } from "discourse/widgets/post";
-import { createWidget } from "discourse/widgets/widget";
-import discourseDebounce from "discourse-common/lib/debounce";
+import { hbs } from "ember-cli-htmlbars";
+import $ from "jquery";
 import { h } from "virtual-dom";
-import { iconNode } from "discourse-common/lib/icon-library";
-import { isTesting } from "discourse-common/config/environment";
+import { addWidgetCleanCallback } from "discourse/components/mount-widget";
+import discourseDebounce from "discourse/lib/debounce";
+import { iconNode } from "discourse/lib/icon-library";
+import { Placeholder } from "discourse/lib/posts-with-placeholders";
 import transformPost from "discourse/lib/transform-post";
+import DiscourseURL from "discourse/lib/url";
+import { avatarFor } from "discourse/widgets/post";
+import RenderGlimmer from "discourse/widgets/render-glimmer";
+import { createWidget } from "discourse/widgets/widget";
+import { i18n } from "discourse-i18n";
 
 let transformCallbacks = null;
+
 export function postTransformCallbacks(transformed) {
   if (transformCallbacks === null) {
     return;
@@ -20,24 +23,29 @@ export function postTransformCallbacks(transformed) {
     transformCallbacks[i].call(this, transformed);
   }
 }
+
 export function addPostTransformCallback(callback) {
   transformCallbacks = transformCallbacks || [];
   transformCallbacks.push(callback);
 }
 
-const CLOAKING_ENABLED = !isTesting();
+let _enabled = true;
 const DAY = 1000 * 60 * 60 * 24;
 
 const _dontCloak = {};
 let _cloaked = {};
 let _heights = {};
 
+export function disableCloaking() {
+  _enabled = false;
+}
+
 export function preventCloak(postId) {
   _dontCloak[postId] = true;
 }
 
 export function cloak(post, component) {
-  if (!CLOAKING_ENABLED || _cloaked[post.id] || _dontCloak[post.id]) {
+  if (!_enabled || _cloaked[post.id] || _dontCloak[post.id]) {
     return;
   }
 
@@ -50,7 +58,7 @@ export function cloak(post, component) {
 }
 
 export function uncloak(post, component) {
-  if (!CLOAKING_ENABLED || !_cloaked[post.id]) {
+  if (!_enabled || !_cloaked[post.id]) {
     return;
   }
   _cloaked[post.id] = null;
@@ -77,7 +85,7 @@ createWidget("posts-filtered-notice", {
       return [
         h(
           "span.filtered-replies-viewing",
-          I18n.t("post.filtered_replies.viewing_subset")
+          i18n("post.filtered_replies.viewing_subset")
         ),
         this.attach("filter-show-all", attrs),
       ];
@@ -90,7 +98,7 @@ createWidget("posts-filtered-notice", {
       return [
         h(
           "span.filtered-replies-viewing",
-          I18n.t("post.filtered_replies_viewing", {
+          i18n("post.filtered_replies_viewing", {
             count: sourcePost.reply_count,
           })
         ),
@@ -114,7 +122,7 @@ createWidget("posts-filtered-notice", {
       return [
         h(
           "span.filtered-replies-viewing",
-          I18n.t("post.filtered_replies.viewing_summary")
+          i18n("post.filtered_replies.viewing_summary")
         ),
         this.attach("filter-show-all", attrs),
       ];
@@ -124,7 +132,7 @@ createWidget("posts-filtered-notice", {
       return [
         h(
           "span.filtered-replies-viewing",
-          I18n.t("post.filtered_replies.viewing_posts_by", {
+          i18n("post.filtered_replies.viewing_posts_by", {
             post_count: userPostsCount,
           })
         ),
@@ -150,7 +158,7 @@ createWidget("filter-jump-to-post", {
   buildKey: (attrs) => `jump-to-post-${attrs.id}`,
 
   html(attrs) {
-    return I18n.t("post.filtered_replies.post_number", {
+    return i18n("post.filtered_replies.post_number", {
       username: attrs.username,
       post_number: attrs.postNumber,
     });
@@ -170,7 +178,7 @@ createWidget("filter-show-all", {
   },
 
   html() {
-    return [iconNode("arrows-alt-v"), I18n.t("post.filtered_replies.show_all")];
+    return [iconNode("up-down"), i18n("post.filtered_replies.show_all")];
   },
 
   click() {
@@ -189,7 +197,8 @@ export default createWidget("post-stream", {
     const posts = attrs.posts || [];
     const postArray = posts.toArray();
     const postArrayLength = postArray.length;
-    const maxPostNumber = postArray[postArrayLength - 1].post_number;
+    const maxPostNumber =
+      postArrayLength > 0 ? postArray[postArrayLength - 1].post_number : 0;
     const result = [];
     const before = attrs.gaps && attrs.gaps.before ? attrs.gaps.before : {};
     const after = attrs.gaps && attrs.gaps.after ? attrs.gaps.after : {};
@@ -216,6 +225,8 @@ export default createWidget("post-stream", {
         nextPost
       );
       transformed.canCreatePost = attrs.canCreatePost;
+      transformed.prevPost = prevPost;
+      transformed.nextPost = nextPost;
       transformed.mobileView = mobileView;
 
       if (transformed.canManage || transformed.canSplitMergeTopic) {
@@ -247,7 +258,15 @@ export default createWidget("post-stream", {
       if (prevDate) {
         const daysSince = Math.floor((curTime - prevDate) / DAY);
         if (daysSince > this.siteSettings.show_time_gap_days) {
-          result.push(this.attach("time-gap", { daysSince }));
+          result.push(
+            new RenderGlimmer(
+              this,
+              "div.time-gap.small-action",
+              hbs`
+                <TimeGap @daysSince={{@data.daysSince}} />`,
+              { daysSince }
+            )
+          );
         }
       }
       prevDate = curTime;
@@ -263,6 +282,9 @@ export default createWidget("post-stream", {
         );
       } else {
         transformed.showReadIndicator = attrs.showReadIndicator;
+        // The following properties will have to be untangled from the transformed model when
+        // converting this widget to a Glimmer component:
+        // canCreatePost, showReadIndicator, prevPost, nextPost
         result.push(this.attach("post", transformed, { model: post }));
       }
 

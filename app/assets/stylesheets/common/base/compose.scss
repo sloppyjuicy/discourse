@@ -1,26 +1,48 @@
+html.composer-open {
+  #main-outlet {
+    padding-bottom: var(--composer-height);
+    transition: padding-bottom 250ms ease;
+  }
+}
+
 #reply-control {
   position: fixed;
   display: flex;
   flex-direction: column;
   bottom: 0;
-  height: 0;
   right: 0;
   left: 0;
   margin-left: auto;
   margin-right: auto;
   max-width: $reply-area-max-width;
   width: 100%;
+  height: 0;
+  min-height: 0;
+
   &.hide-preview {
     max-width: 740px;
   }
+
+  .with-form-template {
+    .toggle-preview,
+    #mobile-file-upload,
+    .submit-panel .mobile-preview {
+      display: none;
+    }
+    .d-editor-preview-wrapper {
+      display: none;
+      flex: 0;
+    }
+  }
+
   @media screen and (max-width: 1200px) {
     min-width: 0;
   }
   z-index: z("composer", "content");
-  transition: height 250ms ease, background 250ms ease, transform 250ms ease,
-    max-width 250ms ease, padding-bottom 250ms ease;
+  transition: height 0.2s, max-width 0.2s, padding-bottom 0.2s, top 0.2s,
+    transform 0.2s, min-height 0.2s;
   background-color: var(--secondary);
-  box-shadow: shadow("composer");
+  box-shadow: var(--shadow-composer);
 
   .reply-area {
     display: flex;
@@ -30,9 +52,10 @@
   .saving-text,
   .draft-text {
     display: none;
-    padding-left: 10px;
+    padding-left: 8px;
+
     .spinner {
-      margin-left: 5px;
+      margin-left: 8px;
       border-color: var(--secondary);
       border-right-color: transparent;
     }
@@ -42,14 +65,12 @@
   }
 
   &.open {
-    height: 300px;
-    &.edit-title {
-      height: 400px; // more room when editing the title
-    }
-  }
-
-  &.closed {
-    height: 0 !important;
+    --min-height: 255px;
+    box-sizing: border-box;
+    height: var(--composer-height);
+    min-height: var(--min-height);
+    max-height: calc(100vh - var(--header-offset, 4em));
+    padding-bottom: var(--composer-ipad-padding);
   }
 
   &.draft,
@@ -59,14 +80,17 @@
     background: var(--tertiary);
     color: var(--secondary);
     flex-direction: row;
-    width: 100%;
+    justify-content: space-between;
+
     .composer-controls {
-      margin-left: auto;
       display: flex;
-      padding-right: 5px;
+      gap: 8px;
+      padding-right: 8px;
+
       .toggle-toolbar {
         display: none;
       }
+
       .d-icon {
         color: var(--secondary);
       }
@@ -78,13 +102,11 @@
     display: flex;
     .draft-text {
       display: block;
+      @include ellipsis;
     }
     .grippie,
     .saving-text {
       display: none;
-    }
-    .toggle-minimize {
-      order: 2;
     }
   }
 
@@ -94,15 +116,16 @@
 
   .reply-to {
     color: var(--primary-high);
-    margin: 5px 0 10px 0;
+    margin-bottom: 8px;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
 
     .reply-details {
-      max-width: calc(100% - 175px);
-      flex: 1 1 auto;
+      flex: 1;
       display: flex;
       align-items: center;
+      min-width: 0;
       white-space: nowrap;
 
       .d-icon {
@@ -110,24 +133,24 @@
       }
     }
     .composer-action-title {
-      display: inline-flex;
+      display: flex;
       align-items: center;
       width: auto;
       max-width: 100%;
-
-      .avatar {
-        width: 20px;
-      }
+      min-width: 0; // allows shrinking when needed
 
       .action-title {
+        display: flex;
+        align-items: center;
         line-height: normal;
-        @include ellipsis;
-      }
+        min-width: 0;
 
-      .topic-link,
-      .user-link,
-      .post-link {
-        margin-right: 5px;
+        .topic-link,
+        .user-link,
+        .post-link {
+          margin-right: 8px;
+          @include ellipsis;
+        }
       }
 
       .username {
@@ -140,19 +163,18 @@
       }
 
       .d-icon {
-        margin-right: 5px;
+        margin-right: 8px;
       }
 
       img.avatar {
         margin-right: 3px;
       }
     }
+
     .composer-controls {
       display: flex;
-      margin-left: auto;
-      .toggle-minimize {
-        order: 2;
-      }
+      gap: 8px;
+      margin-left: 8px;
     }
   }
 
@@ -189,11 +211,11 @@
     display: flex;
     width: 100%;
     align-items: center;
-    margin-bottom: 5px;
     position: relative;
-    &.with-preview {
-      width: 50%;
-    }
+  }
+
+  .user-selector {
+    margin-bottom: 8px;
   }
 
   .title-input {
@@ -212,96 +234,114 @@
     }
 
     .archetype-private_message & {
-      // PMs don's have categories, so we need a wider tag input
+      // PMs don't have categories, so we need a wider tag input
       .mini-tag-chooser {
         width: 100%;
+        max-width: 100%;
       }
     }
   }
 
   .category-input {
+    position: relative;
     display: flex;
     flex: 1 0 40%;
     max-width: 40%;
-    margin: 0 0 5px 10px;
-    @media screen and (max-width: 955px) {
-      flex: 1 0 100%;
-      margin-left: 0;
-    }
+    margin: 0 0 8px 8px;
+
     .category-chooser {
       display: flex;
       flex: 1 0 auto;
       max-width: 100%;
       width: auto;
+
+      &.has-selection {
+        .name {
+          font-size: var(--font-up-1);
+        }
+      }
+
       .select-kit-header {
+        color: var(--primary-high);
         white-space: nowrap;
         text-overflow: ellipsis;
       }
-      // below needed for text-overflow: ellipsis;
+
+      .select-kit-body {
+        max-width: 450px;
+      }
+
       .selected-name {
         max-width: 100%;
         overflow: hidden;
         .name {
-          max-width: 100%;
-          overflow: hidden;
           display: flex;
-          .badge-wrapper {
+          max-width: 100%;
+          gap: 0 0.5em;
+          .badge-category {
             overflow: hidden;
           }
           // This prevents the first category from being too-truncated at the expense of a long subcategory
-          .badge-wrapper:first-of-type:not(:last-of-type) {
-            flex: 1 0 auto;
-            max-width: 50%;
+          > span:last-of-type:not(:first-of-type) {
+            flex-shrink: 10;
           }
         }
       }
     }
   }
 
-  .with-tags {
+  .with-tags.with-category {
     .title-and-category {
       flex-wrap: wrap;
     }
+
     .category-input {
       margin-left: 0;
-      margin-bottom: 0px;
+      margin-bottom: 8px;
       min-width: 0; // allows flex to shrink
       flex-wrap: wrap;
-      max-width: 50%;
-      @media screen and (max-width: 920px) {
-        flex-basis: 100%;
-        margin-right: 0;
-      }
+      max-width: calc(50% - 4px);
     }
   }
 
   .add-warning {
-    margin-left: 0.75em;
+    color: var(--primary-high);
+    padding-left: 8px;
     margin-bottom: 0;
     display: flex;
+
     input {
-      margin-right: 5px;
+      margin-right: 8px;
     }
   }
 
   #reply-title {
-    margin: 0 0 5px 0;
+    margin-bottom: 8px;
     flex-basis: 50%;
     width: unset;
+
     &:focus {
       box-shadow: none;
     }
   }
 
-  .mini-tag-chooser {
-    width: 49%;
-    margin: 0 0 0 auto;
-    background: var(--secondary);
-    z-index: z("composer", "dropdown");
+  .category-input + .tags-input {
+    margin-left: 8px;
+    width: auto;
+    max-width: calc(50% - 4px);
   }
 
-  .popup-tip {
-    z-index: z("composer", "dropdown") + 1;
+  .tags-input {
+    position: relative;
+    margin: 0 0 8px 0px;
+    flex-grow: 1;
+    .mini-tag-chooser {
+      z-index: z("composer", "dropdown");
+      width: 100%;
+      .select-kit-header {
+        color: var(--primary-high);
+      }
+    }
   }
 
   .wmd-controls {
@@ -313,101 +353,183 @@
   }
 
   .submit-panel {
+    align-items: center;
     display: flex;
     flex-shrink: 0;
-    margin: 7px 0 3px 0;
+    margin-top: 8px;
   }
 
   .save-or-cancel {
-    flex-basis: 50%;
-    display: flex;
     align-items: center;
-    margin-right: auto;
+    display: flex;
+    flex: 0 1 auto;
+    margin-right: 1em;
+
     .btn-primary {
       flex: 0 0 auto;
     }
+
     .cancel {
+      align-items: center;
+      display: flex;
       margin-left: 1.25em;
       line-height: normal;
       color: var(--primary-high);
       transition: color 250ms;
+
       &:hover,
       &:focus {
         outline: none;
         color: var(--danger);
       }
     }
-    #draft-status,
-    #file-uploading {
-      margin-left: 25px;
-    }
-    #file-uploading {
-      display: flex;
-      align-items: center;
-      a {
-        margin-left: 5px;
-        color: var(--primary-high);
-      }
-      .spinner {
-        margin-right: 5px;
-      }
-    }
-    #draft-status .d-icon-user-edit {
-      color: var(--danger);
-      font-size: 20px;
-      vertical-align: -5.5px;
+
+    .preview-template {
+      margin-left: 0.5rem;
     }
   }
 
   #draft-status,
   #file-uploading {
     color: var(--primary-high);
+    margin-right: 0.5em;
   }
 
-  #file-uploader {
-    display: none;
+  #file-uploading {
+    display: flex;
+    align-items: center;
+    margin-right: auto;
+    a {
+      margin-left: 0.33em;
+      color: var(--primary-high);
+    }
+    .spinner {
+      margin-right: 0.33em;
+    }
+  }
+
+  #draft-status {
+    margin-left: auto;
+    .d-icon-user-pen {
+      color: var(--danger);
+      font-size: 20px;
+      vertical-align: -5.5px;
+    }
+    + .btn-mini-toggle {
+      margin-left: 0;
+    }
+  }
+
+  .composer-select-form-template {
+    margin-bottom: 8px;
+    width: 100%;
+
+    .name,
+    .formatted-selection,
+    .d-icon {
+      color: var(--primary-high);
+    }
   }
 }
 
 .autocomplete {
   z-index: z("composer", "dropdown") + 1;
   position: absolute;
-  width: 240px;
+  max-width: 370px;
+  min-width: 300px;
   background-color: var(--secondary);
   border: 1px solid var(--primary-low);
+  box-shadow: var(--shadow-dropdown);
+  border-radius: 8px;
+
   ul {
     list-style: none;
     padding: 0;
     margin: 0;
 
     li {
+      &:first-of-type a {
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+      }
+      &:last-of-type a {
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
+      }
+      a {
+        @include ellipsis;
+        align-items: center;
+        color: var(--primary);
+        display: flex;
+        gap: 0.25em;
+        padding: 0.3em 1em;
+
+        @include hover {
+          background-color: var(--d-hover);
+          text-decoration: none;
+        }
+
+        &.selected {
+          background-color: var(--d-selected);
+
+          .username,
+          .name,
+          .emoji-shortname {
+            font-weight: bold;
+          }
+        }
+
+        .avatar {
+          margin-right: 0.25em;
+        }
+
+        .name {
+          display: contents;
+          font-size: var(--font-down-1);
+          color: var(--primary-high);
+        }
+
+        .user-status-message {
+          display: flex;
+          align-items: center;
+          gap: 0.25em;
+
+          .user-status-message-description {
+            @include ellipsis;
+            font-size: var(--font-down-2);
+            color: var(--primary-high);
+            margin: 0;
+          }
+        }
+
+        .relative-date {
+          font-size: var(--font-down-3);
+        }
+      }
+
       .d-icon-users {
         color: var(--primary-medium);
         padding: 0 2px;
       }
+    }
+  }
 
-      border-bottom: 1px solid var(--primary-low);
+  &.ac-user {
+    li a {
+      padding: 0.5em 1em;
+    }
+    .emoji {
+      height: 0.75em;
+      width: 0.75em;
+    }
+  }
 
-      a {
-        padding: 5px;
-        display: block;
-        @include ellipsis;
-
-        span.username {
-          color: var(--primary);
-        }
-        span.name {
-          font-size: $font-down-1;
-          vertical-align: middle;
-        }
-        &.selected {
-          background-color: var(--tertiary-low);
-        }
-        @include hover {
-          background-color: var(--highlight-low);
-          text-decoration: none;
-        }
-      }
+  &.ac-emoji {
+    li:last-of-type a {
+      color: var(--primary-high);
+    }
+    .emoji {
+      margin-right: 0.25em;
     }
   }
 }
@@ -424,8 +546,8 @@ div.ac-wrap.disabled {
 div.ac-wrap div.item a.remove,
 .remove-link {
   margin-left: 4px;
-  font-size: $font-down-1;
-  line-height: $line-height-small;
+  font-size: var(--font-down-1);
+  line-height: var(--line-height-small);
   padding: 1px 3.5px;
   border-radius: 12px;
   box-sizing: border-box;
@@ -448,10 +570,10 @@ div.ac-wrap {
   div.item {
     float: left;
     padding: 4px 10px;
-    line-height: $line-height-large;
+    line-height: var(--line-height-large);
     span {
       display: inline-block;
-      line-height: $line-height-medium;
+      line-height: var(--line-height-medium);
     }
   }
 
@@ -481,63 +603,115 @@ div.ac-wrap {
   }
 }
 
-@-webkit-keyframes transformer {
-  90% {
-    -webkit-filter: opacity(1);
-  }
-  100% {
-    -webkit-filter: opacity(0);
-  }
-}
-@keyframes transformer {
-  90% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-body.ios-safari-composer-hacks {
-  #main-outlet,
-  header,
-  .grippie,
-  html:not(.fullscreen-composer) & .toggle-fullscreen {
-    display: none;
-  }
-
-  #reply-control {
-    top: 0px;
-    &.open {
-      height: calc(var(--composer-vh, 1vh) * 100);
-    }
-  }
-}
-
-body:not(.ios-safari-composer-hacks) {
-  #reply-control.open {
-    --min-height: 255px;
-    min-height: var(--min-height);
-    max-height: calc(100vh - var(--header-offset, 4em));
-    &.composer-action-reply {
-      // we can let the reply composer get a little shorter
-      min-height: calc(var(--min-height) - 4em);
-    }
-    padding-bottom: var(--composer-ipad-padding);
-  }
-}
-
-.show-preview {
-  @media screen and (max-width: 850px) {
-    .d-editor-button-bar {
-      font-size: $font-down-1;
-    }
-  }
-}
-
 .toggle-preview {
+  margin-left: auto;
   transition: all 0.33s ease-out;
+
   &.active {
     transform: rotate(180deg);
+  }
+
+  .d-icon {
+    color: var(--primary-medium);
+  }
+}
+
+.draft-error {
+  color: var(--danger);
+}
+
+@keyframes blink_input_opacity_to_prevent_scrolling_when_focus {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+// Limiting to hover: none ensures we don't target touch-enabled desktops here
+@media (hover: none) {
+  // This targets mobile/iPad/tablets and it goes together with
+  // the interactive-widget=resizes-content in the viewport meta tag
+  // for maximum browser compatibility (including Firefox on Android)
+  // see https://developer.chrome.com/blog/viewport-resize-behavior for context
+  .discourse-touch,
+  .mobile-device {
+    #reply-control {
+      // this might be overkill
+      // but on iPad with a physical keyboard the composer is shifted up on scroll
+      // this adds a solid box shadow below, looks cleaner
+      box-shadow: 0 150px 0px 0px var(--secondary);
+
+      &.open {
+        z-index: z("mobile-composer");
+      }
+
+      &.draft,
+      &.saving {
+        z-index: z("ipad-header-nav") + 1;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      .toggle-fullscreen {
+        display: none;
+      }
+
+      .submit-panel,
+      .composer-fields,
+      .d-editor-button-bar {
+        // this prevents touch events (i.e. accidental scrolls) from bubbling up
+        touch-action: none;
+      }
+    }
+
+    &.keyboard-visible #reply-control.open {
+      height: calc(var(--composer-vh, 1vh) * 100);
+
+      .grippie {
+        display: none;
+      }
+    }
+
+    &.composer-open .with-topic-progress {
+      bottom: calc(var(--composer-height));
+    }
+  }
+}
+
+.mobile-device {
+  #reply-control {
+    .grippie {
+      display: none;
+    }
+
+    &.open.show-preview {
+      height: 70vh;
+    }
+  }
+}
+
+// Safari in iOS/iPad does not handle well a bottom:0 fixed-positioned element,
+// especially while the software keyboard is visible, so we top-anchor it here
+// and shift it using transform
+.ios-device {
+  #reply-control {
+    // the two properties below are equivalent to bottom: 0
+    top: calc(var(--composer-vh, 1vh) * 100);
+    transform: translateY(-100%);
+    bottom: unset;
+  }
+
+  // When an element (input, textearea) gets focus, iOS Safari tries to put it in the center
+  // by scrolling and zooming. We handle zooming with a meta tag. We used to handle scrolling
+  // using a complicated JS hack.
+  //
+  // However, iOS Safari doesn't scroll when the input has opacity of 0 or is clipped.
+  // We use this quirk and temporarily hide the element on focus
+  //
+  // Source https://gist.github.com/kiding/72721a0553fa93198ae2bb6eefaa3299
+  input:focus,
+  textarea:focus {
+    animation: blink_input_opacity_to_prevent_scrolling_when_focus 0.01s;
   }
 }

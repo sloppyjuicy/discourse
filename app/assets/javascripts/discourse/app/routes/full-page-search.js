@@ -1,32 +1,34 @@
+import { action } from "@ember/object";
+import { ajax } from "discourse/lib/ajax";
+import { getTransient, setTransient } from "discourse/lib/page-tracker";
+import PreloadStore from "discourse/lib/preload-store";
 import {
   getSearchKey,
   isValidSearchTerm,
   translateResults,
 } from "discourse/lib/search";
-import { getTransient, setTransient } from "discourse/lib/page-tracker";
-import DiscourseRoute from "discourse/routes/discourse";
-import I18n from "I18n";
-import PreloadStore from "discourse/lib/preload-store";
-import { ajax } from "discourse/lib/ajax";
 import { escapeExpression } from "discourse/lib/utilities";
+import DiscourseRoute from "discourse/routes/discourse";
+import { i18n } from "discourse-i18n";
 
-export default DiscourseRoute.extend({
-  queryParams: {
+export default class FullPageSearch extends DiscourseRoute {
+  queryParams = {
     q: {},
     expanded: false,
     context_id: {},
     context: {},
     skip_context: {},
-  },
-  category: null,
+  };
+
+  category = null;
 
   titleToken() {
-    return I18n.t("search.results_page", {
+    return i18n("search.results_page", {
       term: escapeExpression(
         this.controllerFor("full-page-search").get("searchTerm")
       ),
     });
-  },
+  }
 
   model(params) {
     const cached = getTransient("lastSearch");
@@ -39,7 +41,6 @@ export default DiscourseRoute.extend({
     }
 
     const searchKey = getSearchKey(args);
-
     if (cached && cached.data.searchKey === searchKey) {
       // extend expiry
       setTransient("lastSearch", { searchKey, model: cached.data.model }, 5);
@@ -53,21 +54,15 @@ export default DiscourseRoute.extend({
         return null;
       }
     }).then(async (results) => {
-      const grouped_search_result = results
-        ? results.grouped_search_result
-        : {};
-      const model = (results && (await translateResults(results))) || {
-        grouped_search_result,
-      };
+      const model = (results && (await translateResults(results))) || {};
       setTransient("lastSearch", { searchKey, model }, 5);
       return model;
     });
-  },
+  }
 
-  actions: {
-    didTransition() {
-      this.controllerFor("full-page-search")._showFooter();
-      return true;
-    },
-  },
-});
+  @action
+  didTransition() {
+    this.controllerFor("full-page-search")._afterTransition();
+    return true;
+  }
+}

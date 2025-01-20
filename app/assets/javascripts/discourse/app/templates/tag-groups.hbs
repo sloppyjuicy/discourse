@@ -1,25 +1,30 @@
+<a class="tag-groups--back" href={{get-url "/tags"}}>
+  {{d-icon "chevron-left"}}
+  <span>{{i18n "tagging.groups.back_btn"}}</span>
+</a>
+
 <div class="container tag-groups-container">
   <h2>{{i18n "tagging.groups.title"}}</h2>
 
   {{#if this.siteSettings.tagging_enabled}}
-    {{#if model}}
+    {{#if this.model}}
       <div class="tag-groups-sidebar content-list">
         <ul>
-          {{#each model as |tagGroup|}}
+          {{#each this.model as |tagGroup|}}
             <li>
-              {{#link-to "tagGroups.edit" tagGroup}}
+              <LinkTo @route="tagGroups.edit" @model={{tagGroup}}>
                 {{tagGroup.name}}
-              {{/link-to}}
+              </LinkTo>
             </li>
           {{/each}}
         </ul>
 
-        {{d-button
+        <DButton
+          @action={{action "newTagGroup"}}
+          @icon="plus"
+          @label="tagging.groups.new"
           class="btn-default"
-          action=(action "newTagGroup")
-          icon="plus"
-          label="tagging.groups.new"
-        }}
+        />
       </div>
     {{/if}}
 
@@ -29,5 +34,4 @@
       <div class="alert info">{{i18n "tagging.groups.disabled"}}</div>
     </div>
   {{/if}}
-
 </div>

@@ -8,13 +8,22 @@ class JavascriptCache < ActiveRecord::Base
   before_save :update_digest
 
   def url
-    "#{GlobalSetting.cdn_url}#{Discourse.base_path}/theme-javascripts/#{digest}.js?__ws=#{Discourse.current_hostname}"
+    "#{GlobalSetting.cdn_url}#{Discourse.base_path}#{path}"
+  end
+
+  def local_url
+    "#{Discourse.base_path}#{path}"
   end
 
   private
 
+  def path
+    "/theme-javascripts/#{digest}.js?__ws=#{Discourse.current_hostname}"
+  end
+
   def update_digest
-    self.digest = Digest::SHA1.hexdigest(content) if content_changed?
+    self.digest =
+      Digest::SHA1.hexdigest("#{content}|#{GlobalSetting.asset_url_salt}") if content_changed?
   end
 
   def content_cannot_be_nil
@@ -33,12 +42,13 @@ end
 #  created_at     :datetime         not null
 #  updated_at     :datetime         not null
 #  theme_id       :bigint
+#  source_map     :text
 #
 # Indexes
 #
 #  index_javascript_caches_on_digest          (digest)
-#  index_javascript_caches_on_theme_field_id  (theme_field_id)
-#  index_javascript_caches_on_theme_id        (theme_id)
+#  index_javascript_caches_on_theme_field_id  (theme_field_id) UNIQUE
+#  index_javascript_caches_on_theme_id        (theme_id) UNIQUE
 #
 # Foreign Keys
 #

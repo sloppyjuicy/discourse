@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module EmbedHelper
-
   def embed_post_date(dt)
     current = Time.now
 
@@ -9,9 +8,9 @@ module EmbedHelper
       distance_of_time_in_words(dt, current)
     else
       if dt.year == current.year
-        dt.strftime("%e %b")
+        dt.strftime I18n.t("datetime_formats.formats.short_no_year")
       else
-        dt.strftime("%b '%y")
+        dt.strftime I18n.t("datetime_formats.formats.no_day")
       end
     end
   end

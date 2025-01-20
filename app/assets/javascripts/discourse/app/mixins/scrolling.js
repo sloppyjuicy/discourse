@@ -1,7 +1,6 @@
 import Mixin from "@ember/object/mixin";
-import discourseDebounce from "discourse-common/lib/debounce";
-import { scheduleOnce } from "@ember/runloop";
-import { inject as service } from "@ember/service";
+import { scheduleOnce, throttle } from "@ember/runloop";
+import { service } from "@ember/service";
 
 /**
   This object provides the DOM methods we need for our Mixin to bind to scrolling
@@ -9,20 +8,14 @@ import { inject as service } from "@ember/service";
   easier.
 **/
 const ScrollingDOMMethods = {
-  bindOnScroll(onScrollMethod, name) {
-    name = name || "default";
-    $(document).bind(`touchmove.discourse-${name}`, onScrollMethod);
-    $(window).bind(`scroll.discourse-${name}`, onScrollMethod);
+  bindOnScroll(onScrollMethod) {
+    document.addEventListener("touchmove", onScrollMethod, { passive: true });
+    window.addEventListener("scroll", onScrollMethod, { passive: true });
   },
 
-  unbindOnScroll(name) {
-    name = name || "default";
-    $(window).unbind(`scroll.discourse-${name}`);
-    $(document).unbind(`touchmove.discourse-${name}`);
-  },
-
-  screenNotFull() {
-    return $(window).height() > $("#main").height();
+  unbindOnScroll(onScrollMethod) {
+    document.removeEventListener("touchmove", onScrollMethod);
+    window.removeEventListener("scroll", onScrollMethod);
   },
 };
 
@@ -30,14 +23,17 @@ const Scrolling = Mixin.create({
   router: service(),
 
   // Begin watching for scroll events. By default they will be called at max every 100ms.
-  // call with {debounce: N} for a diff time
-  bindScrolling(opts) {
-    opts = opts || { debounce: 100 };
+  // call with {throttle: N} to change the throttle spacing
+  bindScrolling(opts = {}) {
+    if (!opts.throttle) {
+      opts.throttle = 100;
+    }
 
     // So we can not call the scrolled event while transitioning. There is no public API for this :'(
+    // eslint-disable-next-line ember/no-private-routing-service
     const microLib = this.router._router._routerMicrolib;
 
-    let onScrollMethod = () => {
+    let scheduleScrolled = () => {
       if (microLib.activeTransition) {
         return;
       }
@@ -45,20 +41,20 @@ const Scrolling = Mixin.create({
       return scheduleOnce("afterRender", this, "scrolled");
     };
 
-    if (opts.debounce) {
-      let debouncedScrollMethod = () => {
-        discourseDebounce(this, onScrollMethod, opts.debounce);
-      };
-      ScrollingDOMMethods.bindOnScroll(debouncedScrollMethod, opts.name);
+    let onScrollMethod;
+    if (opts.throttle) {
+      onScrollMethod = () =>
+        throttle(this, scheduleScrolled, opts.throttle, false);
     } else {
-      ScrollingDOMMethods.bindOnScroll(onScrollMethod, opts.name);
+      onScrollMethod = scheduleScrolled;
     }
+
+    this._scrollingMixinOnScrollMethod = onScrollMethod;
+    ScrollingDOMMethods.bindOnScroll(onScrollMethod);
   },
 
-  screenNotFull: () => ScrollingDOMMethods.screenNotFull(),
-
-  unbindScrolling(name) {
-    ScrollingDOMMethods.unbindOnScroll(name);
+  unbindScrolling() {
+    ScrollingDOMMethods.unbindOnScroll(this._scrollingMixinOnScrollMethod);
   },
 });
 

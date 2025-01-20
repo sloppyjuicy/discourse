@@ -1,28 +1,44 @@
-<div class="admin-controls">
+<DPageHeader
+  @titleLabel={{i18n "admin.site_settings.title"}}
+  @descriptionLabel={{i18n "admin.site_settings.description"}}
+  @hideTabs={{true}}
+>
+  <:breadcrumbs>
+    <DBreadcrumbsItem @path="/admin" @label={{i18n "admin_title"}} />
+    <DBreadcrumbsItem
+      @path="/admin/site_settings"
+      @label={{i18n "admin.site_settings.title"}}
+    />
+  </:breadcrumbs>
+</DPageHeader>
 
-  <div class="controls">
-    <div class="inline-form">
-      {{d-button action=(action "toggleMenu") class="menu-toggle" icon="bars"}}
-      {{text-field id="setting-filter" value=filter placeholderKey="type_to_filter" class="no-blur"}}
-      {{d-button class="btn-default" id="clear-filter" action=(action "clearFilter") label="admin.site_settings.clear_filter"}}
-    </div>
-  </div>
-  <div class="search controls">
-    <label>
-      {{input type="checkbox" checked=onlyOverridden}}
-      {{i18n "admin.settings.show_overriden"}}
-    </label>
-  </div>
-</div>
+<AdminSiteSettingsFilterControls
+  @initialFilter={{this.filter}}
+  @onChangeFilter={{this.filterChanged}}
+  @showMenu={{true}}
+  @onToggleMenu={{this.toggleMenu}}
+/>
 
-<div class="admin-nav pull-left">
+<div class="admin-nav admin-site-settings-category-nav pull-left">
   <ul class="nav nav-stacked">
-    {{#each visibleSiteSettings as |category|}}
-      <li class={{category.nameKey}}>
-        {{#link-to "adminSiteSettingsCategory" category.nameKey class=category.nameKey}}
+    {{#each this.visibleSiteSettings as |category|}}
+      <li
+        class={{concat-class
+          "admin-site-settings-category-nav__item"
+          category.nameKey
+        }}
+      >
+        <LinkTo
+          @route="adminSiteSettingsCategory"
+          @model={{category.nameKey}}
+          class={{category.nameKey}}
+          title={{category.name}}
+        >
           {{category.name}}
-          {{#if category.count}}<span class="count">({{category.count}})</span>{{/if}}
-        {{/link-to}}
+          {{#if category.count}}
+            <span class="count">({{category.count}})</span>
+          {{/if}}
+        </LinkTo>
       </li>
     {{/each}}
   </ul>

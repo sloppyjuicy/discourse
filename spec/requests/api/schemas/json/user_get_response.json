@@ -3,9 +3,9 @@
   "properties": {
     "user_badges": {
       "type": "array",
-      "items": [
+      "items": {
 
-      ]
+      }
     },
     "user": {
       "type": "object",
@@ -47,7 +47,13 @@
         "can_ignore_user": {
           "type": "boolean"
         },
+        "can_ignore_users": {
+          "type": "boolean"
+        },
         "can_mute_user": {
+          "type": "boolean"
+        },
+        "can_mute_users": {
           "type": "boolean"
         },
         "can_send_private_messages": {
@@ -73,18 +79,6 @@
         },
         "badge_count": {
           "type": "integer"
-        },
-        "email": {
-          "type": "string"
-        },
-        "secondary_emails": {
-          "type": "array"
-        },
-        "unconfirmed_emails": {
-          "type": "array"
-        },
-        "associated_accounts": {
-          "type": "array"
         },
         "second_factor_backup_enabled": {
           "type": "boolean"
@@ -121,9 +115,7 @@
                 "null"
               ]
             }
-          },
-          "required": [
-          ]
+          }
         },
         "time_read": {
           "type": "integer"
@@ -133,7 +125,7 @@
         },
         "primary_group_id": {
           "type": [
-            "string",
+            "integer",
             "null"
           ]
         },
@@ -145,7 +137,7 @@
         },
         "flair_group_id": {
           "type": [
-            "string",
+            "integer",
             "null"
           ]
         },
@@ -196,7 +188,7 @@
         },
         "uploaded_avatar_id": {
           "type": [
-            "string",
+            "integer",
             "null"
           ]
         },
@@ -204,6 +196,9 @@
           "type": "boolean"
         },
         "pending_count": {
+          "type": "integer"
+        },
+        "pending_posts_count": {
           "type": "integer"
         },
         "profile_view_count": {
@@ -235,57 +230,57 @@
         },
         "muted_category_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "regular_category_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "watched_tags": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "watching_first_post_tags": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "tracked_tags": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "muted_tags": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "tracked_category_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "watched_category_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "watched_first_post_category_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "system_avatar_upload_id": {
           "type": [
@@ -298,21 +293,21 @@
         },
         "muted_usernames": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "ignored_usernames": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "allowed_pm_usernames": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "mailing_list_posts_per_day": {
           "type": "integer"
@@ -335,9 +330,24 @@
             "null"
           ]
         },
+        "user_passkeys": {
+          "type": "array"
+        },
+        "sidebar_tags": {
+          "type": "array"
+        },
+        "sidebar_category_ids": {
+          "type": "array"
+        },
+        "display_sidebar_tags": {
+          "type": "boolean"
+        },
+        "can_pick_theme_with_custom_homepage": {
+          "type": "boolean"
+        },
         "user_auth_tokens": {
           "type": "array",
-          "items": [
+          "items":
             {
               "type": "object",
               "additionalProperties": false,
@@ -386,7 +396,6 @@
                 "is_active"
               ]
             }
-          ]
         },
         "user_notification_schedule": {
           "type": "object",
@@ -461,9 +470,9 @@
         },
         "featured_user_badge_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "invited_by": {
           "type": [
@@ -473,7 +482,7 @@
         },
         "groups": {
           "type": "array",
-          "items": [
+          "items":
             {
               "type": "object",
               "additionalProperties": false,
@@ -631,11 +640,10 @@
                 "publish_read_state"
               ]
             }
-          ]
         },
         "group_users": {
           "type": "array",
-          "items": [
+          "items":
             {
               "type": "object",
               "additionalProperties": false,
@@ -659,7 +667,6 @@
                 "notification_level"
               ]
             }
-          ]
         },
         "user_option": {
           "type": "object",
@@ -686,6 +693,9 @@
             "external_links_in_new_tab": {
               "type": "boolean"
             },
+            "bookmark_auto_delete_preference": {
+              "type": "integer"
+            },
             "color_scheme_id": {
               "type": [
                 "string",
@@ -702,6 +712,9 @@
               "type": "boolean"
             },
             "enable_quoting": {
+              "type": "boolean"
+            },
+            "enable_smart_lists": {
               "type": "boolean"
             },
             "enable_defer": {
@@ -736,9 +749,9 @@
             },
             "theme_ids": {
               "type": "array",
-              "items": [
+              "items": {
 
-              ]
+              }
             },
             "theme_key_seq": {
               "type": "integer"
@@ -756,6 +769,12 @@
               ]
             },
             "hide_profile_and_presence": {
+              "type": "boolean"
+            },
+            "hide_profile": {
+              "type": "boolean"
+            },
+            "hide_presence": {
               "type": "boolean"
             },
             "text_size": {
@@ -778,6 +797,24 @@
             },
             "default_calendar": {
               "type": "string"
+            },
+            "oldest_search_log_date": {
+              "type": ["string", "null"]
+            },
+            "sidebar_link_to_filtered_list": {
+              "type": "boolean"
+            },
+            "sidebar_show_count_of_new_items": {
+              "type": "boolean"
+            },
+            "watched_precedence_over_muted": {
+              "type": ["boolean", "null"]
+            },
+            "seen_popups": {
+              "type": ["array", "null"]
+            },
+            "topics_unread_when_closed": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -792,6 +829,7 @@
             "dark_scheme_id",
             "dynamic_favicon",
             "enable_quoting",
+            "enable_smart_lists",
             "enable_defer",
             "digest_after_minutes",
             "automatically_unpin_topics",
@@ -808,11 +846,14 @@
             "enable_allowed_pm_users",
             "homepage_id",
             "hide_profile_and_presence",
+            "hide_profile",
+            "hide_presence",
             "text_size",
             "text_size_seq",
             "title_count_mode",
             "timezone",
-            "skip_new_user_tips"
+            "skip_new_user_tips",
+            "topics_unread_when_closed"
           ]
         }
       },

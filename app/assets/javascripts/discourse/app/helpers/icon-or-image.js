@@ -1,16 +1,19 @@
-import { convertIconClass, iconHTML } from "discourse-common/lib/icon-library";
-import { htmlHelper } from "discourse-common/lib/helpers";
+import { get } from "@ember/object";
+import { htmlSafe } from "@ember/template";
 import { isEmpty } from "@ember/utils";
+import { convertIconClass, iconHTML } from "discourse/lib/icon-library";
 
-export default htmlHelper(function ({ icon, image }) {
+export default function iconOrImage(badge) {
+  const icon = get(badge, "icon");
+  const image = get(badge, "image");
+
   if (!isEmpty(image)) {
-    return `<img src='${image}'>`;
+    return htmlSafe(`<img src='${image}'>`);
   }
 
   if (isEmpty(icon)) {
     return "";
   }
 
-  icon = convertIconClass(icon);
-  return iconHTML(icon);
-});
+  return htmlSafe(iconHTML(convertIconClass(icon)));
+}

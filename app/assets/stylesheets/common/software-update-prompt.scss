@@ -3,12 +3,17 @@
   flex: 1;
   right: 0;
   left: 0;
+  top: var(--header-offset, 60px);
+  .static-login &,
+  .wizard &,
+  .invite-page & {
+    top: 0;
+  }
   background-color: var(--tertiary-low);
-  color: var(--tertiary);
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.3s;
-  box-shadow: shadow("header");
+  box-shadow: var(--shadow-header);
   z-index: z("header") - 10;
 
   .update-prompt-main-content {
@@ -19,9 +24,15 @@
   }
 
   .update-prompt-message {
-    cursor: pointer;
+    color: var(--tertiary);
     padding: 0.75em 0;
-    span {
+
+    .d-icon {
+      color: var(--tertiary);
+      font-size: 0.9em;
+    }
+
+    .d-button-label > span {
       text-decoration: underline;
     }
   }
@@ -32,19 +43,9 @@
     height: 44px;
     flex: 1;
 
-    span {
-      cursor: pointer;
-      display: inline;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      padding-left: 20px;
+    .d-icon {
+      color: var(--tertiary);
     }
-  }
-
-  .d-icon {
-    margin-right: 0.33em;
-    font-size: 0.9em;
   }
 
   &.require-software-refresh {

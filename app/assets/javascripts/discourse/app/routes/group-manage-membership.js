@@ -1,16 +1,17 @@
+import { service } from "@ember/service";
 import DiscourseRoute from "discourse/routes/discourse";
-import I18n from "I18n";
+import { i18n } from "discourse-i18n";
 
-export default DiscourseRoute.extend({
-  showFooter: true,
+export default class GroupManageMembership extends DiscourseRoute {
+  @service router;
 
   titleToken() {
-    return I18n.t("groups.manage.membership.title");
-  },
+    return i18n("groups.manage.membership.title");
+  }
 
   afterModel(group) {
     if (group.get("automatic")) {
-      this.replaceWith("group.manage.interaction", group);
+      this.router.replaceWith("group.manage.interaction", group);
     }
-  },
-});
+  }
+}

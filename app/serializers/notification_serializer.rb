@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class NotificationSerializer < ApplicationSerializer
-
   attributes :id,
              :user_id,
              :external_id,
@@ -14,7 +13,8 @@ class NotificationSerializer < ApplicationSerializer
              :fancy_title,
              :slug,
              :data,
-             :is_warning
+             :is_warning,
+             :acting_user_avatar_template
 
   def slug
     Slug.for(object.topic.title) if object.topic.present?
@@ -48,4 +48,11 @@ class NotificationSerializer < ApplicationSerializer
     SiteSetting.enable_discourse_connect
   end
 
+  def acting_user_avatar_template
+    object.acting_user.avatar_template_url
+  end
+
+  def include_acting_user_avatar_template?
+    object.acting_user.present?
+  end
 end

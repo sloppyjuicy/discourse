@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class TopicListSerializer < ApplicationSerializer
-
   attributes :can_create_topic,
              :more_topics_url,
              :for_period,
@@ -13,6 +12,12 @@ class TopicListSerializer < ApplicationSerializer
   has_many :topics, serializer: TopicListItemSerializer, embed: :objects
   has_many :shared_drafts, serializer: TopicListItemSerializer, embed: :objects
   has_many :tags, serializer: TagSerializer, embed: :objects
+  has_many :categories, serializer: CategoryBadgeSerializer, embed: :objects
+
+  def initialize(object, options = {})
+    super
+    options[:filter] = object.filter
+  end
 
   def can_create_topic
     scope.can_create?(Topic)
@@ -36,5 +41,9 @@ class TopicListSerializer < ApplicationSerializer
 
   def include_tags?
     SiteSetting.tagging_enabled && object.tags.present?
+  end
+
+  def include_categories?
+    scope.can_lazy_load_categories?
   end
 end

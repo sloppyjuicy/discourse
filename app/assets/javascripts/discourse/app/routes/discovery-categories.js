@@ -1,40 +1,61 @@
-import CategoryList from "discourse/models/category-list";
-import DiscourseRoute from "discourse/routes/discourse";
-import EmberObject from "@ember/object";
-import I18n from "I18n";
-import OpenComposer from "discourse/mixins/open-composer";
-import PreloadStore from "discourse/lib/preload-store";
-import Site from "discourse/models/site";
-import TopicList from "discourse/models/topic-list";
-import { ajax } from "discourse/lib/ajax";
-import { defaultHomepage } from "discourse/lib/utilities";
+import { action } from "@ember/object";
+import { service } from "@ember/service";
 import { hash } from "rsvp";
-import { next } from "@ember/runloop";
-import showModal from "discourse/lib/show-modal";
-import getURL from "discourse-common/lib/get-url";
-import Session from "discourse/models/session";
+import { ajax } from "discourse/lib/ajax";
+import { MAX_UNOPTIMIZED_CATEGORIES } from "discourse/lib/constants";
+import PreloadStore from "discourse/lib/preload-store";
+import { defaultHomepage } from "discourse/lib/utilities";
+import Category from "discourse/models/category";
+import CategoryList from "discourse/models/category-list";
+import TopicList from "discourse/models/topic-list";
+import DiscourseRoute from "discourse/routes/discourse";
+import { i18n } from "discourse-i18n";
 
-const DiscoveryCategoriesRoute = DiscourseRoute.extend(OpenComposer, {
-  renderTemplate() {
-    this.render("navigation/categories", { outlet: "navigation-bar" });
-    this.render("discovery/categories", { outlet: "list-container" });
-  },
+export default class DiscoveryCategoriesRoute extends DiscourseRoute {
+  @service modal;
+  @service router;
+  @service session;
 
-  findCategories() {
+  templateName = "discovery/categories";
+  controllerName = "discovery/categories";
+
+  async findCategories(parentCategory) {
+    let model;
+
     let style =
-      !this.site.mobileView && this.siteSettings.desktop_category_page_style;
-
-    if (style === "categories_and_latest_topics") {
-      return this._findCategoriesAndTopics("latest");
-    } else if (style === "categories_and_top_topics") {
-      return this._findCategoriesAndTopics("top");
+      this.site.desktopView && this.siteSettings.desktop_category_page_style;
+    if (this.site.categories.length > MAX_UNOPTIMIZED_CATEGORIES) {
+      style = "categories_only";
     }
 
-    return CategoryList.list(this.store);
-  },
+    if (
+      style === "categories_and_latest_topics" ||
+      style === "categories_and_latest_topics_created_date"
+    ) {
+      model = await this._findCategoriesAndTopics("latest", parentCategory);
+    } else if (style === "categories_and_top_topics") {
+      model = await this._findCategoriesAndTopics("top", parentCategory);
+    } else {
+      // The server may have serialized this. Based on the logic above, we don't need it
+      // so remove it to avoid it being used later by another TopicList route.
+      PreloadStore.remove("topic_list");
+      model = await CategoryList.list(this.store, parentCategory);
+    }
 
-  model() {
-    return this.findCategories().then((model) => {
+    return model;
+  }
+
+  async model(params) {
+    let parentCategory;
+    if (params.category_slug_path_with_id) {
+      parentCategory = this.site.lazy_load_categories
+        ? await Category.asyncFindBySlugPathWithID(
+            params.category_slug_path_with_id
+          )
+        : Category.findBySlugPathWithID(params.category_slug_path_with_id);
+    }
+
+    return this.findCategories(parentCategory).then((model) => {
       const tracking = this.topicTrackingState;
       if (tracking) {
         tracking.sync(model, "categories");
@@ -42,15 +63,18 @@ const DiscoveryCategoriesRoute = DiscourseRoute.extend(OpenComposer, {
       }
       return model;
     });
-  },
+  }
+
   _loadBefore(store) {
+    const session = this.session;
+
     return function (topic_ids, storeInSession) {
       // refresh dupes
       this.topics.removeObjects(
-        this.topics.filter((topic) => topic_ids.indexOf(topic.id) >= 0)
+        this.topics.filter((topic) => topic_ids.includes(topic.id))
       );
 
-      const url = `${getURL("/")}latest.json?topic_ids=${topic_ids.join(",")}`;
+      const url = `/latest.json?topic_ids=${topic_ids.join(",")}`;
 
       return ajax({ url, data: this.params }).then((result) => {
         const topicIds = new Set();
@@ -66,96 +90,70 @@ const DiscoveryCategoriesRoute = DiscourseRoute.extend(OpenComposer, {
         });
 
         if (storeInSession) {
-          Session.currentProp("topicList", this);
+          session.set("topicList", this);
         }
       });
     };
-  },
-  _findCategoriesAndTopics(filter) {
-    return hash({
-      wrappedCategoriesList: PreloadStore.getAndRemove("categories_list"),
-      topicsList: PreloadStore.getAndRemove(`topic_list_${filter}`),
-    }).then((response) => {
-      let { wrappedCategoriesList, topicsList } = response;
-      let categoriesList =
-        wrappedCategoriesList && wrappedCategoriesList.category_list;
-      let store = this.store;
+  }
 
-      if (categoriesList && topicsList) {
-        if (topicsList.topic_list && topicsList.topic_list.top_tags) {
-          Site.currentProp("top_tags", topicsList.topic_list.top_tags);
+  async _findCategoriesAndTopics(filter, parentCategory = null) {
+    return hash({
+      categoriesList: PreloadStore.getAndRemove("categories_list"),
+      topicsList: PreloadStore.getAndRemove("topic_list"),
+    })
+      .then((result) => {
+        if (
+          result.categoriesList?.category_list &&
+          result.topicsList?.topic_list
+        ) {
+          return { ...result.categoriesList, ...result.topicsList };
+        } else {
+          // Otherwise, return the ajax result
+          const data = {};
+          if (parentCategory) {
+            data.parent_category_id = parentCategory.id;
+          }
+          return ajax(`/categories_and_${filter}`, { data });
+        }
+      })
+      .then((result) => {
+        if (result.topic_list?.top_tags) {
+          this.site.set("top_tags", result.topic_list.top_tags);
         }
 
-        return EmberObject.create({
+        return CategoryList.create({
+          store: this.store,
           categories: CategoryList.categoriesFrom(
             this.store,
-            wrappedCategoriesList
+            result,
+            parentCategory
           ),
-          topics: TopicList.topicsFrom(this.store, topicsList),
-          can_create_category: categoriesList.can_create_category,
-          can_create_topic: categoriesList.can_create_topic,
-          loadBefore: this._loadBefore(store),
-        });
-      }
-      // Otherwise, return the ajax result
-      return ajax(`/categories_and_${filter}`).then((result) => {
-        if (result.topic_list && result.topic_list.top_tags) {
-          Site.currentProp("top_tags", result.topic_list.top_tags);
-        }
-
-        return EmberObject.create({
-          categories: CategoryList.categoriesFrom(this.store, result),
+          parentCategory,
           topics: TopicList.topicsFrom(this.store, result),
           can_create_category: result.category_list.can_create_category,
           can_create_topic: result.category_list.can_create_topic,
-          loadBefore: this._loadBefore(store),
+          loadBefore: this._loadBefore(this.store),
         });
       });
-    });
-  },
+  }
 
   titleToken() {
     if (defaultHomepage() === "categories") {
       return;
     }
-    return I18n.t("filters.categories.title");
-  },
+    return i18n("filters.categories.title");
+  }
 
-  setupController(controller, model) {
-    controller.set("model", model);
-
-    this.controllerFor("navigation/categories").setProperties({
-      showCategoryAdmin: model.get("can_create_category"),
-      canCreateTopic: model.get("can_create_topic"),
+  setupController(controller) {
+    controller.setProperties({
+      discovery: this.controllerFor("discovery"),
     });
-  },
 
-  actions: {
-    triggerRefresh() {
-      this.refresh();
-    },
+    super.setupController(...arguments);
+  }
 
-    createCategory() {
-      this.transitionTo("newCategory");
-    },
-
-    reorderCategories() {
-      showModal("reorderCategories");
-    },
-
-    createTopic() {
-      if (this.get("currentUser.has_topic_draft")) {
-        this.openTopicDraft();
-      } else {
-        this.openComposer(this.controllerFor("discovery/categories"));
-      }
-    },
-
-    didTransition() {
-      next(() => this.controllerFor("application").set("showFooter", true));
-      return true;
-    },
-  },
-});
-
-export default DiscoveryCategoriesRoute;
+  @action
+  triggerRefresh() {
+    this.refresh();
+  }
+}

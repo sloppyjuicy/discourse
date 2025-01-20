@@ -1,22 +1,29 @@
-.topic-list-item td:first-child,
+.topic-list-item td:first-of-type,
 .topic-post {
   border-left: 1px solid transparent;
 }
 
-.topic-list tr.selected td:first-child,
-.topic-list-item.selected td:first-child,
+.topic-list tr.selected td:first-of-type,
+.topic-list-item.selected td:first-of-type,
 .latest-topic-list-item.selected,
 .search-results .fps-result.selected {
-  box-shadow: inset 3px 0 0 var(--danger); // needs to be inset for Edge
+  box-shadow: inset 3px 0 0 var(--d-nav-color--active);
 }
 
 .featured-topic.selected,
 .topic-post.selected {
-  box-shadow: -3px 0 0 var(--danger);
+  box-shadow: -3px 0 0 var(--d-nav-color--active);
 }
 
-.tabLoc:focus {
-  outline: none;
+.topic-list tr.selected,
+.topic-list-item.selected,
+.featured-topic.selected,
+.topic-post.selected,
+.latest-topic-list-item.selected,
+.search-results .fps-result.selected {
+  &:focus-visible {
+    outline: none;
+  }
 }
 
 .latest .featured-topic {
@@ -27,35 +34,63 @@
   background-color: inherit;
 }
 
-.keyboard-shortcuts-modal .modal-body {
-  max-height: 560px;
+.keyboard-shortcuts-modal.d-modal.-max {
+  .d-modal__container {
+    max-width: 70vw;
+  }
 }
 
-.keyboard-shortcuts-modal .modal-inner-container {
-  max-width: 880px;
+.shortcut-category {
+  border: 1px solid var(--primary-low);
+
+  h2 {
+    font-size: var(--font-0);
+    background-color: var(--primary-very-low);
+    padding: 0.5rem 1rem;
+  }
 }
 
 #keyboard-shortcuts-help {
-  display: flex;
+  box-sizing: border-box;
 
-  .column {
-    width: 33.3%;
+  .keyboard-shortcuts-help__container {
+    columns: 2 20em; // Set maximum of 2 columns
+    section {
+      display: inline-block;
+      margin-bottom: 1.5em;
+      width: 100%;
+    }
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  kbd:first-child {
+    margin-left: 0;
+  }
+
+  @for $i from 1 through 25 {
+    .span-#{$i} {
+      grid-row-end: span $i;
+    }
   }
 
   ul {
     list-style: none;
-    margin-bottom: 2rem;
-    margin-left: 0;
+    margin: 0;
 
     li {
       align-items: center;
       display: flex;
-      flex-wrap: wrap;
-      margin-bottom: 6px;
+      flex-wrap: nowrap;
+      flex-direction: row-reverse;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--primary-low);
+      padding: 0.25rem 1rem;
     }
 
     span {
-      background: var(--primary-very-low);
       border-radius: 3px;
       display: inline-flex;
       margin: 0 6px;
@@ -63,11 +98,20 @@
     }
 
     span:first-child {
-      margin-left: 0;
+      margin-right: 0;
+    }
+
+    span:last-child {
+      margin-left: auto;
+    }
+
+    .delimiter-newline {
+      display: revert;
+      text-align: right;
     }
 
     kbd {
-      font-family: $base-font-family;
+      font-family: var(--font-family);
       font-weight: bold;
     }
   }

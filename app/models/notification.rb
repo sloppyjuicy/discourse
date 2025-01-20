@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 class Notification < ActiveRecord::Base
+  self.ignored_columns = [
+    :old_id, # TODO: Remove once 20240829140226_drop_old_notification_id_columns has been promoted to pre-deploy
+  ]
+
+  attr_accessor :acting_user
+  attr_accessor :acting_username
+
   belongs_to :user
   belongs_to :topic
 
@@ -12,44 +19,70 @@ class Notification < ActiveRecord::Base
   validates_presence_of :notification_type
 
   scope :unread, lambda { where(read: false) }
-  scope :recent, lambda { |n = nil| n ||= 10; order('notifications.created_at desc').limit(n) }
-  scope :visible , lambda { joins('LEFT JOIN topics ON notifications.topic_id = topics.id')
-    .where('topics.id IS NULL OR topics.deleted_at IS NULL') }
+  scope :recent,
+        lambda { |n = nil|
+          n ||= 10
+          order("notifications.created_at desc").limit(n)
+        }
+  scope :visible,
+        lambda {
+          joins("LEFT JOIN topics ON notifications.topic_id = topics.id").where(
+            "topics.id IS NULL OR topics.deleted_at IS NULL",
+          )
+        }
+  scope :unread_type, ->(user, type, limit = 30) { unread_types(user, [type], limit) }
+  scope :unread_types,
+        ->(user, types, limit = 30) do
+          where(user_id: user.id, read: false, notification_type: types)
+            .visible
+            .includes(:topic)
+            .limit(limit)
+        end
+  scope :prioritized,
+        ->(deprioritized_types = []) do
+          scope = order("notifications.high_priority AND NOT notifications.read DESC")
 
-  scope :filter_by_consolidation_data, ->(notification_type, data) {
-    notifications = where(notification_type: notification_type)
+          if deprioritized_types.present?
+            scope =
+              scope.order(
+                DB.sql_fragment(
+                  "NOT notifications.read AND notifications.notification_type NOT IN (?) DESC",
+                  deprioritized_types,
+                ),
+              )
+          else
+            scope = scope.order("NOT notifications.read DESC")
+          end
 
-    case notification_type
-    when types[:liked], types[:liked_consolidated]
-      key = "display_username"
-      consolidation_window = SiteSetting.likes_notification_consolidation_window_mins.minutes.ago
-    when types[:private_message]
-      key = "topic_title"
-      consolidation_window = MEMBERSHIP_REQUEST_CONSOLIDATION_WINDOW_HOURS.hours.ago
-    when types[:membership_request_consolidated]
-      key = "group_name"
-      consolidation_window = MEMBERSHIP_REQUEST_CONSOLIDATION_WINDOW_HOURS.hours.ago
-    end
+          scope.order("notifications.created_at DESC")
+        end
 
-    notifications = notifications.where("created_at > ? AND data::json ->> '#{key}' = ?", consolidation_window, data[key.to_sym]) if data[key&.to_sym].present?
-    notifications = notifications.where("data::json ->> 'username2' IS NULL") if notification_type == types[:liked]
-
-    notifications
-  }
+  scope :for_user_menu,
+        ->(user_id, limit: 30) do
+          where(user_id: user_id).visible.prioritized.includes(:topic).limit(limit)
+        end
 
   attr_accessor :skip_send_email
 
-  after_commit :refresh_notification_count, on: [:create, :update, :destroy]
+  after_commit :refresh_notification_count, on: %i[create update destroy]
+  after_commit :send_email, on: :create
 
-  after_commit(on: :create) do
-    DiscourseEvent.trigger(:notification_created, self)
-    send_email unless NotificationConsolidator.new(self).consolidate!
-  end
+  after_commit(on: :create) { DiscourseEvent.trigger(:notification_created, self) }
 
   before_create do
     # if we have manually set the notification to high_priority on create then
     # make sure that is respected
-    self.high_priority = self.high_priority || Notification.high_priority_types.include?(self.notification_type)
+    self.high_priority =
+      self.high_priority || Notification.high_priority_types.include?(self.notification_type)
+  end
+
+  def self.consolidate_or_create!(notification_params)
+    notification = new(notification_params)
+    consolidation_planner = Notifications::ConsolidationPlanner.new
+
+    consolidated_notification = consolidation_planner.consolidate_or_save!(notification)
+
+    consolidated_notification == :no_plan ? notification.tap(&:save!) : consolidated_notification
   end
 
   def self.purge_old!
@@ -76,7 +109,7 @@ class Notification < ActiveRecord::Base
       DELETE
         FROM notifications n
        WHERE high_priority
-         AND notification_type NOT IN (#{types[:chat_mention].to_i}, #{types[:chat_message].to_i})
+         AND n.topic_id IS NOT NULL
          AND NOT EXISTS (
             SELECT 1
               FROM posts p
@@ -90,44 +123,57 @@ class Notification < ActiveRecord::Base
   end
 
   def self.types
-    @types ||= Enum.new(mentioned: 1,
-                        replied: 2,
-                        quoted: 3,
-                        edited: 4,
-                        liked: 5,
-                        private_message: 6,
-                        invited_to_private_message: 7,
-                        invitee_accepted: 8,
-                        posted: 9,
-                        moved_post: 10,
-                        linked: 11,
-                        granted_badge: 12,
-                        invited_to_topic: 13,
-                        custom: 14,
-                        group_mentioned: 15,
-                        group_message_summary: 16,
-                        watching_first_post: 17,
-                        topic_reminder: 18,
-                        liked_consolidated: 19,
-                        post_approved: 20,
-                        code_review_commit_approved: 21,
-                        membership_request_accepted: 22,
-                        membership_request_consolidated: 23,
-                        bookmark_reminder: 24,
-                        reaction: 25,
-                        votes_released: 26,
-                        event_reminder: 27,
-                        event_invitation: 28,
-                        chat_mention: 29,
-                        chat_message: 30,
-                       )
+    @types ||=
+      Enum.new(
+        mentioned: 1,
+        replied: 2,
+        quoted: 3,
+        edited: 4,
+        liked: 5,
+        private_message: 6,
+        invited_to_private_message: 7,
+        invitee_accepted: 8,
+        posted: 9,
+        moved_post: 10,
+        linked: 11,
+        granted_badge: 12,
+        invited_to_topic: 13,
+        custom: 14,
+        group_mentioned: 15,
+        group_message_summary: 16,
+        watching_first_post: 17,
+        topic_reminder: 18,
+        liked_consolidated: 19,
+        post_approved: 20,
+        code_review_commit_approved: 21,
+        membership_request_accepted: 22,
+        membership_request_consolidated: 23,
+        bookmark_reminder: 24,
+        reaction: 25,
+        votes_released: 26,
+        event_reminder: 27,
+        event_invitation: 28,
+        chat_mention: 29,
+        chat_message: 30,
+        chat_invitation: 31,
+        chat_group_mention: 32, # March 2022 - This is obsolete, as all chat_mentions use `chat_mention` type
+        chat_quoted: 33,
+        assigned: 34,
+        question_answer_user_commented: 35, # Used by https://github.com/discourse/discourse-question-answer
+        watching_category_or_tag: 36,
+        new_features: 37,
+        admin_problems: 38,
+        linked_consolidated: 39,
+        chat_watched_thread: 40,
+        following: 800, # Used by https://github.com/discourse/discourse-follow
+        following_created_topic: 801, # Used by https://github.com/discourse/discourse-follow
+        following_replied: 802, # Used by https://github.com/discourse/discourse-follow
+        circles_activity: 900, # Used by https://github.com/discourse/discourse-circles
+      )
   end
 
   def self.high_priority_types
-    @high_priority_types ||= [
-      types[:private_message],
-      types[:bookmark_reminder]
-    ]
+    @high_priority_types ||= [types[:private_message], types[:bookmark_reminder]]
   end
 
   def self.normal_priority_types
@@ -135,36 +181,38 @@ class Notification < ActiveRecord::Base
   end
 
   def self.mark_posts_read(user, topic_id, post_numbers)
-    Notification
-      .where(
-        user_id: user.id,
-        topic_id: topic_id,
-        post_number: post_numbers,
-        read: false
-      )
-      .update_all(read: true)
+    Notification.where(
+      user_id: user.id,
+      topic_id: topic_id,
+      post_number: post_numbers,
+      read: false,
+    ).update_all(read: true)
   end
 
   def self.read(user, notification_ids)
-    Notification
-      .where(
-        id: notification_ids,
-        user_id: user.id,
-        read: false
-      )
-      .update_all(read: true)
+    Notification.where(id: notification_ids, user_id: user.id, read: false).update_all(read: true)
+  end
+
+  def self.read_types(user, types = nil)
+    query = Notification.where(user_id: user.id, read: false)
+    query = query.where(notification_type: types) if types
+    query.update_all(read: true)
   end
 
   def self.interesting_after(min_date)
-    result = where("created_at > ?", min_date)
-      .includes(:topic)
-      .visible
-      .unread
-      .limit(20)
-      .order("CASE WHEN notification_type = #{Notification.types[:replied]} THEN 1
+    result =
+      where("created_at > ?", min_date)
+        .includes(:topic)
+        .visible
+        .unread
+        .limit(20)
+        .order(
+          "CASE WHEN notification_type = #{Notification.types[:replied]} THEN 1
                            WHEN notification_type = #{Notification.types[:mentioned]} THEN 2
                            ELSE 3
-                      END, created_at DESC").to_a
+                      END, created_at DESC",
+        )
+        .to_a
 
     # Remove any duplicates by type and topic
     if result.present?
@@ -191,16 +239,23 @@ class Notification < ActiveRecord::Base
     Notification.where(user_id: user_id, topic_id: topic_id).delete_all
   end
 
+  def self.filter_inaccessible_topic_notifications(guardian, notifications)
+    topic_ids = notifications.map { |n| n.topic_id }.compact.uniq
+    accessible_topic_ids = guardian.can_see_topic_ids(topic_ids: topic_ids)
+    notifications.select { |n| n.topic_id.blank? || accessible_topic_ids.include?(n.topic_id) }
+  end
+
   # Be wary of calling this frequently. O(n) JSON parsing can suck.
   def data_hash
-    @data_hash ||= begin
-      return {} if data.blank?
+    @data_hash ||=
+      begin
+        return {} if data.blank?
 
-      parsed = JSON.parse(data)
-      return {} if parsed.blank?
+        parsed = JSON.parse(data)
+        return {} if parsed.blank?
 
-      parsed.with_indifferent_access
-    end
+        parsed.with_indifferent_access
+      end
   end
 
   def url
@@ -212,62 +267,124 @@ class Notification < ActiveRecord::Base
     Post.find_by(topic_id: topic_id, post_number: post_number)
   end
 
-  def self.recent_report(user, count = nil)
+  # Update `index_notifications_user_menu_ordering_deprioritized_likes` index when updating this as this is used by
+  # `Notification.prioritized_list` to deprioritize like typed notifications. Also See
+  # `db/migrate/20240306063428_add_indexes_to_notifications.rb`.
+  def self.like_types
+    [
+      Notification.types[:liked],
+      Notification.types[:liked_consolidated],
+      Notification.types[:reaction],
+    ]
+  end
+
+  def self.prioritized_list(user, count: 30, types: [])
+    return [] if !user&.user_option
+
+    notifications =
+      user
+        .notifications
+        .includes(:topic)
+        .visible
+        .prioritized(types.present? ? [] : like_types)
+        .limit(count)
+
+    if types.present?
+      notifications = notifications.where(notification_type: types)
+    elsif user.user_option.like_notification_frequency ==
+          UserOption.like_notification_frequency_type[:never]
+      like_types.each do |notification_type|
+        notifications = notifications.where("notification_type <> ?", notification_type)
+      end
+    end
+    notifications.to_a
+  end
+
+  def self.recent_report(user, count = nil, types = [])
     return unless user && user.user_option
 
     count ||= 10
-    notifications = user.notifications
-      .visible
-      .recent(count)
-      .includes(:topic)
+    notifications = user.notifications.visible.recent(count).includes(:topic)
 
-    if user.user_option.like_notification_frequency == UserOption.like_notification_frequency_type[:never]
+    notifications = notifications.where(notification_type: types) if types.present?
+    if user.user_option.like_notification_frequency ==
+         UserOption.like_notification_frequency_type[:never]
       [
         Notification.types[:liked],
-        Notification.types[:liked_consolidated]
+        Notification.types[:liked_consolidated],
       ].each do |notification_type|
-        notifications = notifications.where(
-          'notification_type <> ?', notification_type
-        )
+        notifications = notifications.where("notification_type <> ?", notification_type)
       end
     end
 
     notifications = notifications.to_a
 
     if notifications.present?
-
-      ids = DB.query_single(<<~SQL, limit: count.to_i)
+      builder = DB.build(<<~SQL)
          SELECT n.id FROM notifications n
-         WHERE
-           n.high_priority = TRUE AND
-           n.user_id = #{user.id.to_i} AND
-           NOT read
+         /*where*/
         ORDER BY n.id ASC
-        LIMIT :limit
+        /*limit*/
       SQL
 
+      builder.where(<<~SQL, user_id: user.id)
+        n.high_priority = TRUE AND
+        n.user_id = :user_id AND
+        NOT read
+      SQL
+      builder.where("notification_type IN (:types)", types: types) if types.present?
+      builder.limit(count.to_i)
+
+      ids = builder.query_single
+
       if ids.length > 0
-        notifications += user
-          .notifications
-          .order('notifications.created_at DESC')
-          .where(id: ids)
-          .joins(:topic)
-          .limit(count)
+        notifications +=
+          user
+            .notifications
+            .order("notifications.created_at DESC")
+            .where(id: ids)
+            .joins(:topic)
+            .limit(count)
       end
 
-      notifications.uniq(&:id).sort do |x, y|
-        if x.unread_high_priority? && !y.unread_high_priority?
-          -1
-        elsif y.unread_high_priority? && !x.unread_high_priority?
-          1
-        else
-          y.created_at <=> x.created_at
+      notifications
+        .uniq(&:id)
+        .sort do |x, y|
+          if x.unread_high_priority? && !y.unread_high_priority?
+            -1
+          elsif y.unread_high_priority? && !x.unread_high_priority?
+            1
+          else
+            y.created_at <=> x.created_at
+          end
         end
-      end.take(count)
+        .take(count)
     else
       []
     end
+  end
 
+  def self.populate_acting_user(notifications)
+    usernames =
+      notifications.map do |notification|
+        notification.acting_username =
+          (
+            notification.data_hash[:username] || notification.data_hash[:display_username] ||
+              notification.data_hash[:mentioned_by_username] ||
+              notification.data_hash[:invited_by_username] ||
+              notification.data_hash[:original_username]
+          )&.downcase
+      end
+
+    users = User.where(username_lower: usernames.uniq).index_by(&:username_lower)
+    notifications.each do |notification|
+      notification.acting_user = users[notification.acting_username]
+      notification.data_hash[
+        :original_name
+      ] = notification.acting_user&.name if SiteSetting.enable_names
+    end
+
+    notifications
   end
 
   def unread_high_priority?
@@ -275,32 +392,30 @@ class Notification < ActiveRecord::Base
   end
 
   def post_id
-    Post.where(topic: topic_id, post_number: post_number).pluck_first(:id)
+    Post.where(topic: topic_id, post_number: post_number).pick(:id)
   end
 
   protected
 
   def refresh_notification_count
-    if user_id
-      User.find_by(id: user_id)&.publish_notifications_state
-    end
+    User.find_by(id: user_id)&.publish_notifications_state if user_id
   end
 
   def send_email
     return if skip_send_email
 
-    user.do_not_disturb? ?
-      ShelvedNotification.create(notification_id: self.id) :
+    if user.do_not_disturb?
+      ShelvedNotification.create(notification_id: self.id)
+    else
       NotificationEmailer.process_notification(self)
+    end
   end
-
 end
 
 # == Schema Information
 #
 # Table name: notifications
 #
-#  id                :integer          not null, primary key
 #  notification_type :integer          not null
 #  user_id           :integer          not null
 #  data              :string(1000)     not null
@@ -311,6 +426,7 @@ end
 #  post_number       :integer
 #  post_action_id    :integer
 #  high_priority     :boolean          default(FALSE), not null
+#  id                :bigint           not null, primary key
 #
 # Indexes
 #
@@ -321,4 +437,6 @@ end
 #  index_notifications_on_user_id_and_topic_id_and_post_number  (user_id,topic_id,post_number)
 #  index_notifications_read_or_not_high_priority                (user_id,id DESC,read,topic_id) WHERE (read OR (high_priority = false))
 #  index_notifications_unique_unread_high_priority              (user_id,id) UNIQUE WHERE ((NOT read) AND (high_priority = true))
+#  index_notifications_user_menu_ordering                       (user_id, ((high_priority AND (NOT read))) DESC, ((NOT read)) DESC, created_at DESC)
+#  index_notifications_user_menu_ordering_deprioritized_likes   (user_id, ((high_priority AND (NOT read))) DESC, (((NOT read) AND (notification_type <> ALL (ARRAY[5, 19, 25])))) DESC, created_at DESC)
 #

@@ -18,28 +18,38 @@ module Roleable
     !staff?
   end
 
+  def whisperer?
+    @whisperer ||=
+      begin
+        return false if SiteSetting.whispers_allowed_groups_map.empty?
+        return true if admin
+        return true if SiteSetting.whispers_allowed_groups_map.include?(primary_group_id)
+        group_users&.exists?(group_id: SiteSetting.whispers_allowed_groups_map)
+      end
+  end
+
   def grant_moderation!
     return if moderator
-    set_permission('moderator', true)
+    set_permission("moderator", true)
     auto_approve_user
     enqueue_staff_welcome_message(:moderator)
     set_default_notification_levels(:moderators)
   end
 
   def revoke_moderation!
-    set_permission('moderator', false)
+    set_permission("moderator", false)
   end
 
   def grant_admin!
     return if admin
-    set_permission('admin', true)
+    set_permission("admin", true)
     auto_approve_user
     enqueue_staff_welcome_message(:admin)
     set_default_notification_levels(:admins)
   end
 
   def revoke_admin!
-    set_permission('admin', false)
+    set_permission("admin", false)
   end
 
   def save_and_refresh_staff_groups!
@@ -61,10 +71,15 @@ module Roleable
     end
   end
 
+  def reload(options = nil)
+    @whisperer = nil
+    super(options)
+  end
+
   private
 
   def auto_approve_user
-    if reviewable = ReviewableUser.find_by(target: self, status: Reviewable.statuses[:pending])
+    if reviewable = ReviewableUser.pending.find_by(target: self)
       reviewable.perform(Discourse.system_user, :approve_user, send_email: false)
     else
       ReviewableUser.set_approved_fields!(self, Discourse.system_user)

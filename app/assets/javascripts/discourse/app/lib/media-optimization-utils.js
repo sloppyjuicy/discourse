@@ -1,36 +1,8 @@
-import { Promise } from "rsvp";
-import { isAppleDevice } from "discourse/lib/utilities";
-
-// Chrome and Firefox use a native method to do Image -> Bitmap Array (it happens of the main thread!)
-// Safari < 15 uses the `<img async>` element due to https://bugs.webkit.org/show_bug.cgi?id=182424
-// Safari > 15 still uses `<img async>` due to their buggy createImageBitmap not handling EXIF rotation
 async function fileToDrawable(file) {
-  if ("createImageBitmap" in self && !isAppleDevice()) {
-    return await createImageBitmap(file);
-  } else {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.decoding = "async";
-    img.src = url;
-    const loaded = new Promise((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(Error("Image loading error"));
-    });
-
-    if (img.decode) {
-      // Nice off-thread way supported in Safari/Chrome.
-      // Safari throws on decode if the source is SVG.
-      // https://bugs.webkit.org/show_bug.cgi?id=188347
-      await img.decode().catch(() => null);
-    }
-
-    // Always await loaded, as we may have bailed due to the Safari bug above.
-    await loaded;
-    return img;
-  }
+  return await createImageBitmap(file);
 }
 
-function drawableToimageData(drawable) {
+function drawableToImageData(drawable) {
   const width = drawable.width,
     height = drawable.height,
     sx = 0,
@@ -38,10 +10,7 @@ function drawableToimageData(drawable) {
     sw = width,
     sh = height;
 
-  // Make canvas same size as image
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  let canvas = new OffscreenCanvas(width, height);
 
   // Draw image onto canvas
   const ctx = canvas.getContext("2d");
@@ -50,7 +19,7 @@ function drawableToimageData(drawable) {
   }
   ctx.drawImage(drawable, sx, sy, sw, sh, 0, 0, width, height);
   const imageData = ctx.getImageData(0, 0, width, height);
-  canvas.remove();
+
   return imageData;
 }
 
@@ -78,7 +47,7 @@ function jpegDecodeFailure(type, imageData) {
 
 export async function fileToImageData(file) {
   const drawable = await fileToDrawable(file);
-  const imageData = drawableToimageData(drawable);
+  const imageData = drawableToImageData(drawable);
 
   if (isTransparent(file.type, imageData)) {
     throw "Image has transparent pixels, won't convert to JPEG!";

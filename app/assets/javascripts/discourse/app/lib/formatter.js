@@ -1,13 +1,14 @@
-import { helperContext, makeArray } from "discourse-common/lib/helpers";
-import deprecated from "discourse-common/lib/deprecated";
-import I18n from "I18n";
+import jQuery from "jquery";
+import deprecated from "discourse/lib/deprecated";
+import { helperContext, makeArray } from "discourse/lib/helpers";
+import I18n, { i18n } from "discourse-i18n";
 
 export function shortDate(date) {
-  return moment(date).format(I18n.t("dates.medium.date_year"));
+  return moment(date).format(i18n("dates.medium.date_year"));
 }
 
-function shortDateNoYear(date) {
-  return moment(date).format(I18n.t("dates.tiny.date_month"));
+export function shortDateNoYear(date) {
+  return moment(date).format(i18n("dates.tiny.date_month"));
 }
 
 // Suppress year if it's this year
@@ -18,14 +19,14 @@ export function smartShortDate(date, withYear = tinyDateYear) {
 }
 
 export function tinyDateYear(date) {
-  return moment(date).format(I18n.t("dates.tiny.date_year"));
+  return moment(date).format(i18n("dates.tiny.date_year"));
 }
 
 // http://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
 // TODO: locale support ?
 export function toTitleCase(str) {
   return str.replace(/\w\S*/g, function (txt) {
-    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    return txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase();
   });
 }
 
@@ -33,7 +34,7 @@ export function longDate(dt) {
   if (!dt) {
     return;
   }
-  return moment(dt).format(I18n.t("dates.long_with_year"));
+  return moment(dt).format(i18n("dates.long_with_year"));
 }
 
 // suppress year, if current year
@@ -43,9 +44,9 @@ export function longDateNoYear(dt) {
   }
 
   if (new Date().getFullYear() !== dt.getFullYear()) {
-    return moment(dt).format(I18n.t("dates.long_date_with_year"));
+    return moment(dt).format(i18n("dates.long_date_with_year"));
   } else {
-    return moment(dt).format(I18n.t("dates.long_date_without_year"));
+    return moment(dt).format(i18n("dates.long_date_without_year"));
   }
 }
 
@@ -54,6 +55,8 @@ export function updateRelativeAge(elems) {
     elems = elems.toArray();
     deprecated("updateRelativeAge now expects a DOM NodeList", {
       since: "2.8.0.beta7",
+      dropFrom: "2.9.0.beta1",
+      id: "discourse.formatter.update-relative-age-node-list",
     });
   }
 
@@ -95,8 +98,15 @@ export function autoUpdatingRelativeAge(date, options) {
     append += " with-year";
   }
 
-  if (options.title) {
+  if (options.customTitle) {
+    append += "' title='" + options.customTitle;
+  } else if (options.title) {
     append += "' title='" + longDate(date);
+  }
+
+  let prefix = "";
+  if (options.prefix) {
+    prefix = options.prefix + " ";
   }
 
   return (
@@ -107,20 +117,36 @@ export function autoUpdatingRelativeAge(date, options) {
     "' data-format='" +
     format +
     "'>" +
+    prefix +
     relAge +
     "</span>"
   );
 }
 
+export function until(untilDate, timezone, locale) {
+  const untilMoment = moment.tz(untilDate, timezone);
+  const now = moment.tz(timezone);
+
+  let untilFormatted;
+  if (now.isSame(untilMoment, "day")) {
+    const localeData = moment.localeData(locale);
+    untilFormatted = untilMoment.format(localeData.longDateFormat("LT"));
+  } else {
+    untilFormatted = untilMoment.format(i18n("dates.long_no_year_no_time"));
+  }
+
+  return `${i18n("until")} ${untilFormatted}`;
+}
+
 function wrapAgo(dateStr) {
-  return I18n.t("dates.wrap_ago", { date: dateStr });
+  return i18n("dates.wrap_ago", { date: dateStr });
 }
 
 function wrapOn(dateStr) {
-  return I18n.t("dates.wrap_on", { date: dateStr });
+  return i18n("dates.wrap_on", { date: dateStr });
 }
 
-export function durationTiny(distance, ageOpts) {
+export function duration(distance, ageOpts) {
   if (typeof distance !== "number") {
     return "&mdash;";
   }
@@ -129,7 +155,8 @@ export function durationTiny(distance, ageOpts) {
   const distanceInMinutes = dividedDistance < 1 ? 1 : dividedDistance;
 
   const t = function (key, opts) {
-    const result = I18n.t("dates.tiny." + key, opts);
+    const format = (ageOpts && ageOpts.format) || "tiny";
+    const result = i18n("dates." + format + "." + key, opts);
     return ageOpts && ageOpts.addAgo ? wrapAgo(result) : result;
   };
 
@@ -180,6 +207,10 @@ export function durationTiny(distance, ageOpts) {
   return formatted;
 }
 
+export function durationTiny(distance, ageOpts) {
+  return duration(distance, { format: "tiny", ...ageOpts });
+}
+
 function relativeAgeTiny(date, ageOpts) {
   const format = "tiny";
   let distance = Math.round((new Date() - date) / 1000);
@@ -191,7 +222,7 @@ function relativeAgeTiny(date, ageOpts) {
 
   let formatted;
   const t = function (key, opts) {
-    const result = I18n.t("dates." + format + "." + key, opts);
+    const result = i18n("dates." + format + "." + key, opts);
     return ageOpts && ageOpts.addAgo ? wrapAgo(result) : result;
   };
 
@@ -244,7 +275,7 @@ export function relativeAgeMediumSpan(distance, leaveAgo) {
   const distanceInMinutes = Math.round(distance / 60.0);
 
   const t = function (key, opts) {
-    return I18n.t(
+    return i18n(
       "dates.medium" + (leaveAgo ? "_with_ago" : "") + "." + key,
       opts
     );
@@ -297,7 +328,7 @@ function relativeAgeMedium(date, options) {
 
   let displayDate = "";
   if (distance < oneMinuteAgo) {
-    displayDate = I18n.t("now");
+    displayDate = i18n("now");
   } else if (distance > fiveDaysAgo) {
     displayDate = smartShortDate(date, shortDate);
     if (options.wrapOn) {
@@ -353,13 +384,13 @@ export function number(val) {
 
   if (val > 999999) {
     formattedNumber = I18n.toNumber(val / 1000000, { precision: 1 });
-    return I18n.t("number.short.millions", { number: formattedNumber });
+    return i18n("number.short.millions", { number: formattedNumber });
   } else if (val > 99999) {
     formattedNumber = I18n.toNumber(Math.floor(val / 1000), { precision: 0 });
-    return I18n.t("number.short.thousands", { number: formattedNumber });
+    return i18n("number.short.thousands", { number: formattedNumber });
   } else if (val > 999) {
     formattedNumber = I18n.toNumber(val / 1000, { precision: 1 });
-    return I18n.t("number.short.thousands", { number: formattedNumber });
+    return i18n("number.short.thousands", { number: formattedNumber });
   }
   return val.toString();
 }

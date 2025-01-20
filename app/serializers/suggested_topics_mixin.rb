@@ -8,13 +8,11 @@ module SuggestedTopicsMixin
   end
 
   def include_related_messages?
-    return false if @options[:exclude_suggested_and_related]
-    object.next_page.nil? && object.related_messages&.topics
+    object.related_messages&.topics
   end
 
   def include_suggested_topics?
-    return false if @options[:exclude_suggested_and_related]
-    object.next_page.nil? && object.suggested_topics&.topics
+    object.suggested_topics&.topics
   end
 
   def include_suggested_group_name?
@@ -26,12 +24,14 @@ module SuggestedTopicsMixin
     return if object.topic.topic_allowed_users.exists?(user_id: scope.user.id)
 
     if object.topic_allowed_group_ids.present?
-      Group.joins(:group_users)
+      Group
+        .joins(:group_users)
         .where(
           "group_users.group_id IN (?) AND group_users.user_id = ?",
-          object.topic_allowed_group_ids, scope.user.id
+          object.topic_allowed_group_ids,
+          scope.user.id,
         )
-        .pluck_first(:name)
+        .pick(:name)
     end
   end
 

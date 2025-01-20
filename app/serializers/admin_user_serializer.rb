@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class AdminUserSerializer < AdminUserListSerializer
-
   attributes :name,
              :associated_accounts,
              :can_send_activation_email,
@@ -41,4 +40,7 @@ class AdminUserSerializer < AdminUserListSerializer
     object.registration_ip_address.try(:to_s)
   end
 
+  def include_can_be_deleted?
+    true
+  end
 end

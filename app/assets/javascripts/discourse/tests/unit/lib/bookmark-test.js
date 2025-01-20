@@ -1,8 +1,11 @@
+import { setupTest } from "ember-qunit";
 import { module, test } from "qunit";
-import { fakeTime } from "discourse/tests/helpers/qunit-helpers";
 import { formattedReminderTime } from "discourse/lib/bookmark";
+import { fakeTime } from "discourse/tests/helpers/qunit-helpers";
 
 module("Unit | Utility | bookmark", function (hooks) {
+  setupTest(hooks);
+
   hooks.beforeEach(function () {
     this.clock = fakeTime("2020-04-11 08:00:00", "Australia/Brisbane");
   });
@@ -16,7 +19,7 @@ module("Unit | Utility | bookmark", function (hooks) {
     let reminderAtDate = moment
       .tz(reminderAt, "Australia/Brisbane")
       .format("H:mm a");
-    assert.equal(
+    assert.strictEqual(
       formattedReminderTime(reminderAt, "Australia/Brisbane"),
       "tomorrow at " + reminderAtDate
     );
@@ -27,7 +30,7 @@ module("Unit | Utility | bookmark", function (hooks) {
     let reminderAtDate = moment
       .tz(reminderAt, "Australia/Brisbane")
       .format("H:mm a");
-    assert.equal(
+    assert.strictEqual(
       formattedReminderTime(reminderAt, "Australia/Brisbane"),
       "today at " + reminderAtDate
     );
@@ -38,7 +41,7 @@ module("Unit | Utility | bookmark", function (hooks) {
     let reminderAtDate = moment
       .tz(reminderAt, "Australia/Brisbane")
       .format("H:mm a");
-    assert.equal(
+    assert.strictEqual(
       formattedReminderTime(reminderAt, "Australia/Brisbane"),
       "at Apr 15, 2020 " + reminderAtDate
     );

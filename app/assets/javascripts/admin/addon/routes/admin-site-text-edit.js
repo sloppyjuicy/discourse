@@ -1,18 +1,18 @@
 import Route from "@ember/routing/route";
 import { ajax } from "discourse/lib/ajax";
 
-export default Route.extend({
-  queryParams: {
+export default class AdminSiteTextEditRoute extends Route {
+  queryParams = {
     locale: { replace: true },
-  },
+  };
 
-  model(params) {
-    return ajax(
+  async model(params) {
+    const result = await ajax(
       `/admin/customize/site_texts/${params.id}?locale=${params.locale}`
-    ).then((result) => {
-      return this.store.createRecord("site-text", result.site_text);
-    });
-  },
+    );
+
+    return this.store.createRecord("site-text", result.site_text);
+  }
 
   setupController(controller, siteText) {
     const locales = JSON.parse(this.siteSettings.available_locales);
@@ -24,7 +24,7 @@ export default Route.extend({
     controller.setProperties({
       siteText,
       saved: false,
-      localeFullName: localeFullName,
+      localeFullName,
     });
-  },
-});
+  }
+}

@@ -1,15 +1,20 @@
 <div class="sections">
-  {{plugin-outlet name="admin-dashboard-security-top"}}
+  <PluginOutlet @name="admin-dashboard-security-top" @connectorTagName="div" />
 
   <div class="main-section">
-    {{admin-report
-      dataSourceName="suspicious_logins"
-      filters=lastWeekfilters}}
+    <AdminReport
+      @dataSourceName="suspicious_logins"
+      @filters={{this.lastWeekFilters}}
+    />
 
-    {{admin-report
-      dataSourceName="staff_logins"
-      filters=lastWeekfilters}}
+    <AdminReport
+      @dataSourceName="staff_logins"
+      @filters={{this.lastWeekFilters}}
+    />
 
-    {{plugin-outlet name="admin-dashboard-security-bottom"}}
+    <PluginOutlet
+      @name="admin-dashboard-security-bottom"
+      @connectorTagName="div"
+    />
   </div>
 </div>

@@ -1,10 +1,19 @@
 # frozen_string_literal: true
 
-require_dependency 'migration/base_dropper'
+require "migration/base_dropper"
 
 module Migration
   class ColumnDropper
     def self.mark_readonly(table_name, column_name)
+      has_default = DB.query_single(<<~SQL, table_name: table_name, column_name: column_name).first
+        SELECT column_default IS NOT NULL
+        FROM information_schema.columns
+        WHERE table_name = :table_name
+        AND column_name = :column_name
+      SQL
+
+      raise "You must drop a column's default value before marking it as readonly" if has_default
+
       BaseDropper.create_readonly_function(table_name, column_name)
 
       DB.exec <<~SQL
@@ -32,7 +41,9 @@ module Migration
       BaseDropper.drop_readonly_function(table_name, column_name)
 
       # Backward compatibility for old functions created in the public schema
-      DB.exec("DROP FUNCTION IF EXISTS #{BaseDropper.old_readonly_function_name(table_name, column_name)} CASCADE")
+      DB.exec(
+        "DROP FUNCTION IF EXISTS #{BaseDropper.old_readonly_function_name(table_name, column_name)} CASCADE",
+      )
     end
   end
 end

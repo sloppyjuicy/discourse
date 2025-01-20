@@ -1,15 +1,18 @@
 import Component from "@ember/component";
-export default Component.extend({
-  tagName: "",
-  expandDetails: false,
+import { action } from "@ember/object";
+import { tagName } from "@ember-decorators/component";
 
-  actions: {
-    toggleDetails() {
-      this.toggleProperty("expandDetails");
-    },
+@tagName("")
+export default class GroupManageLogsRow extends Component {
+  expandDetails = false;
 
-    filter(params) {
-      this.set(`filters.${params.key}`, params.value);
-    },
-  },
-});
+  @action
+  toggleDetails() {
+    this.toggleProperty("expandDetails");
+  }
+
+  @action
+  filter(params) {
+    this.set(`filters.${params.key}`, params.value);
+  }
+}

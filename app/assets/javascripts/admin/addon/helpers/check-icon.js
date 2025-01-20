@@ -1,8 +1,10 @@
 import { htmlSafe } from "@ember/template";
-import { registerUnbound } from "discourse-common/lib/helpers";
-import { renderIcon } from "discourse-common/lib/icon-library";
+import { registerRawHelper } from "discourse/lib/helpers";
+import { renderIcon } from "discourse/lib/icon-library";
 
-registerUnbound("check-icon", function (value) {
-  let icon = value ? "check" : "times";
+registerRawHelper("check-icon", checkIcon);
+
+export default function checkIcon(value) {
+  let icon = value ? "check" : "xmark";
   return htmlSafe(renderIcon("string", icon));
-});
+}

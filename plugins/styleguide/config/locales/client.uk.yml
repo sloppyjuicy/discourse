@@ -10,16 +10,23 @@ uk:
       title: "Styleguide"
       welcome: "Для початку оберіть розділ у меню ліворуч."
       categories:
+        syntax: Синтаксис
         atoms: Атоми
         molecules: Молекули
         organisms: Організми
       sections:
+        bem:
+          title: "BEM"
         typography:
           title: "Типографіка"
           example: "Ласкаво просимо в Discourse"
           paragraph: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
         date_time_inputs:
           title: "Введення дати / часу"
+        menus:
+          title: "Меню"
+        toasts:
+          title: "Тости"
         font_scale:
           title: "Шрифти"
         colors:
@@ -27,8 +34,8 @@ uk:
         icons:
           title: "Іконки"
           full_list: "Перегляньте повний список значків Font Awesome"
-        input_fields:
-          title: "Поля введення"
+        forms:
+          title: "Форми"
         buttons:
           title: "Кнопки"
         dropdowns:
@@ -67,6 +74,10 @@ uk:
           title: "Сповіщення теми"
         post:
           title: "Допис"
+        post_list:
+          title: "Список публікацій"
+          empty_example: "<PostList /> порожній стан"
+          populated_example: "<PostList /> заповнений стан"
         topic_map:
           title: "Карта теми"
         site_header:
@@ -85,3 +96,13 @@ uk:
           title: "Значки заголовків"
         spinners:
           title: "Спінери"
+        empty_state:
+          title: "Порожній стан"
+        tooltips:
+          title: "Підказки"
+          description: "Опис"
+          header: "Шапка"
+          hover_to_see: "Наведіть курсор, щоб побачити підказку"
+        char_counter:
+          title: "Лічильник символів"
+          placeholder: "Введіть свій текст тут..."

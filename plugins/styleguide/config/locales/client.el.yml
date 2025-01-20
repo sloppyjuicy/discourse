@@ -26,3 +26,6 @@ el:
           title: "Ανάρτηση"
         suggested_topics:
           title: "Προτεινόμενα θέματα"
+        tooltips:
+          description: "Περιγραφή"
+          header: "Header"

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title><%= content_for?(:title) ? yield(:title) : SiteSetting.title %></title>
 
-  <%= stylesheet_link_tag(:ember_cli) %>
+  <%= discourse_stylesheet_link_tag(:ember_cli) %>
 
 </head>
 <body class="requires-ember-cli">
@@ -17,7 +17,9 @@
 
     <p>Then visit the following URL to use Discourse:</p>
 
-   <h3><a href="http://localhost:4200/">http://localhost:4200</a></h3>
+    <h3><a href="http://<%= Discourse.current_hostname %>:4200<%= Discourse.base_path %>">http://<%= Discourse.current_hostname %>:4200<%= Discourse.base_path %></a></h3>
+
+    <p>To disable this warning and allow direct Rails access, start the server with <code>ALLOW_EMBER_CLI_PROXY_BYPASS=1</code></p>
   </div>
 </body>
 </html>

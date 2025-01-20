@@ -1,17 +1,17 @@
 import Component from "@ember/component";
-import discourseComputed from "discourse-common/utils/decorators";
+import { action } from "@ember/object";
+import { classNames } from "@ember-decorators/component";
+import discourseComputed from "discourse/lib/decorators";
 
-export default Component.extend({
-  classNames: ["top-title-buttons"],
-
+@classNames("top-title-buttons")
+export default class TopPeriodButtons extends Component {
   @discourseComputed("period")
   periods(period) {
     return this.site.get("periods").filter((p) => p !== period);
-  },
+  }
 
-  actions: {
-    changePeriod(p) {
-      this.action(p);
-    },
-  },
-});
+  @action
+  changePeriod(p) {
+    this.action(p);
+  }
+}

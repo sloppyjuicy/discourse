@@ -10,12 +10,12 @@
 
     <div class="github-info">
       <div class="date">
-        committed <span class="discourse-local-date" data-format="ll" data-date="{{committed_at_date}}" data-time="{{committed_at_time}}" data-timezone="UTC">{{committed_at}}</span>
+        {{i18n.committed}} <span class="discourse-local-date" data-format="ll" data-date="{{committed_at_date}}" data-time="{{committed_at_time}}" data-timezone="UTC">{{committed_at}}</span>
       </div>
 
       <div class="user">
         <a href="{{author.html_url}}" target="_blank" rel="noopener">
-          <img alt="{{author.login}}" src="{{author.avatar_url}}" class="onebox-avatar-inline" width="20" height="20">
+          <img alt="" src="{{author.avatar_url}}" class="onebox-avatar-inline" width="20" height="20">
           {{author.login}}
         </a>
       </div>

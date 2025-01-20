@@ -1,11 +1,7 @@
-import selectKit from "discourse/tests/helpers/select-kit-helper";
-import {
-  acceptance,
-  exists,
-  queryAll,
-} from "discourse/tests/helpers/qunit-helpers";
-import { test } from "qunit";
 import { visit } from "@ember/test-helpers";
+import { test } from "qunit";
+import { acceptance } from "discourse/tests/helpers/qunit-helpers";
+import selectKit from "discourse/tests/helpers/select-kit-helper";
 
 acceptance("New Message - Anonymous", function () {
   test("accessing new-message route when logged out", async function (assert) {
@@ -13,7 +9,7 @@ acceptance("New Message - Anonymous", function () {
       "/new-message?username=charlie&title=message%20title&body=message%20body"
     );
 
-    assert.ok(exists(".modal.login-modal"), "it shows the login modal");
+    assert.dom(".modal.login-modal").exists("shows the login modal");
   });
 });
 
@@ -22,25 +18,21 @@ acceptance("New Message - Authenticated", function (needs) {
 
   test("accessing new-message route when logged in", async function (assert) {
     await visit(
-      "/new-message?username=charlie&title=message%20title&body=message%20body"
+      "/new-message?username=charlie,john&title=message%20title&body=message%20body"
     );
 
-    assert.ok(exists(".composer-fields"), "it opens composer");
-    assert.equal(
-      queryAll("#reply-title").val().trim(),
-      "message title",
-      "it pre-fills message title"
-    );
-    assert.equal(
-      queryAll(".d-editor-input").val().trim(),
-      "message body",
-      "it pre-fills message body"
-    );
+    assert.dom(".composer-fields").exists("opens the composer");
+    assert
+      .dom("#reply-title")
+      .hasValue("message title", "pre-fills message title");
+    assert
+      .dom(".d-editor-input")
+      .hasValue("message body", "pre-fills message body");
 
     const privateMessageUsers = selectKit("#private-message-users");
-    assert.equal(
+    assert.strictEqual(
       privateMessageUsers.header().value(),
-      "charlie",
+      "charlie,john",
       "it selects correct username"
     );
   });

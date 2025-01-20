@@ -1,13 +1,14 @@
-import DiscourseRoute from "discourse/routes/discourse";
+import { service } from "@ember/service";
 import Group from "discourse/models/group";
-import I18n from "I18n";
+import DiscourseRoute from "discourse/routes/discourse";
+import { i18n } from "discourse-i18n";
 
-export default DiscourseRoute.extend({
-  showFooter: true,
+export default class GroupsNew extends DiscourseRoute {
+  @service router;
 
   titleToken() {
-    return I18n.t("admin.groups.new.title");
-  },
+    return i18n("admin.groups.new.title");
+  }
 
   model() {
     return Group.create({
@@ -15,15 +16,11 @@ export default DiscourseRoute.extend({
       visibility_level: 0,
       can_admin_group: true,
     });
-  },
-
-  setupController(controller, model) {
-    controller.set("model", model);
-  },
+  }
 
   afterModel() {
     if (!this.get("currentUser.can_create_group")) {
-      this.transitionTo("groups");
+      this.router.transitionTo("groups");
     }
-  },
-});
+  }
+}

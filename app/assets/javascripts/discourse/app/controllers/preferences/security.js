@@ -1,21 +1,58 @@
 import Controller from "@ember/controller";
+import { action, computed } from "@ember/object";
 import { gt } from "@ember/object/computed";
-import discourseComputed from "discourse-common/utils/decorators";
+import { service } from "@ember/service";
+import ConfirmSession from "discourse/components/dialog-messages/confirm-session";
+import AuthTokenModal from "discourse/components/modal/auth-token";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
+import CanCheckEmailsHelper from "discourse/lib/can-check-emails-helper";
+import { setting } from "discourse/lib/computed";
+import discourseComputed from "discourse/lib/decorators";
 import logout from "discourse/lib/logout";
-import showModal from "discourse/lib/show-modal";
 import { userPath } from "discourse/lib/url";
-import CanCheckEmails from "discourse/mixins/can-check-emails";
-import I18n from "I18n";
+import { isWebauthnSupported } from "discourse/lib/webauthn";
+import { i18n } from "discourse-i18n";
 
 // Number of tokens shown by default.
 const DEFAULT_AUTH_TOKENS_COUNT = 2;
 
-export default Controller.extend(CanCheckEmails, {
-  passwordProgress: null,
+export default class SecurityController extends Controller {
+  @service modal;
+  @service dialog;
+  @service router;
+  @service currentUser;
 
-  showAllAuthTokens: false,
+  @setting("moderators_view_emails") canModeratorsViewEmails;
+
+  passwordProgress = null;
+  subpageTitle = i18n("user.preferences_nav.security");
+  showAllAuthTokens = false;
+
+  @gt("model.user_auth_tokens.length", DEFAULT_AUTH_TOKENS_COUNT)
+  canShowAllAuthTokens;
+
+  @computed("model.id", "currentUser.id")
+  get canCheckEmails() {
+    return new CanCheckEmailsHelper(
+      this.model,
+      this.canModeratorsViewEmails,
+      this.currentUser
+    ).canCheckEmails;
+  }
+
+  get isCurrentUser() {
+    return this.currentUser?.id === this.model.id;
+  }
+
+  get canUsePasskeys() {
+    return (
+      !this.siteSettings.enable_discourse_connect &&
+      this.siteSettings.enable_local_logins &&
+      this.siteSettings.enable_passkeys &&
+      isWebauthnSupported()
+    );
+  }
 
   @discourseComputed("model.is_anonymous")
   canChangePassword(isAnonymous) {
@@ -27,7 +64,7 @@ export default Controller.extend(CanCheckEmails, {
         this.siteSettings.enable_local_logins
       );
     }
-  },
+  }
 
   @discourseComputed("showAllAuthTokens", "model.user_auth_tokens")
   authTokens(showAllAuthTokens, tokens) {
@@ -44,71 +81,88 @@ export default Controller.extend(CanCheckEmails, {
     return showAllAuthTokens
       ? tokens
       : tokens.slice(0, DEFAULT_AUTH_TOKENS_COUNT);
-  },
+  }
 
-  canShowAllAuthTokens: gt(
-    "model.user_auth_tokens.length",
-    DEFAULT_AUTH_TOKENS_COUNT
-  ),
-
-  actions: {
-    save() {
-      this.set("saved", false);
-
+  @action
+  changePassword(event) {
+    event?.preventDefault();
+    if (!this.passwordProgress) {
+      this.set("passwordProgress", i18n("user.change_password.in_progress"));
       return this.model
-        .then(() => this.set("saved", true))
-        .catch(popupAjaxError);
-    },
-
-    changePassword() {
-      if (!this.passwordProgress) {
-        this.set(
-          "passwordProgress",
-          I18n.t("user.change_password.in_progress")
-        );
-        return this.model
-          .changePassword()
-          .then(() => {
-            // password changed
-            this.setProperties({
-              changePasswordProgress: false,
-              passwordProgress: I18n.t("user.change_password.success"),
-            });
-          })
-          .catch(() => {
-            // password failed to change
-            this.setProperties({
-              changePasswordProgress: false,
-              passwordProgress: I18n.t("user.change_password.error"),
-            });
-          });
-      }
-    },
-
-    toggleShowAllAuthTokens() {
-      this.toggleProperty("showAllAuthTokens");
-    },
-
-    revokeAuthToken(token) {
-      ajax(
-        userPath(
-          `${this.get("model.username_lower")}/preferences/revoke-auth-token`
-        ),
-        {
-          type: "POST",
-          data: token ? { token_id: token.id } : {},
-        }
-      )
+        .changePassword()
         .then(() => {
-          if (!token) {
-            logout();
-          } // All sessions revoked
+          // password changed
+          this.setProperties({
+            changePasswordProgress: false,
+            passwordProgress: i18n("user.change_password.success"),
+          });
         })
-        .catch(popupAjaxError);
-    },
+        .catch(() => {
+          // password failed to change
+          this.setProperties({
+            changePasswordProgress: false,
+            passwordProgress: i18n("user.change_password.error"),
+          });
+        });
+    }
+  }
 
-    showToken(token) {
-      showModal("auth-token", { model: token });
-    },
-  },
-});
+  @action
+  toggleShowAllAuthTokens(event) {
+    event?.preventDefault();
+    this.toggleProperty("showAllAuthTokens");
+  }
+
+  @action
+  revokeAuthToken(token, event) {
+    event?.preventDefault();
+    ajax(
+      userPath(
+        `${this.get("model.username_lower")}/preferences/revoke-auth-token`
+      ),
+      {
+        type: "POST",
+        data: token ? { token_id: token.id } : {},
+      }
+    )
+      .then(() => {
+        if (!token) {
+          logout();
+        } // All sessions revoked
+      })
+      .catch(popupAjaxError);
+  }
+
+  @action
+  async manage2FA() {
+    try {
+      const trustedSession = await this.model.trustedSession();
+
+      if (!trustedSession.success) {
+        this.dialog.dialog({
+          title: i18n("user.confirm_access.title"),
+          type: "notice",
+          bodyComponent: ConfirmSession,
+          didConfirm: () =>
+            this.router.transitionTo("preferences.second-factor"),
+        });
+      } else {
+        await this.router.transitionTo("preferences.second-factor");
+      }
+    } catch (error) {
+      popupAjaxError(error);
+    }
+  }
+
+  @action
+  save() {
+    this.set("saved", false);
+
+    return this.model.then(() => this.set("saved", true)).catch(popupAjaxError);
+  }
+
+  @action
+  showToken(token) {
+    this.modal.show(AuthTokenModal, { model: token });
+  }
+}

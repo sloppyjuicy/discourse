@@ -1,9 +1,12 @@
+// LEGACY STYLES
+// some plugins rely on these (discourse-topic-voting is one)
+
 .popup-menu {
   background-color: var(--secondary);
   width: 14em;
   border: 1px solid var(--primary-low);
   z-index: z("dropdown");
-  box-shadow: shadow("card");
+  box-shadow: var(--shadow-card);
 
   ul {
     margin: 0;
@@ -23,19 +26,21 @@
     text-align: left;
     background: none;
     width: 100%;
-    padding: 0.75em;
+    padding: 0.5em;
     border-radius: 0;
     margin: 0;
 
     .d-icon {
       color: var(--primary-medium);
       align-self: flex-start;
+      margin-right: 0.75em;
+      margin-top: 0.1em; // vertical alignment
     }
 
     &:focus,
     &:hover {
       color: var(--primary);
-      background: var(--tertiary-low);
+      background: var(--d-hover);
 
       .d-icon {
         color: var(--primary-medium);

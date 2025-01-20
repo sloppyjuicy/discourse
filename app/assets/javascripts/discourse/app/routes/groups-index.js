@@ -1,11 +1,7 @@
 import DiscourseRoute from "discourse/routes/discourse";
-import I18n from "I18n";
+import { i18n } from "discourse-i18n";
 
 export default class GroupsIndexRoute extends DiscourseRoute {
-  titleToken() {
-    return I18n.t("groups.index.title");
-  }
-
   queryParams = {
     order: { refreshModel: true, replace: true },
     asc: { refreshModel: true, replace: true },
@@ -14,11 +10,17 @@ export default class GroupsIndexRoute extends DiscourseRoute {
     username: { refreshModel: true },
   };
 
-  model(params) {
-    return params;
+  titleToken() {
+    return i18n("groups.index.title");
   }
 
-  setupController(controller, params) {
-    controller.loadGroups(params);
+  async model(params) {
+    const groups = await this.store.findAll("group", params);
+    return { groups };
+  }
+
+  setupController(controller, model) {
+    super.setupController(controller, model);
+    controller.set("groups", model.groups);
   }
 }

@@ -1,7 +1,11 @@
-<div class="ac-message">
-  {{html-safe accountCreated.message}}
+<SignupProgressBar @step="activate" />
+<WelcomeHeader @header={{this.welcomeTitle}} />
+<div class="success-info">
+  {{html-safe this.accountCreated.message}}
 </div>
-{{#if accountCreated.show_controls}}
-  {{activation-controls sendActivationEmail=(action "sendActivationEmail")
-                        editActivationEmail=(action "editActivationEmail")}}
+{{#if this.accountCreated.show_controls}}
+  <ActivationControls
+    @sendActivationEmail={{action "sendActivationEmail"}}
+    @editActivationEmail={{action "editActivationEmail"}}
+  />
 {{/if}}

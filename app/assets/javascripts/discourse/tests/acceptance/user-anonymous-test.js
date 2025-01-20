@@ -1,41 +1,53 @@
-import { acceptance, exists } from "discourse/tests/helpers/qunit-helpers";
 import { currentRouteName, currentURL, visit } from "@ember/test-helpers";
 import { test } from "qunit";
+import { acceptance } from "discourse/tests/helpers/qunit-helpers";
 
 acceptance("User Anonymous", function () {
   test("Root URL", async function (assert) {
     await visit("/u/eviltrout");
-    assert.ok($("body.user-summary-page").length, "has the body class");
-    assert.equal(currentRouteName(), "user.summary", "it defaults to summary");
+
+    assert
+      .dom(document.body)
+      .hasClass("user-summary-page", "has the body class");
+    assert.strictEqual(
+      currentRouteName(),
+      "user.summary",
+      "it defaults to summary"
+    );
   });
 
   test("Filters", async function (assert) {
     await visit("/u/eviltrout/activity");
-    assert.ok($("body.user-activity-page").length, "has the body class");
-    assert.ok(exists(".user-main .about"), "it has the about section");
-    assert.ok(exists(".user-stream .item"), "it has stream items");
+    assert
+      .dom(document.body)
+      .hasClass("user-activity-page", "has the body class");
+    assert.dom(".user-main .about").exists("has the about section");
+    assert.dom(".user-stream .item").exists("has stream items");
 
     await visit("/u/eviltrout/activity/topics");
-    assert.ok(!exists(".user-stream .item"), "has no stream displayed");
-    assert.ok(exists(".topic-list tr"), "it has a topic list");
+    assert.dom(".user-stream .item").doesNotExist("has no stream displayed");
+    assert.dom(".topic-list tr").exists("has a topic list");
 
     await visit("/u/eviltrout/activity/replies");
-    assert.ok(exists(".user-main .about"), "it has the about section");
-    assert.ok(exists(".user-stream .item"), "it has stream items");
+    assert.dom(".user-main .about").exists("has the about section");
+    assert.dom(".user-stream .item").exists("has stream items");
 
-    assert.ok(exists(".user-stream.filter-5"), "stream has filter class");
+    assert.dom(".user-stream.filter-5").exists("stream has filter class");
   });
 
   test("Badges", async function (assert) {
     await visit("/u/eviltrout/badges");
-    assert.ok($("body.user-badges-page").length, "has the body class");
-    assert.ok(exists(".badge-group-list .badge-card"), "shows a badge");
+
+    assert
+      .dom(document.body)
+      .hasClass("user-badges-page", "has the body class");
+    assert.dom(".badge-group-list .badge-card").exists("shows a badge");
   });
 
   test("Restricted Routes", async function (assert) {
     await visit("/u/eviltrout/preferences");
 
-    assert.equal(
+    assert.strictEqual(
       currentURL(),
       "/u/eviltrout/activity",
       "it redirects from preferences"

@@ -2,5 +2,10 @@
 
 Fabricator(:invite) do
   invited_by(fabricator: :user)
-  email 'iceking@ADVENTURETIME.ooo'
+  email "iceking@ADVENTURETIME.ooo"
+end
+
+Fabricator(:invited_group) do
+  group
+  invite
 end

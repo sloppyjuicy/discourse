@@ -1,6 +1,5 @@
-import { publishToMessageBus } from "discourse/tests/helpers/qunit-helpers";
 import User from "discourse/models/user";
-import { settled } from "@ember/test-helpers";
+import { publishToMessageBus } from "discourse/tests/helpers/qunit-helpers";
 
 let channels = {};
 
@@ -35,35 +34,33 @@ export default function (helper) {
 }
 
 export function getChannelInfo(name) {
-  channels[name] ||= { count: 0, users: [], last_message_id: 0 };
-  return channels[name];
+  return (channels[name] ||= { count: 0, users: [], last_message_id: 0 });
 }
 
-export function joinChannel(name, user) {
+export async function joinChannel(name, user) {
   const channel = getChannelInfo(name);
   if (!channel.users.any((u) => u.id === user.id)) {
     channel.users.push(user);
     channel.count += 1;
     channel.last_message_id += 1;
-    publishToMessageBus(
+    await publishToMessageBus(
       `/presence${name}`,
       {
-        entering_users: [user],
+        entering_users: [{ ...user }],
       },
       0,
       channel.last_message_id
     );
   }
-  return settled();
 }
 
-export function leaveChannel(name, user) {
+export async function leaveChannel(name, user) {
   const channel = getChannelInfo(name);
   if (channel.users.any((u) => u.id === user.id)) {
     channel.users = channel.users.reject((u) => u.id === user.id);
     channel.count -= 1;
     channel.last_message_id += 1;
-    publishToMessageBus(
+    await publishToMessageBus(
       `/presence${name}`,
       {
         leaving_user_ids: [user.id],
@@ -72,7 +69,6 @@ export function leaveChannel(name, user) {
       channel.last_message_id
     );
   }
-  return settled();
 }
 
 export function presentUserIds(channelName) {

@@ -1,9 +1,7 @@
-import componentTest, {
-  setupRenderingTest,
-} from "discourse/tests/helpers/component-test";
-import { discourseModule, exists } from "discourse/tests/helpers/qunit-helpers";
-import { click } from "@ember/test-helpers";
-import hbs from "htmlbars-inline-precompile";
+import { click, render } from "@ember/test-helpers";
+import { hbs } from "ember-cli-htmlbars";
+import { module, test } from "qunit";
+import { setupRenderingTest } from "discourse/tests/helpers/component-test";
 import selectKit from "discourse/tests/helpers/select-kit-helper";
 
 const DEFAULT_CONTENT = [
@@ -14,98 +12,81 @@ const DEFAULT_CONTENT = [
 
 const DEFAULT_VALUE = 1;
 
-const setDefaultState = (ctx, options) => {
+const setDefaultState = (ctx, options = {}) => {
   const properties = Object.assign(
     {
       content: DEFAULT_CONTENT,
       value: DEFAULT_VALUE,
     },
-    options || {}
+    options
   );
   ctx.setProperties(properties);
 };
 
-discourseModule(
-  "Integration | Component | select-kit/combo-box",
-  function (hooks) {
-    setupRenderingTest(hooks);
+module("Integration | Component | select-kit/combo-box", function (hooks) {
+  setupRenderingTest(hooks);
 
-    hooks.beforeEach(function () {
-      this.set("subject", selectKit());
-    });
+  hooks.beforeEach(function () {
+    this.set("subject", selectKit());
+  });
 
-    componentTest("options.clearable", {
-      template: hbs`
-      {{combo-box
-        value=value
-        content=content
-        onChange=onChange
-        options=(hash clearable=clearable)
-      }}
-    `,
-
-      beforeEach() {
-        setDefaultState(this, {
-          clearable: true,
-          onChange: (value) => {
-            this.set("value", value);
-          },
-        });
-      },
-
-      async test(assert) {
-        const $header = this.subject.header();
-
-        assert.ok(
-          exists($header.el().find(".btn-clear")),
-          "it shows the clear button"
-        );
-        assert.equal($header.value(), DEFAULT_VALUE);
-
-        await click($header.el().find(".btn-clear")[0]);
-
-        assert.notOk(
-          exists($header.el().find(".btn-clear")),
-          "it hides the clear button"
-        );
-        assert.equal($header.value(), null);
+  test("options.clearable", async function (assert) {
+    setDefaultState(this, {
+      clearable: true,
+      onChange: (value) => {
+        this.set("value", value);
       },
     });
 
-    componentTest("options.{caretUpIcon,caretDownIcon}", {
-      template: hbs`
-      {{combo-box
-        value=value
-        content=content
-        options=(hash
-          caretUpIcon=caretUpIcon
-          caretDownIcon=caretDownIcon
-        )
-      }}
-    `,
+    await render(hbs`
+      <ComboBox
+        @value={{this.value}}
+        @content={{this.content}}
+        @onChange={{this.onChange}}
+        @options={{hash clearable=this.clearable}}
+      />
+    `);
 
-      beforeEach() {
-        setDefaultState(this, {
-          caretUpIcon: "pencil-alt",
-          caretDownIcon: "trash-alt",
-        });
-      },
+    const header = this.subject.header();
 
-      async test(assert) {
-        const $header = this.subject.header().el();
+    assert.dom(".btn-clear", header.el()).exists("shows the clear button");
+    assert.strictEqual(header.value(), DEFAULT_VALUE.toString());
 
-        assert.ok(
-          exists($header.find(`.d-icon-${this.caretDownIcon}`)),
-          "it uses the icon provided"
-        );
+    await click(header.el().querySelector(".btn-clear"));
 
-        await this.subject.expand();
+    assert
+      .dom(".btn-clear", header.el())
+      .doesNotExist("hides the clear button");
+    assert.strictEqual(header.value(), null);
+  });
 
-        assert.ok(
-          exists($header.find(`.d-icon-${this.caretUpIcon}`)),
-          "it uses the icon provided"
-        );
-      },
+  test("options.{caretUpIcon,caretDownIcon}", async function (assert) {
+    setDefaultState(this, {
+      caretUpIcon: "pencil",
+      caretDownIcon: "trash-can",
     });
-  }
-);
+
+    await render(hbs`
+      <ComboBox
+        @value={{this.value}}
+        @content={{this.content}}
+        @options={{hash
+          caretUpIcon=this.caretUpIcon
+          caretDownIcon=this.caretDownIcon
+        }}
+      />
+    `);
+
+    const header = this.subject.header().el();
+
+    assert
+      .dom(`.d-icon-${this.caretDownIcon}`, header)
+      .exists("uses the icon provided");
+
+    await this.subject.expand();
+
+    assert
+      .dom(`.d-icon-${this.caretUpIcon}`, header)
+      .exists("uses the icon provided");
+  });
+});

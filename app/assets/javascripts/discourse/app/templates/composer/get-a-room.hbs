@@ -1,10 +1,10 @@
-<a href {{action closeMessage message}} class="close">{{d-icon "times"}}</a>
+<ComposerTipCloseButton @action={{fn this.closeMessage this.message}} />
 
-{{html-safe message.body}}
+{{html-safe this.message.body}}
 
-{{d-button
+<DButton
+  @label="user.private_message"
+  @icon="envelope"
+  @action={{fn this.switchPM this.message}}
   class="btn-primary"
-  label="user.private_message"
-  icon="envelope"
-  action=(action switchPM message)
-}}
+/>

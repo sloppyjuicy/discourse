@@ -1,19 +1,24 @@
 # frozen_string_literal: true
 
 class ReviewableFlaggedPost < Reviewable
+  scope :pending_and_default_visible, -> { pending.default_visible }
 
   # Penalties are handled by the modal after the action is performed
   def self.action_aliases
-    { agree_and_keep_hidden: :agree_and_keep,
+    {
+      agree_and_keep_hidden: :agree_and_keep,
       agree_and_silence: :agree_and_keep,
       agree_and_suspend: :agree_and_keep,
-      disagree_and_restore: :disagree }
+      agree_and_edit: :agree_and_keep,
+      disagree_and_restore: :disagree,
+      ignore_and_do_nothing: :ignore,
+    }
   end
 
   def self.counts_for(posts)
     result = {}
 
-    counts = DB.query(<<~SQL, pending: Reviewable.statuses[:pending])
+    counts = DB.query(<<~SQL, pending: statuses[:pending])
       SELECT r.target_id AS post_id,
         rs.reviewable_score_type,
         count(*) as total
@@ -40,68 +45,115 @@ class ReviewableFlaggedPost < Reviewable
     return unless pending?
     return if post.blank?
 
-    agree = actions.add_bundle("#{id}-agree", icon: 'thumbs-up', label: 'reviewables.actions.agree.title')
+    agree_bundle =
+      actions.add_bundle("#{id}-agree", icon: "thumbs-up", label: "reviewables.actions.agree.title")
 
     if !post.user_deleted? && !post.hidden?
-      build_action(actions, :agree_and_hide, icon: 'far-eye-slash', bundle: agree)
+      build_action(actions, :agree_and_hide, icon: "far-eye-slash", bundle: agree_bundle)
     end
 
     if post.hidden?
-      build_action(actions, :agree_and_keep_hidden, icon: 'thumbs-up', bundle: agree)
+      build_action(actions, :agree_and_keep_hidden, icon: "thumbs-up", bundle: agree_bundle)
     else
-      build_action(actions, :agree_and_keep, icon: 'thumbs-up', bundle: agree)
-    end
-
-    if guardian.can_suspend?(target_created_by)
-      build_action(actions, :agree_and_suspend, icon: 'ban', bundle: agree, client_action: 'suspend')
-      build_action(actions, :agree_and_silence, icon: 'microphone-slash', bundle: agree, client_action: 'silence')
-    end
-
-    if post.user_deleted?
-      build_action(actions, :agree_and_restore, icon: 'far-eye', bundle: agree)
-    end
-
-    if post.hidden?
-      build_action(actions, :disagree_and_restore, icon: 'thumbs-down')
-    else
-      build_action(actions, :disagree, icon: 'thumbs-down')
-    end
-
-    build_action(actions, :ignore, icon: 'external-link-alt')
-
-    if potential_spam? && guardian.can_delete_all_posts?(target_created_by)
-      delete_user_actions(actions)
+      build_action(actions, :agree_and_keep, icon: "thumbs-up", bundle: agree_bundle)
+      build_action(
+        actions,
+        :agree_and_edit,
+        icon: "pencil",
+        bundle: agree_bundle,
+        client_action: "edit",
+      )
     end
 
     if guardian.can_delete_post_or_topic?(post)
-      delete = actions.add_bundle("#{id}-delete", icon: "far-trash-alt", label: "reviewables.actions.delete.title")
-      build_action(actions, :delete_and_ignore, icon: 'external-link-alt', bundle: delete)
-      if post.reply_count > 0
-        build_action(
-          actions,
-          :delete_and_ignore_replies,
-          icon: 'external-link-alt',
-          confirm: true,
-          bundle: delete
-        )
-      end
-      build_action(actions, :delete_and_agree, icon: 'thumbs-up', bundle: delete)
+      build_action(actions, :delete_and_agree, icon: "trash-can", bundle: agree_bundle)
+
       if post.reply_count > 0
         build_action(
           actions,
           :delete_and_agree_replies,
-          icon: 'external-link-alt',
-          bundle: delete,
-          confirm: true
+          icon: "trash-can",
+          bundle: agree_bundle,
+          confirm: true,
+        )
+      end
+    end
+
+    if (potential_spam? || potentially_illegal?) && guardian.can_delete_user?(target_created_by)
+      delete_user_actions(actions, agree_bundle)
+    end
+
+    if guardian.can_suspend?(target_created_by)
+      build_action(
+        actions,
+        :agree_and_suspend,
+        icon: "ban",
+        bundle: agree_bundle,
+        client_action: "suspend",
+      )
+      build_action(
+        actions,
+        :agree_and_silence,
+        icon: "microphone-slash",
+        bundle: agree_bundle,
+        client_action: "silence",
+      )
+    end
+
+    if post.user_deleted?
+      build_action(actions, :agree_and_restore, icon: "far-eye", bundle: agree_bundle)
+    end
+    if post.hidden?
+      build_action(actions, :disagree_and_restore, icon: "thumbs-down")
+    else
+      build_action(actions, :disagree, icon: "thumbs-down")
+    end
+
+    post_visible_or_system_user = !post.hidden? || guardian.user.is_system_user?
+    can_delete_post_or_topic = guardian.can_delete_post_or_topic?(post)
+
+    # We must return early in this case otherwise we can end up with a bundle
+    # with no associated actions, which is not valid on the client.
+    return if !can_delete_post_or_topic && !post_visible_or_system_user
+
+    ignore =
+      actions.add_bundle(
+        "#{id}-ignore",
+        icon: "thumbs-up",
+        label: "reviewables.actions.ignore.title",
+      )
+
+    if post_visible_or_system_user
+      build_action(actions, :ignore_and_do_nothing, icon: "up-right-from-square", bundle: ignore)
+    end
+    if can_delete_post_or_topic
+      build_action(actions, :delete_and_ignore, icon: "trash-can", bundle: ignore)
+      if post.reply_count > 0
+        build_action(
+          actions,
+          :delete_and_ignore_replies,
+          icon: "trash-can",
+          confirm: true,
+          bundle: ignore,
         )
       end
     end
   end
 
   def perform_ignore(performed_by, args)
-    actions = PostAction.active
-      .where(post_id: target_id)
-      .where(post_action_type_id: PostActionType.notify_flag_type_ids)
+    perform_ignore_and_do_nothing(performed_by, args)
+  end
+
+  def post_action_type_view
+    @post_action_type_view ||= PostActionTypeView.new
+  end
+
+  def perform_ignore_and_do_nothing(performed_by, args)
+    actions =
+      PostAction
+        .active
+        .where(post_id: target_id)
+        .where(post_action_type_id: post_action_type_view.notify_flag_type_ids)
 
     actions.each do |action|
       action.deferred_at = Time.zone.now
@@ -139,9 +191,7 @@ class ReviewableFlaggedPost < Reviewable
   def perform_delete_user_block(performed_by, args)
     delete_options = delete_opts
 
-    if Rails.env.production?
-      delete_options.merge!(block_email: true, block_ip: true)
-    end
+    delete_options.merge!(block_email: true, block_ip: true) if Rails.env.production?
 
     UserDestroyer.new(performed_by).destroy(post.user, delete_options)
 
@@ -149,27 +199,24 @@ class ReviewableFlaggedPost < Reviewable
   end
 
   def perform_agree_and_hide(performed_by, args)
-    agree(performed_by, args) do |pa|
-      post.hide!(pa.post_action_type_id)
-    end
+    agree(performed_by, args) { |pa| post.hide!(pa.post_action_type_id) }
   end
 
   def perform_agree_and_restore(performed_by, args)
-    agree(performed_by, args) do
-      PostDestroyer.new(performed_by, post).recover
-    end
+    agree(performed_by, args) { PostDestroyer.new(performed_by, post).recover }
   end
 
   def perform_disagree(performed_by, args)
     # -1 is the automatic system clear
     action_type_ids =
       if performed_by.id == Discourse::SYSTEM_USER_ID
-        PostActionType.auto_action_flag_types.values
+        post_action_type_view.auto_action_flag_types.values
       else
-        PostActionType.notify_flag_type_ids
+        post_action_type_view.notify_flag_type_ids
       end
 
-    actions = PostAction.active.where(post_id: target_id).where(post_action_type_id: action_type_ids)
+    actions =
+      PostAction.active.where(post_id: target_id).where(post_action_type_id: action_type_ids)
 
     actions.each do |action|
       action.disagreed_at = Time.zone.now
@@ -182,7 +229,7 @@ class ReviewableFlaggedPost < Reviewable
     # reset all cached counters
     cached = {}
     action_type_ids.each do |atid|
-      column = "#{PostActionType.types[atid]}_count"
+      column = "#{post_action_type_view.types[atid]}_count"
       cached[column] = 0 if ActiveRecord::Base.connection.column_exists?(:posts, column)
     end
 
@@ -207,13 +254,13 @@ class ReviewableFlaggedPost < Reviewable
   end
 
   def perform_delete_and_ignore(performed_by, args)
-    result = perform_ignore(performed_by, args)
+    result = perform_ignore_and_do_nothing(performed_by, args)
     destroyer(performed_by, post).destroy
     result
   end
 
   def perform_delete_and_ignore_replies(performed_by, args)
-    result = perform_ignore(performed_by, args)
+    result = perform_ignore_and_do_nothing(performed_by, args)
     PostDestroyer.delete_with_replies(performed_by, post, self)
 
     result
@@ -231,12 +278,14 @@ class ReviewableFlaggedPost < Reviewable
     result
   end
 
-protected
+  protected
 
   def agree(performed_by, args)
-    actions = PostAction.active
-      .where(post_id: target_id)
-      .where(post_action_type_id: PostActionType.notify_flag_types.values)
+    actions =
+      PostAction
+        .active
+        .where(post_id: target_id)
+        .where(post_action_type_id: post_action_type_view.notify_flag_types.values)
 
     trigger_spam = false
     actions.each do |action|
@@ -247,7 +296,7 @@ protected
         action.save
         DB.after_commit do
           action.add_moderator_post_if_needed(performed_by, :agreed, args[:post_was_deleted])
-          trigger_spam = true if action.post_action_type_id == PostActionType.types[:spam]
+          trigger_spam = true if action.post_action_type_id == post_action_type_view.types[:spam]
         end
       end
     end
@@ -267,7 +316,15 @@ protected
     end
   end
 
-  def build_action(actions, id, icon:, button_class: nil, bundle: nil, client_action: nil, confirm: false)
+  def build_action(
+    actions,
+    id,
+    icon:,
+    button_class: nil,
+    bundle: nil,
+    client_action: nil,
+    confirm: false
+  )
     actions.add(id, bundle: bundle) do |action|
       prefix = "reviewables.actions.#{id}"
       action.icon = icon
@@ -281,16 +338,22 @@ protected
 
   def unassign_topic(performed_by, post)
     topic = post.topic
-    return unless topic && performed_by && SiteSetting.reviewable_claiming != 'disabled'
+    return unless topic && performed_by && SiteSetting.reviewable_claiming != "disabled"
     ReviewableClaimedTopic.where(topic_id: topic.id).delete_all
-    topic.reviewables.find_each do |reviewable|
-      reviewable.log_history(:unclaimed, performed_by)
-    end
+    topic.reviewables.find_each { |reviewable| reviewable.log_history(:unclaimed, performed_by) }
 
     user_ids = User.staff.pluck(:id)
 
-    if SiteSetting.enable_category_group_moderation? && group_id = topic.category&.reviewable_by_group_id.presence
-      user_ids.concat(GroupUser.where(group_id: group_id).pluck(:user_id))
+    if SiteSetting.enable_category_group_moderation? && topic.category
+      user_ids.concat(
+        GroupUser
+          .joins(
+            "INNER JOIN category_moderation_groups ON category_moderation_groups.group_id = group_users.group_id",
+          )
+          .where("category_moderation_groups.category_id": topic.category.id)
+          .distinct
+          .pluck(:user_id),
+      )
       user_ids.uniq!
     end
 
@@ -299,7 +362,7 @@ protected
     MessageBus.publish("/reviewable_claimed", data, user_ids: user_ids)
   end
 
-private
+  private
 
   def delete_opts
     {
@@ -307,7 +370,7 @@ private
       prepare_for_destroy: true,
       block_urls: true,
       delete_as_spammer: true,
-      context: "review"
+      context: "review",
     }
   end
 
@@ -321,11 +384,11 @@ private
     Jobs.enqueue(
       :send_system_message,
       user_id: post.user_id,
-      message_type: :flags_disagreed,
+      message_type: "flags_disagreed",
       message_options: {
         flagged_post_raw_content: post.raw,
-        url: post.url
-      }
+        url: post.url,
+      },
     )
   end
 end
@@ -336,10 +399,9 @@ end
 #
 #  id                      :bigint           not null, primary key
 #  type                    :string           not null
-#  status                  :integer          default(0), not null
+#  status                  :integer          default("pending"), not null
 #  created_by_id           :integer          not null
 #  reviewable_by_moderator :boolean          default(FALSE), not null
-#  reviewable_by_group_id  :integer
 #  category_id             :integer
 #  topic_id                :integer
 #  score                   :float            default(0.0), not null
@@ -354,9 +416,11 @@ end
 #  updated_at              :datetime         not null
 #  force_review            :boolean          default(FALSE), not null
 #  reject_reason           :text
+#  potentially_illegal     :boolean          default(FALSE)
 #
 # Indexes
 #
+#  idx_reviewables_score_desc_created_at_desc                  (score,created_at)
 #  index_reviewables_on_reviewable_by_group_id                 (reviewable_by_group_id)
 #  index_reviewables_on_status_and_created_at                  (status,created_at)
 #  index_reviewables_on_status_and_score                       (status,score)

@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
-require 'uri'
+require "uri"
 
 class CreateTitle
-
   def self.from_body(body)
     title = remove_mentions body
     title = remove_urls title
@@ -18,17 +17,17 @@ class CreateTitle
       title = complete_words title
     end
 
-    return title unless title.nil? || title.size < 20
+    title unless title.nil? || title.size < 20
   end
 
   private
 
   def self.remove_mentions(text)
-    text.gsub(/@[\w]*/, '')
+    text.gsub(/@[\w]*/, "")
   end
 
   def self.remove_urls(text)
-    text.gsub(URI::regexp(['http', 'https', 'mailto', 'ftp', 'ldap', 'ldaps']), '')
+    text.gsub(URI.regexp(%w[http https mailto ftp ldap ldaps]), "")
   end
 
   def self.remove_stray_punctuation(text)
@@ -42,7 +41,7 @@ class CreateTitle
   end
 
   def self.complete_sentences(text)
-    /(^.*[\S]{2,}[.!?:]+)\W/.match(text[0...80] + ' ')
+    /(^.*[\S]{2,}[.!?:]+)\W/.match(text[0...80] + " ")
   end
 
   def self.complete_words(text)

@@ -1,24 +1,29 @@
 # frozen_string_literal: true
 
 class BackfillPostUploadReverseIndex < ActiveRecord::Migration[4.2]
-
   def up
     # clean the reverse index
     execute "TRUNCATE TABLE post_uploads"
 
     # fill the reverse index up
-    Post.select([:id, :cooked]).find_each do |post|
-      doc = Nokogiri::HTML5::fragment(post.cooked)
-      # images
-      doc.search("img").each { |img| add_to_reverse_index(img['src'], post.id) }
-      # thumbnails and/or attachments
-      doc.search("a").each { |a| add_to_reverse_index(a['href'], post.id) }
-    end
+    Post
+      .select(%i[id cooked])
+      .find_each do |post|
+        doc = Nokogiri::HTML5.fragment(post.cooked)
+        # images
+        doc.search("img").each { |img| add_to_reverse_index(img["src"], post.id) }
+        # thumbnails and/or attachments
+        doc.search("a").each { |a| add_to_reverse_index(a["href"], post.id) }
+      end
+  end
+
+  def down
+    raise ActiveRecord::IrreversibleMigration
   end
 
   def add_to_reverse_index(url, post_id)
     # make sure we have a url to insert
-    return unless url.present?
+    return if url.blank?
     # local uploads are relative
     if index = url.index(local_base_url)
       url = url[index..-1]
@@ -72,5 +77,4 @@ class BackfillPostUploadReverseIndex < ActiveRecord::Migration[4.2]
   def is_s3_avatar?(url)
     url.starts_with?(s3_avatar_base_url)
   end
-
 end

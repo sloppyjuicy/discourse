@@ -11,11 +11,9 @@ nb_NO:
     poll_edit_window_mins: "Antall minutter etter at et innlegg er opprettet som avstemninger kan redigeres."
     poll_minimum_trust_level_to_create: "Definer minimumstillitsnivå som trengs for å opprette avstemninger."
     poll_groupable_user_fields: "Et sett med brukerfeltnavn som kan brukes til å gruppere og filtrere avstemningsresultater."
-    poll_export_data_explorer_query_id: "ID til Data Explorer-spørringen som skal brukes for å eksportere avstemningsresultatene (0 for å deaktivere)."
   poll:
     poll: "Avstemming"
     invalid_argument: "Ugyldig verdi '%{value}' for argument '%{argument}'."
-    multiple_polls_without_name: "Det er flere avstemninger uten et navn. Bruk '<code>navn</code>'-attributten til å identifisere avstemningene dine."
     multiple_polls_with_same_name: "Det er flere avstemninger med samme navn: <strong>%{name}</strong>. Bruk '<code>name</code>'-attributten til å identifisere avstemningene dine entydig."
     default_poll_must_have_at_least_1_option: "Avstemningen må ha minst 1 alternativ."
     named_poll_must_have_at_least_1_option: "Avstemning med navnet <strong>%{name}</strong> må ha minst 1 alternativ."

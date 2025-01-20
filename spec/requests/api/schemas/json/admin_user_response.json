@@ -13,13 +13,6 @@
     "avatar_template": {
       "type": "string"
     },
-    "email": {
-      "type": "string"
-    },
-    "secondary_emails": {
-      "type": "array",
-      "items": []
-    },
     "active": {
       "type": "boolean"
     },
@@ -53,9 +46,6 @@
     "manual_locked_trust_level": {
       "type": ["string", "null"]
     },
-    "flag_level": {
-      "type": "integer"
-    },
     "title": {
       "type": ["string", "null"]
     },
@@ -79,7 +69,7 @@
     },
     "associated_accounts": {
       "type": "array",
-      "items": []
+      "items": {}
     },
     "can_send_activation_email": {
       "type": "boolean"
@@ -154,7 +144,7 @@
       ]
     },
     "primary_group_id": {
-      "type": ["string", "null"]
+      "type": ["integer", "null"]
     },
     "badge_count": {
       "type": "integer"
@@ -178,6 +168,9 @@
       "type": "boolean"
     },
     "api_key_count": {
+      "type": "integer"
+    },
+    "similar_users_count": {
       "type": "integer"
     },
     "single_sign_on_record": {
@@ -367,7 +360,7 @@
     },
     "groups": {
       "type": "array",
-      "items": [
+      "items":
         {
           "type": "object",
           "additionalProperties": false,
@@ -419,6 +412,9 @@
             },
             "flair_color": {
               "type": ["string", "null"]
+            },
+            "flair_group_id": {
+              "type": ["integer", "null"]
             },
             "bio_raw": {
               "type": ["string", "null"]
@@ -492,7 +488,9 @@
             "publish_read_state"
           ]
         }
-      ]
+    },
+    "external_ids": {
+      "type": "object"
     }
   },
   "required": [
@@ -511,7 +509,6 @@
     "created_at_age",
     "trust_level",
     "manual_locked_trust_level",
-    "flag_level",
     "title",
     "time_read",
     "staged",
@@ -536,11 +533,9 @@
     "flags_received_count",
     "private_topics_count",
     "can_delete_all_posts",
-    "can_be_deleted",
     "can_be_anonymized",
     "can_be_merged",
     "full_suspend_reason",
-    "silence_reason",
     "primary_group_id",
     "badge_count",
     "warnings_received_count",
@@ -554,6 +549,7 @@
     "approved_by",
     "suspended_by",
     "silenced_by",
-    "groups"
+    "groups",
+    "external_ids"
   ]
 }

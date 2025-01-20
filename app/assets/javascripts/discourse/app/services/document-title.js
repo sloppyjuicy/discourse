@@ -1,44 +1,38 @@
-import Service, { inject as service } from "@ember/service";
-import getURL from "discourse-common/lib/get-url";
+import Service, { service } from "@ember/service";
+import getURL from "discourse/lib/get-url";
+import { disableImplicitInjections } from "discourse/lib/implicit-injections";
 import updateTabCount from "discourse/lib/update-tab-count";
 
-export default Service.extend({
-  appEvents: service(),
-  contextCount: null,
-  notificationCount: null,
-  _title: null,
-  _backgroundNotify: null,
+@disableImplicitInjections
+export default class DocumentElement extends Service {
+  @service appEvents;
+  @service currentUser;
+  @service session;
+  @service siteSettings;
 
-  init() {
-    this._super(...arguments);
-    this.reset();
-  },
-
-  reset() {
-    this.contextCount = 0;
-    this.notificationCount = 0;
-    this._title = null;
-    this._backgroundNotify = null;
-  },
+  contextCount = 0;
+  notificationCount = 0;
+  #title = null;
+  #backgroundNotify = null;
 
   getTitle() {
-    return this._title;
-  },
+    return this.#title;
+  }
 
   setTitle(title) {
-    this._title = title;
+    this.#title = title;
     this._renderTitle();
-  },
+  }
 
   setFocus(focus) {
     let { session } = this;
 
     session.hasFocus = focus;
 
-    if (session.hasFocus && this._backgroundNotify) {
+    if (session.hasFocus && this.#backgroundNotify) {
       this.updateContextCount(0);
     }
-    this._backgroundNotify = false;
+    this.#backgroundNotify = false;
 
     if (session.hasFocus) {
       this.notificationCount = 0;
@@ -46,56 +40,56 @@ export default Service.extend({
     this.appEvents.trigger("discourse:focus-changed", session.hasFocus);
     this._renderFavicon();
     this._renderTitle();
-  },
+  }
 
   updateContextCount(count) {
     this.contextCount = count;
     this._renderTitle();
-  },
+  }
 
-  updateNotificationCount(count) {
-    if (!this.session.hasFocus) {
+  updateNotificationCount(count, { forced = false } = {}) {
+    if (!this.session.hasFocus || forced) {
       this.notificationCount = count;
       this._renderFavicon();
       this._renderTitle();
     }
-  },
+  }
 
   incrementBackgroundContextCount() {
     if (!this.session.hasFocus) {
-      this._backgroundNotify = true;
+      this.#backgroundNotify = true;
       this.contextCount += 1;
       this._renderFavicon();
       this._renderTitle();
     }
-  },
+  }
 
   _displayCount() {
-    return this.currentUser &&
-      this.currentUser.title_count_mode === "notifications"
+    return this.currentUser?.user_option.title_count_mode === "notifications"
       ? this.notificationCount
       : this.contextCount;
-  },
+  }
 
   _renderTitle() {
-    let title = this._title || this.siteSettings.title;
+    let title = this.#title || this.siteSettings.title;
 
     let displayCount = this._displayCount();
-    let dynamicFavicon = this.currentUser && this.currentUser.dynamic_favicon;
+    let dynamicFavicon = this.currentUser?.user_option.dynamic_favicon;
 
-    if (this.currentUser && this.currentUser.isInDoNotDisturb()) {
+    if (this.currentUser?.isInDoNotDisturb()) {
       document.title = title;
       return;
     }
+
     if (displayCount > 0 && !dynamicFavicon) {
       title = `(${displayCount}) ${title}`;
     }
 
     document.title = title;
-  },
+  }
 
   _renderFavicon() {
-    if (this.currentUser && this.currentUser.dynamic_favicon) {
+    if (this.currentUser?.user_option.dynamic_favicon) {
       let url = this.siteSettings.site_favicon_url;
 
       // Since the favicon is cached on the browser for a really long time, we
@@ -107,5 +101,5 @@ export default Service.extend({
 
       updateTabCount(url, this._displayCount());
     }
-  },
-});
+  }
+}

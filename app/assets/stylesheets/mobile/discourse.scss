@@ -116,16 +116,21 @@ blockquote {
 
 // Special elements
 
+#main-outlet-wrapper {
+  margin-left: unset;
+  margin-right: unset;
+}
+
 #main-outlet {
   padding-top: 1.25em;
+  &:after {
+    // setup overlay for sidebar
+    content: "";
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
 }
 
 #main {
   position: relative;
-}
-
-// Styles used before the user is logged into discourse. For example, activating
-// their account or changing their email.
-#simple-container {
-  width: 90%;
 }

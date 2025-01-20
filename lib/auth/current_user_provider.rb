@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-module Auth; end
-class Auth::CurrentUserProvider
+module Auth
+end
 
+class Auth::CurrentUserProvider
   # do all current user initialization here
   def initialize(env)
     raise NotImplementedError
@@ -14,12 +15,12 @@ class Auth::CurrentUserProvider
   end
 
   # log on a user and set cookies and session etc.
-  def log_on_user(user, session, cookies, opts = {})
+  def log_on_user(user, session, cookie_jar, opts = {})
     raise NotImplementedError
   end
 
   # optional interface to be called to refresh cookies etc if needed
-  def refresh_session(user, session, cookies)
+  def refresh_session(user, session, cookie_jar)
   end
 
   # api has special rights return true if api was detected
@@ -37,7 +38,7 @@ class Auth::CurrentUserProvider
     raise NotImplementedError
   end
 
-  def log_off_user(session, cookies)
+  def log_off_user(session, cookie_jar)
     raise NotImplementedError
   end
 end

@@ -1,29 +1,29 @@
 import Component from "@ember/component";
-import I18n from "I18n";
-import UploadMixin from "discourse/mixins/upload";
 import { alias } from "@ember/object/computed";
-import bootbox from "bootbox";
-import discourseComputed from "discourse-common/utils/decorators";
+import { getOwner } from "@ember/owner";
+import { service } from "@ember/service";
+import { classNames } from "@ember-decorators/component";
+import UppyUpload from "discourse/lib/uppy/uppy-upload";
+import { i18n } from "discourse-i18n";
 
-export default Component.extend(UploadMixin, {
-  type: "txt",
-  classNames: "watched-words-uploader",
-  uploadUrl: "/admin/customize/watched_words/upload",
-  addDisabled: alias("uploading"),
+@classNames("watched-words-uploader")
+export default class WatchedWordUploader extends Component {
+  @service dialog;
 
-  validateUploadedFilesOptions() {
-    return { skipValidation: true };
-  },
-
-  @discourseComputed("actionKey")
-  data(actionKey) {
-    return { action_key: actionKey };
-  },
-
-  uploadDone() {
-    if (this) {
-      bootbox.alert(I18n.t("admin.watched_words.form.upload_successful"));
+  uppyUpload = new UppyUpload(getOwner(this), {
+    id: "watched-word-uploader",
+    type: "txt",
+    uploadUrl: "/admin/customize/watched_words/upload",
+    preventDirectS3Uploads: true,
+    validateUploadedFilesOptions: {
+      skipValidation: true,
+    },
+    perFileData: () => ({ action_key: this.actionKey }),
+    uploadDone: () => {
+      this.dialog.alert(i18n("admin.watched_words.form.upload_successful"));
       this.done();
-    }
-  },
-});
+    },
+  });
+
+  @alias("uppyUpload.uploading") addDisabled;
+}

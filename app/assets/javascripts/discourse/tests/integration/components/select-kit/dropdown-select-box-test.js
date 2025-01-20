@@ -1,8 +1,7 @@
-import componentTest, {
-  setupRenderingTest,
-} from "discourse/tests/helpers/component-test";
-import { discourseModule, exists } from "discourse/tests/helpers/qunit-helpers";
-import hbs from "htmlbars-inline-precompile";
+import { render } from "@ember/test-helpers";
+import { hbs } from "ember-cli-htmlbars";
+import { module, test } from "qunit";
+import { setupRenderingTest } from "discourse/tests/helpers/component-test";
 import selectKit from "discourse/tests/helpers/select-kit-helper";
 
 const DEFAULT_CONTENT = [
@@ -27,7 +26,7 @@ const setDefaultState = (ctx, options) => {
   ctx.setProperties(properties);
 };
 
-discourseModule(
+module(
   "Integration | Component | select-kit/dropdown-select-box",
   function (hooks) {
     setupRenderingTest(hooks);
@@ -36,86 +35,74 @@ discourseModule(
       this.set("subject", selectKit());
     });
 
-    componentTest("selection behavior", {
-      template: hbs`
-      {{dropdown-select-box
-        value=value
-        content=content
-      }}
-    `,
+    test("selection behavior", async function (assert) {
+      setDefaultState(this);
 
-      beforeEach() {
-        setDefaultState(this);
-      },
+      await render(hbs`
+        <DropdownSelectBox
+          @value={{this.value}}
+          @content={{this.content}}
+        />
+      `);
 
-      async test(assert) {
-        await this.subject.expand();
-        assert.ok(this.subject.isExpanded());
+      await this.subject.expand();
+      assert.true(this.subject.isExpanded());
 
-        await this.subject.selectRowByValue(DEFAULT_VALUE);
-        assert.notOk(
-          this.subject.isExpanded(),
-          "it collapses the dropdown on select"
-        );
-      },
+      await this.subject.selectRowByValue(DEFAULT_VALUE);
+      assert.false(
+        this.subject.isExpanded(),
+        "collapses the dropdown on select"
+      );
     });
 
-    componentTest("options.showFullTitle=false", {
-      template: hbs`
-      {{dropdown-select-box
-        value=value
-        content=content
-        options=(hash
-          icon="times"
-          showFullTitle=showFullTitle
-          none=none
-        )
-      }}
-    `,
+    test("options.showFullTitle=false", async function (assert) {
+      setDefaultState(this, {
+        value: null,
+        showFullTitle: false,
+        none: "test_none",
+      });
 
-      beforeEach() {
-        setDefaultState(this, {
-          value: null,
-          showFullTitle: false,
-          none: "test_none",
-        });
-      },
+      await render(hbs`
+        <DropdownSelectBox
+          @value={{this.value}}
+          @content={{this.content}}
+          @options={{hash
+            icon="xmark"
+            showFullTitle=this.showFullTitle
+            none=this.none
+          }}
+        />
+      `);
 
-      async test(assert) {
-        assert.ok(
-          !exists(this.subject.header().el().find(".selected-name")),
-          "it hides the text of the selected item"
-        );
+      assert
+        .dom(".selected-name", this.subject.header().el())
+        .doesNotExist("hides the text of the selected item");
 
-        assert.equal(
-          this.subject.header().el().attr("title"),
+      assert
+        .dom(this.subject.header().el())
+        .hasAttribute(
+          "title",
           "[en.test_none]",
-          "it adds a title attribute to the button"
+          "adds a title attribute to the button"
         );
-      },
     });
 
-    componentTest("options.showFullTitle=true", {
-      template: hbs`
-      {{dropdown-select-box
-        value=value
-        content=content
-        options=(hash
-          showFullTitle=showFullTitle
-        )
-      }}
-    `,
+    test("options.showFullTitle=true", async function (assert) {
+      setDefaultState(this, { showFullTitle: true });
 
-      beforeEach() {
-        setDefaultState(this, { showFullTitle: true });
-      },
+      await render(hbs`
+        <DropdownSelectBox
+          @value={{this.value}}
+          @content={{this.content}}
+          @options={{hash
+            showFullTitle=this.showFullTitle
+          }}
+        />
+      `);
 
-      async test(assert) {
-        assert.ok(
-          exists(this.subject.header().el().find(".selected-name")),
-          "it shows the text of the selected item"
-        );
-      },
+      assert
+        .dom(".selected-name", this.subject.header().el())
+        .exists("shows the text of the selected item");
     });
   }
 );

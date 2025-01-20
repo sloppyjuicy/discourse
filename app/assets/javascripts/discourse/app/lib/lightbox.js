@@ -1,17 +1,53 @@
+import $ from "jquery";
+import { spinnerHTML } from "discourse/helpers/loading-spinner";
+import deprecated from "discourse/lib/deprecated";
+import { isTesting } from "discourse/lib/environment";
+import { getOwnerWithFallback } from "discourse/lib/get-owner";
+import { helperContext } from "discourse/lib/helpers";
+import { renderIcon } from "discourse/lib/icon-library";
+import { SELECTORS } from "discourse/lib/lightbox/constants";
+import loadScript from "discourse/lib/load-script";
 import {
   escapeExpression,
-  isAppWebview,
   postRNWebviewMessage,
 } from "discourse/lib/utilities";
-import I18n from "I18n";
 import User from "discourse/models/user";
-import loadScript from "discourse/lib/load-script";
-import { renderIcon } from "discourse-common/lib/icon-library";
-import { spinnerHTML } from "discourse/helpers/loading-spinner";
-import { helperContext } from "discourse-common/lib/helpers";
+import { i18n } from "discourse-i18n";
 
-export default function (elem, siteSettings) {
+export async function setupLightboxes({ container, selector }) {
+  const lightboxService = getOwnerWithFallback(this).lookup("service:lightbox");
+  lightboxService.setupLightboxes({ container, selector });
+}
+
+export function cleanupLightboxes() {
+  const lightboxService = getOwnerWithFallback(this).lookup("service:lightbox");
+  return lightboxService.cleanupLightboxes();
+}
+
+export default function lightbox(elem, siteSettings) {
+  if (siteSettings.enable_experimental_lightbox) {
+    deprecated(
+      "Accessing the default `lightbox` export is deprecated. Import setupLightboxes and cleanupLightboxes from `discourse/lib/lightbox` instead.",
+      {
+        since: "3.0.0.beta16",
+        dropFrom: "3.2.0",
+        id: "discourse.lightbox.default-export",
+      }
+    );
+
+    return setupLightboxes({
+      container: elem,
+      selector: SELECTORS.DEFAULT_ITEM_SELECTOR,
+    });
+  }
+
   if (!elem) {
+    return;
+  }
+
+  const lightboxes = elem.querySelectorAll(SELECTORS.DEFAULT_ITEM_SELECTOR);
+
+  if (!lightboxes.length) {
     return;
   }
 
@@ -19,28 +55,25 @@ export default function (elem, siteSettings) {
   const imageClickNavigation = caps.touch;
 
   loadScript("/javascripts/jquery.magnific-popup.min.js").then(function () {
-    const lightboxes = elem.querySelectorAll(
-      "*:not(.spoiler):not(.spoiled) a.lightbox"
-    );
-
     $(lightboxes).magnificPopup({
       type: "image",
       closeOnContentClick: false,
-      removalDelay: 300,
+      removalDelay: isTesting() ? 0 : 300,
       mainClass: "mfp-zoom-in",
-      tClose: I18n.t("lightbox.close"),
+      tClose: i18n("lightbox.close"),
       tLoading: spinnerHTML,
+      prependTo: isTesting() && document.getElementById("ember-testing"),
 
       gallery: {
         enabled: true,
-        tPrev: I18n.t("lightbox.previous"),
-        tNext: I18n.t("lightbox.next"),
-        tCounter: I18n.t("lightbox.counter"),
+        tPrev: i18n("lightbox.previous"),
+        tNext: i18n("lightbox.next"),
+        tCounter: i18n("lightbox.counter"),
         navigateByImgClick: imageClickNavigation,
       },
 
       ajax: {
-        tError: I18n.t("lightbox.content_load_error"),
+        tError: i18n("lightbox.content_load_error"),
       },
 
       callbacks: {
@@ -59,7 +92,7 @@ export default function (elem, siteSettings) {
             });
           }
 
-          if (isAppWebview()) {
+          if (caps.isAppWebview) {
             postRNWebviewMessage(
               "headerBg",
               $(".mfp-bg").css("background-color")
@@ -72,7 +105,7 @@ export default function (elem, siteSettings) {
         beforeClose() {
           this.wrap.off("click.pinhandler");
           this.wrap.removeClass("mfp-force-scrollbars");
-          if (isAppWebview()) {
+          if (caps.isAppWebview) {
             postRNWebviewMessage(
               "headerBg",
               $(".d-header").css("background-color")
@@ -82,7 +115,7 @@ export default function (elem, siteSettings) {
       },
 
       image: {
-        tError: I18n.t("lightbox.image_load_error"),
+        tError: i18n("lightbox.image_load_error"),
         titleSrc(item) {
           const href = item.el.data("download-href") || item.src;
           let src = [
@@ -98,10 +131,18 @@ export default function (elem, siteSettings) {
                 href +
                 '">' +
                 renderIcon("string", "download") +
-                I18n.t("lightbox.download") +
+                i18n("lightbox.download") +
                 "</a>"
             );
           }
+          src.push(
+            '<a class="image-source-link" href="' +
+              item.src +
+              '">' +
+              renderIcon("string", "image") +
+              i18n("lightbox.open") +
+              "</a>"
+          );
           return src.join(" &middot; ");
         },
       },

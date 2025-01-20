@@ -1,13 +1,13 @@
 import Controller from "@ember/controller";
 import EmberObject, { action } from "@ember/object";
-import { INPUT_DELAY } from "discourse-common/config/environment";
-import discourseDebounce from "discourse-common/lib/debounce";
 import { isEmpty } from "@ember/utils";
-import { observes } from "discourse-common/utils/decorators";
+import { observes } from "@ember-decorators/object";
+import discourseDebounce from "discourse/lib/debounce";
+import { INPUT_DELAY } from "discourse/lib/environment";
 
-export default Controller.extend({
-  filter: null,
-  showWords: false,
+export default class AdminWatchedWordsController extends Controller {
+  filter = null;
+  showWords = false;
 
   _filterContent() {
     if (isEmpty(this.allWatchedWords)) {
@@ -24,7 +24,7 @@ export default Controller.extend({
 
     this.allWatchedWords.forEach((wordsForAction) => {
       const wordRecords = wordsForAction.words.filter((wordRecord) => {
-        return wordRecord.word.indexOf(filter) > -1;
+        return wordRecord.word.includes(filter);
       });
 
       model.pushObject(
@@ -36,20 +36,23 @@ export default Controller.extend({
       );
     });
     this.set("model", model);
-  },
+  }
 
   @observes("filter")
   filterContent() {
     discourseDebounce(this, this._filterContent, INPUT_DELAY);
-  },
+  }
 
   @action
   clearFilter() {
     this.set("filter", "");
-  },
+  }
 
   @action
   toggleMenu() {
-    $(".admin-detail").toggleClass("mobile-closed mobile-open");
-  },
-});
+    const adminDetail = document.querySelector(".admin-detail");
+    ["mobile-closed", "mobile-open"].forEach((state) => {
+      adminDetail.classList.toggle(state);
+    });
+  }
+}

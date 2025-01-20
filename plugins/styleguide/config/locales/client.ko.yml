@@ -27,8 +27,6 @@ ko:
         icons:
           title: "아이콘"
           full_list: "Font Awesome Icons의 전체 목록보기"
-        input_fields:
-          title: "입력 필드"
         buttons:
           title: "버튼"
         dropdowns:
@@ -85,3 +83,9 @@ ko:
           title: "헤더 아이콘"
         spinners:
           title: "스피너"
+        empty_state:
+          title: "빈 상태"
+        tooltips:
+          description: "내용"
+          header: "헤더"
+          hover_to_see: "마우스를 올리면 툴팁이 표시됩니다."

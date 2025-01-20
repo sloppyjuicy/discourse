@@ -1,33 +1,29 @@
-import SingleSelectHeaderComponent from "select-kit/components/select-kit/single-select-header";
 import { computed } from "@ember/object";
-import layout from "select-kit/templates/components/dropdown-select-box/dropdown-select-box-header";
 import { readOnly } from "@ember/object/computed";
+import { classNameBindings, classNames } from "@ember-decorators/component";
+import SingleSelectHeaderComponent from "select-kit/components/select-kit/single-select-header";
 
-export default SingleSelectHeaderComponent.extend({
-  layout,
-  classNames: ["dropdown-select-box-header"],
-  classNameBindings: ["btnClassName", "btnStyleClass"],
-  showFullTitle: readOnly("selectKit.options.showFullTitle"),
-  customStyle: readOnly("selectKit.options.customStyle"),
+@classNames("dropdown-select-box-header")
+@classNameBindings("btnClassName", "btnStyleClass", "btnCustomClasses")
+export default class DropdownSelectBoxHeader extends SingleSelectHeaderComponent {
+  @readOnly("selectKit.options.showFullTitle") showFullTitle;
+  @readOnly("selectKit.options.customStyle") customStyle;
+  @readOnly("selectKit.options.btnCustomClasses") btnCustomClasses;
+  @readOnly("selectKit.options.caretUpIcon") caretUpIcon;
+  @readOnly("selectKit.options.caretDownIcon") caretDownIcon;
 
-  btnClassName: computed("showFullTitle", function () {
+  @computed("showFullTitle")
+  get btnClassName() {
     return `btn ${this.showFullTitle ? "btn-icon-text" : "no-text btn-icon"}`;
-  }),
+  }
 
-  btnStyleClass: computed("customStyle", function () {
+  @computed("customStyle")
+  get btnStyleClass() {
     return `${this.customStyle ? "" : "btn-default"}`;
-  }),
+  }
 
-  caretUpIcon: readOnly("selectKit.options.caretUpIcon"),
-
-  caretDownIcon: readOnly("selectKit.options.caretDownIcon"),
-
-  caretIcon: computed(
-    "selectKit.isExpanded",
-    "caretUpIcon",
-    "caretDownIcon",
-    function () {
-      return this.selectKit.isExpanded ? this.caretUpIcon : this.caretDownIcon;
-    }
-  ),
-});
+  @computed("selectKit.isExpanded", "caretUpIcon", "caretDownIcon")
+  get caretIcon() {
+    return this.selectKit.isExpanded ? this.caretUpIcon : this.caretDownIcon;
+  }
+}

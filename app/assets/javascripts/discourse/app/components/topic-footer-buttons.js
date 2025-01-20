@@ -1,57 +1,87 @@
-import { alias, and, or } from "@ember/object/computed";
 import Component from "@ember/component";
-import discourseComputed from "discourse-common/utils/decorators";
+import { computed } from "@ember/object";
+import { alias, or } from "@ember/object/computed";
+import { getOwner } from "@ember/owner";
+import { attributeBindings } from "@ember-decorators/component";
+import discourseComputed from "discourse/lib/decorators";
+import { NotificationLevels } from "discourse/lib/notification-levels";
 import { getTopicFooterButtons } from "discourse/lib/register-topic-footer-button";
+import { getTopicFooterDropdowns } from "discourse/lib/register-topic-footer-dropdown";
+import TopicBookmarkManager from "discourse/lib/topic-bookmark-manager";
 
-export default Component.extend({
-  elementId: "topic-footer-buttons",
+@attributeBindings("role")
+export default class TopicFooterButtons extends Component {
+  elementId = "topic-footer-buttons";
+  role = "region";
 
-  attributeBindings: ["role"],
+  @getTopicFooterButtons() inlineButtons;
+  @getTopicFooterDropdowns() inlineDropdowns;
 
-  role: "region",
+  @alias("currentUser.can_send_private_messages") canSendPms;
+  @alias("topic.details.can_invite_to") canInviteTo;
+  @alias("currentUser.user_option.enable_defer") canDefer;
+  @or("topic.archived", "topic.closed", "topic.deleted") inviteDisabled;
 
-  // Allow us to extend it
-  layoutName: "components/topic-footer-buttons",
+  @discourseComputed("canSendPms", "topic.isPrivateMessage")
+  canArchive(canSendPms, isPM) {
+    return canSendPms && isPM;
+  }
 
-  @discourseComputed("topic.isPrivateMessage")
-  canArchive(isPM) {
-    return this.siteSettings.enable_personal_messages && isPM;
-  },
+  @computed("inlineButtons.[]", "inlineDropdowns.[]")
+  get inlineActionables() {
+    return this.inlineButtons
+      .filterBy("dropdown", false)
+      .filterBy("anonymousOnly", false)
+      .concat(this.inlineDropdowns)
+      .sortBy("priority")
+      .reverse();
+  }
 
-  buttons: getTopicFooterButtons(),
-
-  @discourseComputed("buttons.[]")
-  inlineButtons(buttons) {
-    return buttons.filter((button) => !button.dropdown);
-  },
+  @computed("topic")
+  get topicBookmarkManager() {
+    return new TopicBookmarkManager(getOwner(this), this.topic);
+  }
 
   // topic.assigned_to_user is for backward plugin support
-  @discourseComputed("buttons.[]", "topic.assigned_to_user")
-  dropdownButtons(buttons) {
-    return buttons.filter((button) => button.dropdown);
-  },
+  @discourseComputed("inlineButtons.[]", "topic.assigned_to_user")
+  dropdownButtons(inlineButtons) {
+    return inlineButtons.filter((button) => button.dropdown);
+  }
+
+  @discourseComputed("dropdownButtons.[]")
+  loneDropdownButton(dropdownButtons) {
+    return dropdownButtons.length === 1 ? dropdownButtons[0] : null;
+  }
 
   @discourseComputed("topic.isPrivateMessage")
   showNotificationsButton(isPM) {
-    return !isPM || this.siteSettings.enable_personal_messages;
-  },
+    return !isPM || this.canSendPms;
+  }
 
-  canInviteTo: alias("topic.details.can_invite_to"),
-
-  canDefer: alias("currentUser.enable_defer"),
-
-  inviteDisabled: or("topic.archived", "topic.closed", "topic.deleted"),
-
-  showEditOnFooter: and("topic.isPrivateMessage", "site.can_tag_pms"),
+  @discourseComputed("topic.details.notification_level")
+  showNotificationUserTip(notificationLevel) {
+    return notificationLevel >= NotificationLevels.TRACKING;
+  }
 
   @discourseComputed("topic.message_archived")
-  archiveIcon: (archived) => (archived ? "envelope" : "folder"),
+  archiveIcon(archived) {
+    return archived ? "envelope" : "folder";
+  }
 
   @discourseComputed("topic.message_archived")
-  archiveTitle: (archived) =>
-    archived ? "topic.move_to_inbox.help" : "topic.archive_message.help",
+  archiveTitle(archived) {
+    return archived ? "topic.move_to_inbox.help" : "topic.archive_message.help";
+  }
 
   @discourseComputed("topic.message_archived")
-  archiveLabel: (archived) =>
-    archived ? "topic.move_to_inbox.title" : "topic.archive_message.title",
-});
+  archiveLabel(archived) {
+    return archived
+      ? "topic.move_to_inbox.title"
+      : "topic.archive_message.title";
+  }
+
+  @discourseComputed("topic.isPrivateMessage")
+  showBookmarkLabel(isPM) {
+    return !isPM;
+  }
+}

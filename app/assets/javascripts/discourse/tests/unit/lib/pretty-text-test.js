@@ -1,35 +1,38 @@
-import PrettyText, { buildOptions } from "pretty-text/pretty-text";
+import { setupTest } from "ember-qunit";
+import { registerEmoji } from "pretty-text/emoji";
+import { IMAGE_VERSION as v } from "pretty-text/emoji/version";
 import {
   applyCachedInlineOnebox,
   deleteCachedInlineOnebox,
 } from "pretty-text/inline-oneboxer";
-import { module, skip, test } from "qunit";
-import Post from "discourse/models/post";
-import { buildQuote } from "discourse/lib/quote";
-import { deepMerge } from "discourse-common/lib/object";
-import { extractDataAttribute } from "pretty-text/engines/discourse-markdown-it";
-import { registerEmoji } from "pretty-text/emoji";
-import { IMAGE_VERSION as v } from "pretty-text/emoji/version";
+import QUnit, { module, test } from "qunit";
+import { deepMerge } from "discourse/lib/object";
+import DiscourseMarkdownIt from "discourse-markdown-it";
+import { extractDataAttribute } from "discourse-markdown-it/engine";
 
 const rawOpts = {
   siteSettings: {
     enable_emoji: true,
     enable_emoji_shortcuts: true,
     enable_mentions: true,
-    emoji_set: "google_classic",
+    emoji_set: "twitter",
     external_emoji_url: "",
-    highlighted_languages: "json|ruby|javascript",
+    highlighted_languages: "json|ruby|javascript|xml",
     default_code_lang: "auto",
     enable_markdown_linkify: true,
     markdown_linkify_tlds: "com",
+    display_name_on_posts: false,
+    prioritize_username_in_ux: true,
   },
   getURL: (url) => url,
 };
 
-const defaultOpts = buildOptions(rawOpts);
+function build(options = rawOpts) {
+  return DiscourseMarkdownIt.withDefaultFeatures().withOptions(options);
+}
 
 QUnit.assert.cooked = function (input, expected, message) {
-  const actual = new PrettyText(defaultOpts).cook(input);
+  const actual = build().cook(input);
   this.pushResult({
     result: actual === expected.replace(/\/>/g, ">"),
     actual,
@@ -40,7 +43,7 @@ QUnit.assert.cooked = function (input, expected, message) {
 
 QUnit.assert.cookedOptions = function (input, opts, expected, message) {
   const merged = deepMerge({}, rawOpts, opts);
-  const actual = new PrettyText(buildOptions(merged)).cook(input);
+  const actual = build(merged).cook(input);
   this.pushResult({
     result: actual === expected,
     actual,
@@ -53,69 +56,69 @@ QUnit.assert.cookedPara = function (input, expected, message) {
   QUnit.assert.cooked(input, `<p>${expected}</p>`, message);
 };
 
-module("Unit | Utility | pretty-text", function () {
-  skip("Pending Engine fixes and spec fixes", function (assert) {
-    assert.cooked(
-      "Derpy: http://derp.com?_test_=1",
-      '<p>Derpy: <a href=https://derp.com?_test_=1"http://derp.com?_test_=1">http://derp.com?_test_=1</a></p>',
-      "works with underscores in urls"
-    );
-
-    assert.cooked(
-      "**a*_b**",
-      "<p><strong>a*_b</strong></p>",
-      "allows for characters within bold"
-    );
-  });
+module("Unit | Utility | pretty-text", function (hooks) {
+  setupTest(hooks);
 
   test("buildOptions", function (assert) {
-    assert.ok(
-      buildOptions({ siteSettings: { enable_emoji: true } }).discourse.features
+    assert.true(
+      build({ siteSettings: { enable_emoji: true } }).options.discourse.features
         .emoji,
       "emoji enabled"
     );
-    assert.ok(
-      !buildOptions({ siteSettings: { enable_emoji: false } }).discourse
+    assert.false(
+      build({ siteSettings: { enable_emoji: false } }).options.discourse
         .features.emoji,
       "emoji disabled"
+    );
+    assert.deepEqual(
+      build({ siteSettings: { allowed_iframes: "https://example.com/" } })
+        .options.discourse.allowedIframes,
+      ["https://example.com/"],
+      "doesn't filter out valid urls"
+    );
+    assert.deepEqual(
+      build({ siteSettings: { allowed_iframes: "https://example.com" } })
+        .options.discourse.allowedIframes,
+      [],
+      "filters out invalid urls. Requires 3 slashes"
     );
   });
 
   test("basic cooking", function (assert) {
     assert.cooked("hello", "<p>hello</p>", "surrounds text with paragraphs");
-    assert.cooked("**evil**", "<p><strong>evil</strong></p>", "it bolds text.");
-    assert.cooked("__bold__", "<p><strong>bold</strong></p>", "it bolds text.");
-    assert.cooked("*trout*", "<p><em>trout</em></p>", "it italicizes text.");
-    assert.cooked("_trout_", "<p><em>trout</em></p>", "it italicizes text.");
+    assert.cooked("**evil**", "<p><strong>evil</strong></p>", "bolds text");
+    assert.cooked("__bold__", "<p><strong>bold</strong></p>", "bolds text");
+    assert.cooked("*trout*", "<p><em>trout</em></p>", "italicizes text");
+    assert.cooked("_trout_", "<p><em>trout</em></p>", "italicizes text");
     assert.cooked(
       "***hello***",
       "<p><em><strong>hello</strong></em></p>",
-      "it can do bold and italics at once."
+      "can do bold and italics at once"
     );
     assert.cooked(
       "word_with_underscores",
       "<p>word_with_underscores</p>",
-      "it doesn't do intraword italics"
+      "doesn't do intraword italics"
     );
     assert.cooked(
       "common/_special_font_face.html.erb",
       "<p>common/_special_font_face.html.erb</p>",
-      "it doesn't intraword with a slash"
+      "doesn't intraword with a slash"
     );
     assert.cooked(
       "hello \\*evil\\*",
       "<p>hello *evil*</p>",
-      "it supports escaping of asterisks"
+      "supports escaping of asterisks"
     );
     assert.cooked(
       "hello \\_evil\\_",
       "<p>hello _evil_</p>",
-      "it supports escaping of italics"
+      "supports escaping of italics"
     );
     assert.cooked(
       "brussels sprouts are *awful*.",
       "<p>brussels sprouts are <em>awful</em>.</p>",
-      "it doesn't swallow periods."
+      "doesn't swallow periods"
     );
   });
 
@@ -123,7 +126,7 @@ module("Unit | Utility | pretty-text", function () {
     assert.cooked(
       "*this is italic **with some bold** inside*",
       "<p><em>this is italic <strong>with some bold</strong> inside</em></p>",
-      "it handles nested bold in italics"
+      "handles nested bold in italics"
     );
   });
 
@@ -152,7 +155,7 @@ module("Unit | Utility | pretty-text", function () {
     assert.cooked(
       "[] first choice\n[] second choice",
       "<p>[] first choice<br>\n[] second choice</p>",
-      "it handles new lines correctly with [] options"
+      "handles new lines correctly with [] options"
     );
 
     // note this is a change from previous engine but is correct
@@ -162,13 +165,13 @@ module("Unit | Utility | pretty-text", function () {
     assert.cooked(
       "<blockquote>evil</blockquote>\ntrout",
       "<blockquote>evil</blockquote>\ntrout",
-      "it doesn't insert <br> after blockquotes"
+      "doesn't insert <br> after blockquotes"
     );
 
     assert.cooked(
       "leading<blockquote>evil</blockquote>\ntrout",
       "<p>leading<blockquote>evil</blockquote><br>\ntrout</p>",
-      "it doesn't insert <br> after blockquotes with leading text"
+      "doesn't insert <br> after blockquotes with leading text"
     );
   });
 
@@ -176,22 +179,22 @@ module("Unit | Utility | pretty-text", function () {
     assert.cooked(
       "<div>hello world</div>",
       "<div>hello world</div>",
-      "it doesn't surround <div> with paragraphs"
+      "doesn't surround <div> with paragraphs"
     );
     assert.cooked(
       "<p>hello world</p>",
       "<p>hello world</p>",
-      "it doesn't surround <p> with paragraphs"
+      "doesn't surround <p> with paragraphs"
     );
     assert.cooked(
       "<i>hello world</i>",
       "<p><i>hello world</i></p>",
-      "it surrounds inline <i> html tags with paragraphs"
+      "surrounds inline <i> html tags with paragraphs"
     );
     assert.cooked(
       "<b>hello world</b>",
       "<p><b>hello world</b></p>",
-      "it surrounds inline <b> html tags with paragraphs"
+      "surrounds inline <b> html tags with paragraphs"
     );
   });
 
@@ -260,31 +263,31 @@ module("Unit | Utility | pretty-text", function () {
     assert.cooked(
       "Here's a tweet:\nhttps://twitter.com/evil_trout/status/345954894420787200",
       '<p>Here\'s a tweet:<br>\n<a href="https://twitter.com/evil_trout/status/345954894420787200" class="onebox" target="_blank">https://twitter.com/evil_trout/status/345954894420787200</a></p>',
-      "It doesn't strip the new line."
+      "doesn't strip the new line"
     );
 
     assert.cooked(
       "1. View @eviltrout's profile here: http://meta.discourse.org/u/eviltrout/activity<br/>next line.",
       `<ol>\n<li>View <span class="mention">@eviltrout</span>\'s profile here: <a href="http://meta.discourse.org/u/eviltrout/activity" class="inline-onebox-loading">http://meta.discourse.org/u/eviltrout/activity</a><br>next line.</li>\n</ol>`,
-      "allows autolinking within a list without inserting a paragraph."
+      "allows autolinking within a list without inserting a paragraph"
     );
 
     assert.cooked(
       "[3]: http://eviltrout.com",
       "",
-      "It doesn't autolink markdown link references"
+      "doesn't autolink markdown link references"
     );
 
     assert.cooked(
       "[]: http://eviltrout.com",
       '<p>[]: <a href="http://eviltrout.com">http://eviltrout.com</a></p>',
-      "It doesn't accept empty link references"
+      "doesn't accept empty link references"
     );
 
     assert.cooked(
       "[b]label[/b]: description",
       '<p><span class="bbcode-b">label</span>: description</p>',
-      "It doesn't accept BBCode as link references"
+      "doesn't accept BBCode as link references"
     );
 
     assert.cooked(
@@ -304,7 +307,7 @@ module("Unit | Utility | pretty-text", function () {
     assert.cooked(
       "User [MOD]: Hello!",
       "<p>User [MOD]: Hello!</p>",
-      "It does not consider references that are obviously not URLs"
+      "does not consider references that are obviously not URLs"
     );
 
     assert.cooked(
@@ -316,31 +319,31 @@ module("Unit | Utility | pretty-text", function () {
     assert.cooked(
       "[http://google.com ... wat](http://discourse.org)",
       '<p><a href="http://discourse.org">http://google.com ... wat</a></p>',
-      "it supports links within links"
+      "supports links within links"
     );
 
     assert.cooked(
       "[http://google.com](http://discourse.org)",
       '<p><a href="http://discourse.org">http://google.com</a></p>',
-      "it supports markdown links where the name and link match"
+      "supports markdown links where the name and link match"
     );
 
     assert.cooked(
       '[Link](http://www.example.com) (with an outer "description")',
       '<p><a href="http://www.example.com">Link</a> (with an outer &quot;description&quot;)</p>',
-      "it doesn't consume closing parens as part of the url"
+      "doesn't consume closing parens as part of the url"
     );
 
     assert.cooked(
       "A link inside parentheses (http://www.example.com)",
       '<p>A link inside parentheses (<a href="http://www.example.com">http://www.example.com</a>)</p>',
-      "it auto-links a url within parentheses"
+      "auto-links a url within parentheses"
     );
 
     assert.cooked(
       "[ul][1]\n\n[1]: http://eviltrout.com",
       '<p><a href="http://eviltrout.com">ul</a></p>',
-      "it can use `ul` as a link name"
+      "can use `ul` as a link name"
     );
   });
 
@@ -348,22 +351,22 @@ module("Unit | Utility | pretty-text", function () {
     assert.cooked(
       "> nice!",
       "<blockquote>\n<p>nice!</p>\n</blockquote>",
-      "it supports simple quotes"
+      "supports simple quotes"
     );
     assert.cooked(
       " > nice!",
       "<blockquote>\n<p>nice!</p>\n</blockquote>",
-      "it allows quotes with preceding spaces"
+      "allows quotes with preceding spaces"
     );
     assert.cooked(
       "> level 1\n> > level 2",
       "<blockquote>\n<p>level 1</p>\n<blockquote>\n<p>level 2</p>\n</blockquote>\n</blockquote>",
-      "it allows nesting of blockquotes"
+      "allows nesting of blockquotes"
     );
     assert.cooked(
       "> level 1\n>  > level 2",
       "<blockquote>\n<p>level 1</p>\n<blockquote>\n<p>level 2</p>\n</blockquote>\n</blockquote>",
-      "it allows nesting of blockquotes with spaces"
+      "allows nesting of blockquotes with spaces"
     );
 
     assert.cooked(
@@ -377,13 +380,13 @@ eviltrout</p>
 </blockquote>
 </li>
 </ul>`,
-      "it allows quotes within a list."
+      "allows quotes within a list"
     );
 
     assert.cooked(
       "- <p>eviltrout</p>",
       "<ul>\n<li>\n<p>eviltrout</p></li>\n</ul>",
-      "it allows paragraphs within a list."
+      "allows paragraphs within a list"
     );
 
     assert.cooked(
@@ -452,6 +455,37 @@ eviltrout</p>
 </aside>`,
       "quote has group class"
     );
+
+    assert.cooked(
+      "[quote]\ntest\n[/quote]",
+      '<aside class="quote no-group">\n<blockquote>\n<p>test</p>\n</blockquote>\n</aside>',
+      "supports quotes without params"
+    );
+
+    assert.cooked(
+      "[quote]\n*test*\n[/quote]",
+      '<aside class="quote no-group">\n<blockquote>\n<p><em>test</em></p>\n</blockquote>\n</aside>',
+      "doesn't insert a new line for italics"
+    );
+
+    assert.cooked(
+      "[quote=,script='a'><script>alert('test');//':a]\n[/quote]",
+      '<aside class="quote no-group">\n<blockquote></blockquote>\n</aside>',
+      "will not create a script tag within an attribute"
+    );
+  });
+
+  test("Incomplete quotes", function (assert) {
+    assert.cookedOptions(
+      '[quote=", post: 1"]\na quote\n[/quote]',
+      { topicId: 2 },
+      `<aside class=\"quote no-group\" data-post=\"1\">
+<blockquote>
+<p>a quote</p>
+</blockquote>
+</aside>`,
+      "works with missing username"
+    );
   });
 
   test("Mentions", function (assert) {
@@ -464,13 +498,13 @@ eviltrout</p>
     assert.cooked(
       "[@codinghorror](https://twitter.com/codinghorror)",
       '<p><a href="https://twitter.com/codinghorror">@codinghorror</a></p>',
-      "it doesn't do mentions within links"
+      "doesn't do mentions within links"
     );
 
     assert.cooked(
       "[@codinghorror](https://twitter.com/codinghorror)",
       '<p><a href="https://twitter.com/codinghorror">@codinghorror</a></p>',
-      "it doesn't do link mentions within links"
+      "doesn't do link mentions within links"
     );
 
     assert.cooked(
@@ -494,13 +528,13 @@ eviltrout</p>
     assert.cooked(
       "@EvilTrout yo",
       '<p><span class="mention">@EvilTrout</span> yo</p>',
-      "it handles mentions at the beginning of a string"
+      "handles mentions at the beginning of a string"
     );
 
     assert.cooked(
       "yo\n@EvilTrout",
       '<p>yo<br>\n<span class="mention">@EvilTrout</span></p>',
-      "it handles mentions at the beginning of a new line"
+      "handles mentions at the beginning of a new line"
     );
 
     assert.cooked(
@@ -512,7 +546,7 @@ eviltrout</p>
     assert.cooked(
       "```\na @test\n```",
       '<pre><code class="lang-auto">a @test\n</code></pre>',
-      "should not do mentions within a code block."
+      "should not do mentions within a code block"
     );
 
     assert.cooked(
@@ -554,44 +588,44 @@ eviltrout</p>
     assert.cooked(
       "@eviltrout and `@eviltrout`",
       '<p><span class="mention">@eviltrout</span> and <code>@eviltrout</code></p>',
-      "you can have a mention in an inline code block following a real mention."
+      "you can have a mention in an inline code block following a real mention"
     );
 
     assert.cooked(
       "1. this is  a list\n\n2. this is an @eviltrout mention\n",
       '<ol>\n<li>\n<p>this is  a list</p>\n</li>\n<li>\n<p>this is an <span class="mention">@eviltrout</span> mention</p>\n</li>\n</ol>',
-      "it mentions properly in a list."
+      "mentions properly in a list"
     );
 
     assert.cooked(
       "Hello @foo/@bar",
       '<p>Hello <span class="mention">@foo</span>/<span class="mention">@bar</span></p>',
-      "handles mentions separated by a slash."
+      "handles mentions separated by a slash"
     );
 
     assert.cooked(
       "<small>a @sam c</small>",
       '<p><small>a <span class="mention">@sam</span> c</small></p>',
-      "it allows mentions within HTML tags"
+      "allows mentions within HTML tags"
     );
 
     assert.cooked(
       "@_sam @1sam @ab-cd.123_ABC-xYz @sam1",
       '<p><span class="mention">@_sam</span> <span class="mention">@1sam</span> <span class="mention">@ab-cd.123_ABC-xYz</span> <span class="mention">@sam1</span></p>',
-      "it detects mentions of valid usernames"
+      "detects mentions of valid usernames"
     );
 
     assert.cooked(
       "@.sam @-sam @sam. @sam_ @sam-",
       '<p>@.sam @-sam <span class="mention">@sam</span>. <span class="mention">@sam</span>_ <span class="mention">@sam</span>-</p>',
-      "it does not detect mentions of invalid usernames"
+      "does not detect mentions of invalid usernames"
     );
 
     assert.cookedOptions(
       "Hello @狮子",
       { siteSettings: { unicode_usernames: false } },
       "<p>Hello @狮子</p>",
-      "it does not detect mentions of Unicode usernames"
+      "does not detect mentions of Unicode usernames"
     );
   });
 
@@ -600,21 +634,21 @@ eviltrout</p>
       "Hello @狮子",
       { siteSettings: { unicode_usernames: true } },
       '<p>Hello <span class="mention">@狮子</span></p>',
-      "it detects mentions of Unicode usernames"
+      "detects mentions of Unicode usernames"
     );
 
     assert.cookedOptions(
       "@狮子 @_狮子 @1狮子 @狮-ø.١٢٣_Ö-ழ் @狮子1",
       { siteSettings: { unicode_usernames: true } },
       '<p><span class="mention">@狮子</span> <span class="mention">@_狮子</span> <span class="mention">@1狮子</span> <span class="mention">@狮-ø.١٢٣_Ö-ழ்</span> <span class="mention">@狮子1</span></p>',
-      "it detects mentions of valid Unicode usernames"
+      "detects mentions of valid Unicode usernames"
     );
 
     assert.cookedOptions(
       "@.狮子 @-狮子 @狮子. @狮子_ @狮子-",
       { siteSettings: { unicode_usernames: true } },
       '<p>@.狮子 @-狮子 <span class="mention">@狮子</span>. <span class="mention">@狮子</span>_ <span class="mention">@狮子</span>-</p>',
-      "it does not detect mentions of invalid Unicode usernames"
+      "does not detect mentions of invalid Unicode usernames"
     );
   });
 
@@ -626,78 +660,30 @@ eviltrout</p>
     );
   });
 
-  test("Category hashtags", function (assert) {
-    const alwaysTrue = {
-      categoryHashtagLookup: function () {
-        return [
-          "http://test.discourse.org/category-hashtag",
-          "category-hashtag",
-        ];
-      },
-    };
-
-    assert.cookedOptions(
-      "Check out #category-hashtag",
-      alwaysTrue,
-      '<p>Check out <a class="hashtag" href="http://test.discourse.org/category-hashtag">#<span>category-hashtag</span></a></p>',
-      "it translates category hashtag into links"
-    );
-
-    assert.cooked(
-      "Check out #category-hashtag",
-      '<p>Check out <span class="hashtag">#category-hashtag</span></p>',
-      "it does not translate category hashtag into links if it is not a valid category hashtag"
-    );
-
-    assert.cookedOptions(
-      "[#category-hashtag](http://www.test.com)",
-      alwaysTrue,
-      '<p><a href="http://www.test.com">#category-hashtag</a></p>',
-      "it does not translate category hashtag within links"
-    );
-
-    assert.cooked(
-      "```\n# #category-hashtag\n```",
-      '<pre><code class="lang-auto"># #category-hashtag\n</code></pre>',
-      "it does not translate category hashtags to links in code blocks"
-    );
-
-    assert.cooked(
-      "># #category-hashtag\n",
-      '<blockquote>\n<h1><span class="hashtag">#category-hashtag</span></h1>\n</blockquote>',
-      "it handles category hashtags in simple quotes"
-    );
-
-    assert.cooked(
-      "# #category-hashtag",
-      '<h1><a name="category-hashtag-1" class="anchor" href="#category-hashtag-1"></a><span class="hashtag">#category-hashtag</span></h1>',
-      "it works within ATX-style headers"
-    );
-
-    assert.cooked(
-      "don't `#category-hashtag`",
-      "<p>don't <code>#category-hashtag</code></p>",
-      "it does not mention in an inline code block"
-    );
-
-    assert.cooked(
-      "<small>#category-hashtag</small>",
-      '<p><small><span class="hashtag">#category-hashtag</span></small></p>',
-      "it works between HTML tags"
-    );
-
-    assert.cooked(
-      "Checkout #ụdị",
-      '<p>Checkout <span class="hashtag">#ụdị</span></p>',
-      "it works for non-english characters"
-    );
-  });
-
   test("Heading", function (assert) {
     assert.cooked(
       "**Bold**\n----------",
       '<h2><a name="bold-1" class="anchor" href="#bold-1"></a><strong>Bold</strong></h2>',
-      "It will bold the heading"
+      "will bold the heading"
+    );
+  });
+
+  test("Heading anchors are valid", function (assert) {
+    assert.cooked(
+      "# One\n\n# 1\n\n# $$",
+      '<h1><a name="one-1" class="anchor" href="#one-1"></a>One</h1>\n' +
+        '<h1><a name="h-1-2" class="anchor" href="#h-1-2"></a>1</h1>\n' +
+        '<h1><a name="h-3" class="anchor" href="#h-3"></a>$$</h1>',
+      "will bold the heading"
+    );
+  });
+
+  test("Heading anchors with post id", function (assert) {
+    assert.cookedOptions(
+      "# 1\n\n# one",
+      { postId: 1234 },
+      '<h1><a name="p-1234-h-1-1" class="anchor" href="#p-1234-h-1-1"></a>1</h1>\n' +
+        '<h1><a name="p-1234-one-2" class="anchor" href="#p-1234-one-2"></a>one</h1>'
     );
   });
 
@@ -759,47 +745,47 @@ eviltrout</p>
     assert.cooked(
       "_abc\ndef_",
       "<p><em>abc<br>\ndef</em></p>",
-      "it does allow inlines to span new lines"
+      "does allow inlines to span new lines"
     );
     assert.cooked(
       "_abc\n\ndef_",
       "<p>_abc</p>\n<p>def_</p>",
-      "it does not allow inlines to span new paragraphs"
+      "does not allow inlines to span new paragraphs"
     );
   });
 
   test("Oneboxing", function (assert) {
     function matches(input, regexp) {
-      return new PrettyText(defaultOpts).cook(input).match(regexp);
+      return !!build().cook(input).match(regexp);
     }
 
-    assert.ok(
-      !matches(
+    assert.false(
+      matches(
         "- http://www.textfiles.com/bbs/MINDVOX/FORUMS/ethics\n\n- http://drupal.org",
         /class="onebox"/
       ),
       "doesn't onebox a link within a list"
     );
 
-    assert.ok(
+    assert.true(
       matches("http://test.com", /class="onebox"/),
       "adds a onebox class to a link on its own line"
     );
-    assert.ok(
+    assert.true(
       matches("http://test.com\nhttp://test2.com", /onebox[\s\S]+onebox/m),
       "supports multiple links"
     );
-    assert.ok(
-      !matches("http://test.com bob", /onebox/),
+    assert.false(
+      matches("http://test.com bob", /onebox/),
       "doesn't onebox links that have trailing text"
     );
 
-    assert.ok(
-      !matches("[Tom Cruise](http://www.tomcruise.com/)", "onebox"),
+    assert.false(
+      matches("[Tom Cruise](http://www.tomcruise.com/)", "onebox"),
       "Markdown links with labels are not oneboxed"
     );
-    assert.ok(
-      !matches(
+    assert.false(
+      matches(
         "[http://www.tomcruise.com/](http://www.tomcruise.com/)",
         "onebox"
       ),
@@ -818,7 +804,7 @@ eviltrout</p>
     assert.cooked(
       "[http://eviltrout.com][1] is a url\n\n[1]: http://eviltrout.com",
       '<p><a href="http://eviltrout.com">http://eviltrout.com</a> is a url</p>',
-      "it supports links that are full URLs"
+      "supports links that are full URLs"
     );
   });
 
@@ -832,122 +818,122 @@ eviltrout</p>
     assert.cooked(
       "```\na\nb\nc\n\nd\n```",
       '<pre><code class="lang-auto">a\nb\nc\n\nd\n</code></pre>',
-      "it treats new lines properly"
+      "treats new lines properly"
     );
 
     assert.cooked(
       "```\ntest\n```",
       '<pre><code class="lang-auto">test\n</code></pre>',
-      "it supports basic code blocks"
+      "supports basic code blocks"
     );
 
     assert.cooked(
       "```json\n{hello: 'world'}\n```\ntrailing",
-      "<pre><code class=\"lang-json\">{hello: 'world'}\n</code></pre>\n<p>trailing</p>",
-      "It does not truncate text after a code block."
+      '<pre data-code-wrap="json"><code class="lang-json">{hello: \'world\'}\n</code></pre>\n<p>trailing</p>',
+      "does not truncate text after a code block"
     );
 
     assert.cooked(
       "```json\nline 1\n\nline 2\n\n\nline3\n```",
-      '<pre><code class="lang-json">line 1\n\nline 2\n\n\nline3\n</code></pre>',
-      "it maintains new lines inside a code block."
+      '<pre data-code-wrap="json"><code class="lang-json">line 1\n\nline 2\n\n\nline3\n</code></pre>',
+      "maintains new lines inside a code block"
     );
 
     assert.cooked(
       "hello\nworld\n```json\nline 1\n\nline 2\n\n\nline3\n```",
-      '<p>hello<br>\nworld</p>\n<pre><code class="lang-json">line 1\n\nline 2\n\n\nline3\n</code></pre>',
-      "it maintains new lines inside a code block with leading content."
+      '<p>hello<br>\nworld</p>\n<pre data-code-wrap="json"><code class="lang-json">line 1\n\nline 2\n\n\nline3\n</code></pre>',
+      "maintains new lines inside a code block with leading content"
     );
 
     assert.cooked(
       "```ruby\n<header>hello</header>\n```",
-      '<pre><code class="lang-ruby">&lt;header&gt;hello&lt;/header&gt;\n</code></pre>',
-      "it escapes code in the code block"
+      '<pre data-code-wrap="ruby"><code class="lang-ruby">&lt;header&gt;hello&lt;/header&gt;\n</code></pre>',
+      "escapes code in the code block"
     );
 
     assert.cooked(
       "```text\ntext\n```",
-      '<pre><code class="lang-nohighlight">text\n</code></pre>',
-      "handles text by adding nohighlight"
+      '<pre><code class="lang-plaintext">text\n</code></pre>',
+      "handles text by adding plaintext"
     );
 
     assert.cooked(
       "```ruby\n# cool\n```",
-      '<pre><code class="lang-ruby"># cool\n</code></pre>',
-      "it supports changing the language"
+      '<pre data-code-wrap="ruby"><code class="lang-ruby"># cool\n</code></pre>',
+      "supports changing the language"
     );
 
     assert.cooked(
       "    ```\n    hello\n    ```",
-      "<pre><code>```\nhello\n```</code></pre>",
+      "<pre><code>```\nhello\n```\n</code></pre>",
       "only detect ``` at the beginning of lines"
     );
 
     assert.cooked(
       "```ruby\ndef self.parse(text)\n\n  text\nend\n```",
-      '<pre><code class="lang-ruby">def self.parse(text)\n\n  text\nend\n</code></pre>',
-      "it allows leading spaces on lines in a code block."
+      '<pre data-code-wrap="ruby"><code class="lang-ruby">def self.parse(text)\n\n  text\nend\n</code></pre>',
+      "allows leading spaces on lines in a code block"
     );
 
     assert.cooked(
       "```ruby\nhello `eviltrout`\n```",
-      '<pre><code class="lang-ruby">hello `eviltrout`\n</code></pre>',
-      "it allows code with backticks in it"
+      '<pre data-code-wrap="ruby"><code class="lang-ruby">hello `eviltrout`\n</code></pre>',
+      "allows code with backticks in it"
     );
 
     assert.cooked(
       "```eviltrout\nhello\n```",
-      '<pre><code class="lang-auto">hello\n</code></pre>',
-      "it doesn't not allowlist all classes"
+      '<pre data-code-wrap="eviltrout"><code class="lang-eviltrout">hello\n</code></pre>',
+      "converts to custom block unknown code names"
     );
 
     assert.cooked(
       '```\n[quote="sam, post:1, topic:9441, full:true"]This is `<not>` a bug.[/quote]\n```',
       '<pre><code class="lang-auto">[quote=&quot;sam, post:1, topic:9441, full:true&quot;]This is `&lt;not&gt;` a bug.[/quote]\n</code></pre>',
-      "it allows code with backticks in it"
+      "allows code with backticks in it"
     );
 
     assert.cooked(
       "    hello\n<blockquote>test</blockquote>",
       "<pre><code>hello\n</code></pre>\n<blockquote>test</blockquote>",
-      "it allows an indented code block to by followed by a `<blockquote>`"
+      "allows an indented code block to by followed by a `<blockquote>`"
     );
 
     assert.cooked(
       "``` foo bar ```",
       "<p><code>foo bar</code></p>",
-      "it tolerates misuse of code block tags as inline code"
+      "tolerates misuse of code block tags as inline code"
     );
 
     assert.cooked(
       "```\nline1\n```\n```\nline2\n\nline3\n```",
       '<pre><code class="lang-auto">line1\n</code></pre>\n<pre><code class="lang-auto">line2\n\nline3\n</code></pre>',
-      "it does not consume next block's trailing newlines"
+      "does not consume next block's trailing newlines"
     );
 
     assert.cooked(
       "    <pre>test</pre>",
-      "<pre><code>&lt;pre&gt;test&lt;/pre&gt;</code></pre>",
-      "it does not parse other block types in markdown code blocks"
+      "<pre><code>&lt;pre&gt;test&lt;/pre&gt;\n</code></pre>",
+      "does not parse other block types in markdown code blocks"
     );
 
     assert.cooked(
       "    [quote]test[/quote]",
-      "<pre><code>[quote]test[/quote]</code></pre>",
-      "it does not parse other block types in markdown code blocks"
+      "<pre><code>[quote]test[/quote]\n</code></pre>",
+      "does not parse other block types in markdown code blocks"
     );
 
     assert.cooked(
       "## a\nb\n```\nc\n```",
       '<h2><a name="a-1" class="anchor" href="#a-1"></a>a</h2>\n<p>b</p>\n<pre><code class="lang-auto">c\n</code></pre>',
-      "it handles headings with code blocks after them."
+      "handles headings with code blocks after them"
     );
   });
 
   test("URLs in BBCode tags", function (assert) {
     assert.cooked(
       "[img]http://eviltrout.com/eviltrout.png[/img][img]http://samsaffron.com/samsaffron.png[/img]",
-      '<p><img src="http://eviltrout.com/eviltrout.png" alt/><img src="http://samsaffron.com/samsaffron.png" alt/></p>',
+      '<p><img src="http://eviltrout.com/eviltrout.png" alt role="presentation"/><img src="http://samsaffron.com/samsaffron.png" alt role="presentation"/></p>',
       "images are properly parsed"
     );
 
@@ -962,19 +948,42 @@ eviltrout</p>
       '<p><a href="http://discourse.org" data-bbcode="true">discourse</a></p>',
       "named links are properly parsed"
     );
+
+    assert.cooked(
+      "[url]https://discourse.org/path[/url]",
+      '<p><a href="https://discourse.org/path" data-bbcode="true">https://discourse.org/path</a></p>',
+      "paths are correctly handled"
+    );
+
+    assert.cooked(
+      "[url]discourse.org/path[/url]",
+      '<p><a href="https://discourse.org/path" data-bbcode="true">discourse.org/path</a></p>',
+      "paths are correctly handled"
+    );
+
+    assert.cooked(
+      "[url][b]discourse.org/path[/b][/url]",
+      '<p><a href="https://discourse.org/path" data-bbcode="true"><span class="bbcode-b">discourse.org/path</span></a></p>',
+      "paths are correctly handled"
+    );
   });
 
   test("images", function (assert) {
     assert.cooked(
       "[![folksy logo](http://folksy.com/images/folksy-colour.png)](http://folksy.com/)",
       '<p><a href="http://folksy.com/"><img src="http://folksy.com/images/folksy-colour.png" alt="folksy logo"/></a></p>',
-      "It allows images with links around them"
+      "allows images with links around them"
     );
 
     assert.cooked(
       '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red dot">',
       '<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red dot"></p>',
-      "It allows data images"
+      "allows data images"
+    );
+
+    assert.cooked(
+      "![](http://folksy.com/images/folksy-colour.png)",
+      '<p><img src="http://folksy.com/images/folksy-colour.png" alt role="presentation"></p>'
     );
   });
 
@@ -982,17 +991,16 @@ eviltrout</p>
     assert.cooked(
       "[test.pdf|attachment](upload://o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf)",
       `<p><a class="attachment" href="/404" data-orig-href="upload://o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf">test.pdf</a></p>`,
-      "It returns the correct attachment link HTML"
+      "returns the correct attachment link HTML"
     );
   });
 
-  test("attachment - mapped url - secure media disabled", function (assert) {
+  test("attachment - mapped url - secure uploads disabled", function (assert) {
     function lookupUploadUrls() {
       let cache = {};
       cache["upload://o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf"] = {
         short_url: "upload://o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf",
-        url:
-          "/secure-media-uploads/original/3X/c/b/o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf",
+        url: "/secure-uploads/original/3X/c/b/o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf",
         short_path: "/uploads/short-url/blah",
       };
       return cache;
@@ -1000,21 +1008,20 @@ eviltrout</p>
     assert.cookedOptions(
       "[test.pdf|attachment](upload://o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf)",
       {
-        siteSettings: { secure_media: false },
-        lookupUploadUrls: lookupUploadUrls,
+        siteSettings: { secure_uploads: false },
+        lookupUploadUrls,
       },
       `<p><a class="attachment" href="/uploads/short-url/blah">test.pdf</a></p>`,
-      "It returns the correct attachment link HTML when the URL is mapped without secure media"
+      "returns the correct attachment link HTML when the URL is mapped without secure uploads"
     );
   });
 
-  test("attachment - mapped url - secure media enabled", function (assert) {
+  test("attachment - mapped url - secure uploads enabled", function (assert) {
     function lookupUploadUrls() {
       let cache = {};
       cache["upload://o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf"] = {
         short_url: "upload://o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf",
-        url:
-          "/secure-media-uploads/original/3X/c/b/o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf",
+        url: "/secure-uploads/original/3X/c/b/o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf",
         short_path: "/uploads/short-url/blah",
       };
       return cache;
@@ -1022,33 +1029,29 @@ eviltrout</p>
     assert.cookedOptions(
       "[test.pdf|attachment](upload://o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf)",
       {
-        siteSettings: { secure_media: true },
-        lookupUploadUrls: lookupUploadUrls,
+        siteSettings: { secure_uploads: true },
+        lookupUploadUrls,
       },
-      `<p><a class="attachment" href="/secure-media-uploads/original/3X/c/b/o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf">test.pdf</a></p>`,
-      "It returns the correct attachment link HTML when the URL is mapped with secure media"
+      `<p><a class="attachment" href="/secure-uploads/original/3X/c/b/o8iobpLcW3WSFvVH7YQmyGlKmGM.pdf">test.pdf</a></p>`,
+      "returns the correct attachment link HTML when the URL is mapped with secure uploads"
     );
   });
 
   test("video", function (assert) {
     assert.cooked(
       "![baby shark|video](upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp4)",
-      `<p><div class="video-container">
-    <video width="100%" height="100%" preload="metadata" controls>
-      <source src="/404" data-orig-src="upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp4">
-      <a href="/404">/404</a>
-    </video>
+      `<p><div class="video-placeholder-container" data-video-src="/404" data-orig-src="upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp4">
   </div></p>`,
-      "It returns the correct video player HTML"
+      "returns the correct video player HTML"
     );
   });
 
-  test("video - mapped url - secure media enabled", function (assert) {
+  test("video - mapped url - secure uploads enabled", function (assert) {
     function lookupUploadUrls() {
       let cache = {};
       cache["upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp4"] = {
         short_url: "upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp4",
-        url: "/secure-media-uploads/original/3X/c/b/test.mp4",
+        url: "/secure-uploads/original/3X/c/b/test.mp4",
         short_path: "/uploads/short-url/blah",
       };
       return cache;
@@ -1056,16 +1059,12 @@ eviltrout</p>
     assert.cookedOptions(
       "![baby shark|video](upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp4)",
       {
-        siteSettings: { secure_media: true },
-        lookupUploadUrls: lookupUploadUrls,
+        siteSettings: { secure_uploads: true },
+        lookupUploadUrls,
       },
-      `<p><div class="video-container">
-    <video width="100%" height="100%" preload="metadata" controls>
-      <source src="/secure-media-uploads/original/3X/c/b/test.mp4">
-      <a href="/secure-media-uploads/original/3X/c/b/test.mp4">/secure-media-uploads/original/3X/c/b/test.mp4</a>
-    </video>
+      `<p><div class="video-placeholder-container" data-video-src="/secure-uploads/original/3X/c/b/test.mp4">
   </div></p>`,
-      "It returns the correct video HTML when the URL is mapped with secure media, removing data-orig-src"
+      "returns the correct video HTML when the URL is mapped with secure uploads, removing data-orig-src"
     );
   });
 
@@ -1076,16 +1075,16 @@ eviltrout</p>
     <source src="/404" data-orig-src="upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp3">
     <a href="/404">/404</a>
   </audio></p>`,
-      "It returns the correct audio player HTML"
+      "returns the correct audio player HTML"
     );
   });
 
-  test("audio - mapped url - secure media enabled", function (assert) {
+  test("audio - mapped url - secure uploads enabled", function (assert) {
     function lookupUploadUrls() {
       let cache = {};
       cache["upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp3"] = {
         short_url: "upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp3",
-        url: "/secure-media-uploads/original/3X/c/b/test.mp3",
+        url: "/secure-uploads/original/3X/c/b/test.mp3",
         short_path: "/uploads/short-url/blah",
       };
       return cache;
@@ -1093,14 +1092,14 @@ eviltrout</p>
     assert.cookedOptions(
       "![baby shark|audio](upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp3)",
       {
-        siteSettings: { secure_media: true },
-        lookupUploadUrls: lookupUploadUrls,
+        siteSettings: { secure_uploads: true },
+        lookupUploadUrls,
       },
       `<p><audio preload="metadata" controls>
-    <source src="/secure-media-uploads/original/3X/c/b/test.mp3">
-    <a href="/secure-media-uploads/original/3X/c/b/test.mp3">/secure-media-uploads/original/3X/c/b/test.mp3</a>
+    <source src="/secure-uploads/original/3X/c/b/test.mp3">
+    <a href="/secure-uploads/original/3X/c/b/test.mp3">/secure-uploads/original/3X/c/b/test.mp3</a>
   </audio></p>`,
-      "It returns the correct audio HTML when the URL is mapped with secure media, removing data-orig-src"
+      "returns the correct audio HTML when the URL is mapped with secure uploads, removing data-orig-src"
     );
   });
 
@@ -1108,7 +1107,7 @@ eviltrout</p>
     assert.cookedOptions(
       "Pleased to meet you, but pleeeease call me later, xyz123",
       {
-        censoredRegexp: "(xyz*|plee+ase)",
+        censoredRegexp: [{ "(xyz*|plee+ase)": { case_sensitive: false } }],
       },
       "<p>Pleased to meet you, but ■■■■■■■■■ call me later, ■■■123</p>",
       "supports censoring"
@@ -1120,13 +1119,13 @@ eviltrout</p>
     assert.cooked(
       "```\n\n    some code\n```",
       '<pre><code class="lang-auto">\n    some code\n</code></pre>',
-      "it works when nesting standard markdown code blocks within a fenced code block"
+      "works when nesting standard markdown code blocks within a fenced code block"
     );
 
     assert.cooked(
       "`$&`",
       "<p><code>$&amp;</code></p>",
-      "it works even when hoisting special replacement patterns"
+      "works even when hoisting special replacement patterns"
     );
   });
 
@@ -1153,7 +1152,7 @@ eviltrout</p>
     );
     assert.cookedPara(
       "[img]http://eviltrout.com/eviltrout.png[/img]",
-      '<img src="http://eviltrout.com/eviltrout.png" alt>',
+      '<img src="http://eviltrout.com/eviltrout.png" alt role="presentation">',
       "links images"
     );
     assert.cookedPara(
@@ -1186,8 +1185,8 @@ eviltrout</p>
     );
     assert.cookedPara(
       "[url]abc.com[/url]",
-      '<a href="http://abc.com">abc.com</a>',
-      "it magically links using linkify"
+      '<a href="https://abc.com" data-bbcode="true">abc.com</a>',
+      "magically links using linkify"
     );
     assert.cookedPara(
       "[url]http://bettercallsaul.com[/url]",
@@ -1201,7 +1200,7 @@ eviltrout</p>
     );
     assert.cookedPara(
       "[url=http://www.example.com][img]http://example.com/logo.png[/img][/url]",
-      '<a href="http://www.example.com" data-bbcode="true"><img src="http://example.com/logo.png" alt></a>',
+      '<a href="http://www.example.com" data-bbcode="true"><img src="http://example.com/logo.png" alt role="presentation"></a>',
       "supports [url] with an embedded [img]"
     );
   });
@@ -1209,7 +1208,7 @@ eviltrout</p>
     assert.cooked(
       "[code]I am not closed\n\nThis text exists.",
       "<p>[code]I am not closed</p>\n<p>This text exists.</p>",
-      "does not raise an error with an open bbcode tag."
+      "does not raise an error with an open bbcode tag"
     );
   });
 
@@ -1227,12 +1226,17 @@ eviltrout</p>
     assert.cooked(
       "[code]\nabc\n#def\n[/code]",
       '<pre><code class="lang-auto">abc\n#def</code></pre>',
-      "it handles headings in a [code] block"
+      "handles headings in a [code] block"
     );
     assert.cooked(
       "[code]\n   s\n[/code]",
       '<pre><code class="lang-auto">   s</code></pre>',
-      "it doesn't trim leading whitespace"
+      "doesn't trim leading whitespace"
+    );
+    assert.cooked(
+      "> [code]\n> line 1\n> line 2\n> line 3\n> [/code]",
+      '<blockquote>\n<pre><code class="lang-auto">line 1\nline 2\nline 3</code></pre>\n</blockquote>',
+      "supports quoting a whole [code] block"
     );
   });
 
@@ -1259,88 +1263,6 @@ eviltrout</p>
     );
   });
 
-  test("quotes", function (assert) {
-    const post = Post.create({
-      cooked: "<p><b>lorem</b> ipsum</p>",
-      username: "eviltrout",
-      post_number: 1,
-      topic_id: 2,
-    });
-
-    function formatQuote(val, expected, text, opts) {
-      assert.equal(buildQuote(post, val, opts), expected, text);
-    }
-
-    formatQuote(undefined, "", "empty string for undefined content");
-    formatQuote(null, "", "empty string for null content");
-    formatQuote("", "", "empty string for empty string content");
-
-    formatQuote(
-      "lorem",
-      '[quote="eviltrout, post:1, topic:2"]\nlorem\n[/quote]\n\n',
-      "correctly formats quotes"
-    );
-
-    formatQuote(
-      "  lorem \t  ",
-      '[quote="eviltrout, post:1, topic:2"]\nlorem\n[/quote]\n\n',
-      "trims white spaces before & after the quoted contents"
-    );
-
-    formatQuote(
-      "lorem ipsum",
-      '[quote="eviltrout, post:1, topic:2, full:true"]\nlorem ipsum\n[/quote]\n\n',
-      "marks quotes as full if the `full` option is passed",
-      { full: true }
-    );
-
-    formatQuote(
-      "**lorem** ipsum",
-      '[quote="eviltrout, post:1, topic:2"]\n**lorem** ipsum\n[/quote]\n\n',
-      "keeps BBCode formatting"
-    );
-
-    assert.cooked(
-      "[quote]\ntest\n[/quote]",
-      '<aside class="quote no-group">\n<blockquote>\n<p>test</p>\n</blockquote>\n</aside>',
-      "it supports quotes without params"
-    );
-
-    assert.cooked(
-      "[quote]\n*test*\n[/quote]",
-      '<aside class="quote no-group">\n<blockquote>\n<p><em>test</em></p>\n</blockquote>\n</aside>',
-      "it doesn't insert a new line for italics"
-    );
-
-    assert.cooked(
-      "[quote=,script='a'><script>alert('test');//':a]\n[/quote]",
-      '<aside class="quote no-group">\n<blockquote></blockquote>\n</aside>',
-      "It will not create a script tag within an attribute"
-    );
-  });
-
-  test("quoting a quote", function (assert) {
-    const post = Post.create({
-      cooked: new PrettyText(defaultOpts).cook(
-        '[quote="sam, post:1, topic:1, full:true"]\nhello\n[/quote]\n*Test*'
-      ),
-      username: "eviltrout",
-      post_number: 1,
-      topic_id: 2,
-    });
-
-    const quote = buildQuote(
-      post,
-      '[quote="sam, post:1, topic:1, full:true"]\nhello\n[/quote]'
-    );
-
-    assert.equal(
-      quote,
-      '[quote="eviltrout, post:1, topic:2"]\n[quote="sam, post:1, topic:1, full:true"]\nhello\n[/quote]\n[/quote]\n\n',
-      "allows quoting a quote"
-    );
-  });
-
   test("quote formatting", function (assert) {
     assert.cooked(
       '[quote="EvilTrout, post:123, topic:456, full:true"]\n[sam]\n[/quote]',
@@ -1352,7 +1274,7 @@ eviltrout</p>
 <p>[sam]</p>
 </blockquote>
 </aside>`,
-      "it allows quotes with [] inside"
+      "allows quotes with [] inside"
     );
 
     assert.cooked(
@@ -1419,7 +1341,7 @@ eviltrout</p>
 <div class=\"quote-controls\"></div>
  Alice:</div>
 <blockquote>
-<pre><code class=\"lang-javascript\">var foo ='foo';
+<pre data-code-wrap=\"javascript\"><code class=\"lang-javascript\">var foo ='foo';
 var bar = 'bar';
 </code></pre>
 </blockquote>
@@ -1434,7 +1356,7 @@ var bar = 'bar';
 <div class=\"quote-controls\"></div>
  Alice:</div>
 <blockquote>
-<pre><code class=\"lang-javascript\">var foo ='foo';
+<pre data-code-wrap=\"javascript\"><code class=\"lang-javascript\">var foo ='foo';
 var bar = 'bar';
 </code></pre>
 </blockquote>
@@ -1444,10 +1366,10 @@ var bar = 'bar';
   });
 
   test("quotes with trailing formatting", function (assert) {
-    const result = new PrettyText(defaultOpts).cook(
+    const result = build().cook(
       '[quote="EvilTrout, post:123, topic:456, full:true"]\nhello\n[/quote]\n*Test*'
     );
-    assert.equal(
+    assert.strictEqual(
       result,
       `<aside class=\"quote no-group\" data-username=\"EvilTrout\" data-post=\"123\" data-topic=\"456\" data-full=\"true\">
 <div class=\"title\">
@@ -1458,7 +1380,7 @@ var bar = 'bar';
 </blockquote>
 </aside>
 <p><em>Test</em></p>`,
-      "it allows trailing formatting"
+      "allows trailing formatting"
     );
   });
 
@@ -1483,18 +1405,57 @@ var bar = 'bar';
     );
   });
 
+  test("customizing markdown-it rules", function (assert) {
+    assert.cookedOptions(
+      "**bold**",
+      { markdownItRules: [] },
+      "<p>**bold**</p>",
+      "does not apply bold markdown when rule is not enabled"
+    );
+
+    assert.cookedOptions(
+      "**bold**",
+      { markdownItRules: ["emphasis"] },
+      "<p><strong>bold</strong></p>",
+      "applies bold markdown when rule is enabled"
+    );
+  });
+
+  test("features override", function (assert) {
+    assert.cookedOptions(
+      ":grin: @sam",
+      { featuresOverride: [] },
+      "<p>:grin: @sam</p>",
+      "does not cook emojis when Discourse markdown engines are disabled"
+    );
+
+    assert.cookedOptions(
+      ":grin: @sam",
+      { featuresOverride: ["emoji"] },
+      `<p><img src="/images/emoji/twitter/grin.png?v=${v}" title=":grin:" class="emoji" alt=":grin:" loading="lazy" width="20" height="20"> @sam</p>`,
+      "cooks emojis when only the emoji markdown engine is enabled"
+    );
+
+    assert.cookedOptions(
+      ":grin: @sam",
+      { featuresOverride: ["mentions", "text-post-process"] },
+      `<p>:grin: <span class="mention">@sam</span></p>`,
+      "cooks mentions when only the mentions markdown engine is enabled"
+    );
+  });
+
   test("emoji", function (assert) {
     assert.cooked(
       ":smile:",
-      `<p><img src="/images/emoji/google_classic/smile.png?v=${v}" title=":smile:" class="emoji only-emoji" alt=":smile:"></p>`
+      `<p><img src="/images/emoji/twitter/smile.png?v=${v}" title=":smile:" class="emoji only-emoji" alt=":smile:" loading="lazy" width="20" height="20"></p>`
     );
     assert.cooked(
       ":(",
-      `<p><img src="/images/emoji/google_classic/frowning.png?v=${v}" title=":frowning:" class="emoji only-emoji" alt=":frowning:"></p>`
+      `<p><img src="/images/emoji/twitter/frowning.png?v=${v}" title=":frowning:" class="emoji only-emoji" alt=":frowning:" loading="lazy" width="20" height="20"></p>`
     );
     assert.cooked(
       "8-)",
-      `<p><img src="/images/emoji/google_classic/sunglasses.png?v=${v}" title=":sunglasses:" class="emoji only-emoji" alt=":sunglasses:"></p>`
+      `<p><img src="/images/emoji/twitter/sunglasses.png?v=${v}" title=":sunglasses:" class="emoji only-emoji" alt=":sunglasses:" loading="lazy" width="20" height="20"></p>`
     );
   });
 
@@ -1508,7 +1469,7 @@ var bar = 'bar';
     assert.cookedOptions(
       "test:smile:test",
       { siteSettings: { enable_inline_emoji_translation: true } },
-      `<p>test<img src="/images/emoji/google_classic/smile.png?v=${v}" title=":smile:" class="emoji" alt=":smile:">test</p>`
+      `<p>test<img src="/images/emoji/twitter/smile.png?v=${v}" title=":smile:" class="emoji" alt=":smile:" loading="lazy" width="20" height="20">test</p>`
     );
   });
 
@@ -1516,7 +1477,7 @@ var bar = 'bar';
     assert.cookedOptions(
       ":smile:",
       { siteSettings: { emoji_set: "twitter" } },
-      `<p><img src="/images/emoji/twitter/smile.png?v=${v}" title=":smile:" class="emoji only-emoji" alt=":smile:"></p>`
+      `<p><img src="/images/emoji/twitter/smile.png?v=${v}" title=":smile:" class="emoji only-emoji" alt=":smile:" loading="lazy" width="20" height="20"></p>`
     );
   });
 
@@ -1529,7 +1490,7 @@ var bar = 'bar';
           external_emoji_url: "https://emoji.hosting.service",
         },
       },
-      `<p><img src="https://emoji.hosting.service/twitter/smile.png?v=${v}" title=":smile:" class="emoji only-emoji" alt=":smile:"></p>`
+      `<p><img src="https://emoji.hosting.service/twitter/smile.png?v=${v}" title=":smile:" class="emoji only-emoji" alt=":smile:" loading="lazy" width="20" height="20"></p>`
     );
   });
 
@@ -1539,7 +1500,7 @@ var bar = 'bar';
     assert.cookedOptions(
       ":foo:",
       {},
-      `<p><img src="/images/d-logo-sketch.png?v=${v}" title=":foo:" class="emoji emoji-custom only-emoji" alt=":foo:"></p>`
+      `<p><img src="/images/d-logo-sketch.png?v=${v}" title=":foo:" class="emoji emoji-custom only-emoji" alt=":foo:" loading="lazy" width="20" height="20"></p>`
     );
 
     registerEmoji("bar", "/images/avatar.png", "baz");
@@ -1547,7 +1508,7 @@ var bar = 'bar';
     assert.cookedOptions(
       ":bar:",
       {},
-      `<p><img src="/images/avatar.png?v=${v}" title=":bar:" class="emoji emoji-custom only-emoji" alt=":bar:"></p>`
+      `<p><img src="/images/avatar.png?v=${v}" title=":bar:" class="emoji emoji-custom only-emoji" alt=":bar:" loading="lazy" width="20" height="20"></p>`
     );
   });
 
@@ -1555,16 +1516,19 @@ var bar = 'bar';
     assert.deepEqual(extractDataAttribute("foo="), ["data-foo", ""]);
     assert.deepEqual(extractDataAttribute("foo=bar"), ["data-foo", "bar"]);
 
-    assert.notOk(extractDataAttribute("foo?=bar"));
-    assert.notOk(extractDataAttribute("https://discourse.org/?q=hello"));
+    assert.strictEqual(extractDataAttribute("foo?=bar"), null);
+    assert.strictEqual(
+      extractDataAttribute("https://discourse.org/?q=hello"),
+      null
+    );
   });
 
   test("video - display placeholder when previewing", function (assert) {
     assert.cookedOptions(
       `![baby shark|video](upload://eyPnj7UzkU0AkGkx2dx8G4YM1Jx.mp4)`,
       { previewing: true },
-      `<p><div class=\"onebox-placeholder-container\">
-        <span class=\"placeholder-icon video\"></span>
+      `<p><div class="onebox-placeholder-container" data-orig-src-id="eyPnj7UzkU0AkGkx2dx8G4YM1Jx">
+        <span class="placeholder-icon video"></span>
       </div></p>`
     );
   });
@@ -1585,6 +1549,8 @@ var bar = 'bar';
     assert.cookedOptions("a --> b", enabledTypographer, "<p>a \u2192 b</p>");
     assert.cookedOptions("-->", enabledTypographer, "<p> \u2192 </p>");
     assert.cookedOptions("<--", enabledTypographer, "<p> \u2190 </p>");
+    assert.cookedOptions("<->", enabledTypographer, "<p> \u2194 </p>");
+    assert.cookedOptions("<-->", enabledTypographer, "<p> \u2194 </p>");
 
     // Don't replace arrows
     assert.cookedOptions("<!-- an html comment -->", enabledTypographer, "");
@@ -1593,7 +1559,6 @@ var bar = 'bar';
       enabledTypographer,
       "<p>(&lt;–not an arrow)</p>"
     );
-    assert.cookedOptions("<-->", enabledTypographer, "<p>&lt;–&gt;</p>");
     assert.cookedOptions("asd-->", enabledTypographer, "<p>asd–&gt;</p>");
     assert.cookedOptions(" asd--> ", enabledTypographer, "<p>asd–&gt;</p>");
     assert.cookedOptions(" asd-->", enabledTypographer, "<p>asd–&gt;</p>");
@@ -1610,7 +1575,7 @@ var bar = 'bar';
     assert.cookedOptions("(bad)", enabledTypographer, "<p>(bad)</p>");
     assert.cookedOptions("+-5", enabledTypographer, "<p>±5</p>");
     assert.cookedOptions(
-      "test.. test... test..... test?..... test!....",
+      "test.. test... test..... test?..... test!...",
       enabledTypographer,
       "<p>test… test… test… test?.. test!..</p>"
     );
@@ -1675,15 +1640,28 @@ var bar = 'bar';
 
   test("watched words replace", function (assert) {
     const opts = {
-      watchedWordsReplace: { "(?:\\W|^)(fun)(?=\\W|$)": "times" },
+      watchedWordsReplace: {
+        "(?:\\W|^)(fun)(?=\\W|$)": {
+          word: "fun",
+          replacement: "times",
+          case_sensitive: false,
+        },
+      },
     };
 
     assert.cookedOptions("test fun funny", opts, "<p>test times funny</p>");
+    assert.cookedOptions("constructor", opts, "<p>constructor</p>");
   });
 
   test("watched words link", function (assert) {
     const opts = {
-      watchedWordsLink: { "(?:\\W|^)(fun)(?=\\W|$)": "https://discourse.org" },
+      watchedWordsLink: {
+        "(?:\\W|^)(fun)(?=\\W|$)": {
+          word: "fun",
+          replacement: "https://discourse.org",
+          case_sensitive: false,
+        },
+      },
     };
 
     assert.cookedOptions(
@@ -1694,17 +1672,85 @@ var bar = 'bar';
   });
 
   test("watched words replace with bad regex", function (assert) {
-    const maxMatches = 100; // same limit as MD watched-words-replace plugin
     const opts = {
       siteSettings: { watched_words_regular_expressions: true },
-      watchedWordsReplace: { "(\\bu?\\b)": "you" },
+      watchedWordsReplace: {
+        "(\\bu?\\b)": {
+          word: "(\\bu?\\b)",
+          replacement: "you",
+          case_sensitive: false,
+        },
+      },
     };
 
     assert.cookedOptions(
       "one",
       opts,
-      `<p>${"you".repeat(maxMatches)}one</p>`,
+      `<p>youoneyou</p>`,
       "does not loop infinitely"
+    );
+  });
+
+  test("highlighted aliased languages", function (assert) {
+    // "js" is an alias of "javascript"
+    assert.cooked(
+      "```js\nvar foo ='foo';\nvar bar = 'bar';\n```",
+      `<pre data-code-wrap="js"><code class=\"lang-js\">var foo ='foo';
+var bar = 'bar';
+</code></pre>`,
+      "code block with js alias works"
+    );
+
+    // "html" is an alias of "xml"
+    assert.cooked(
+      "```html\n<strong>fun</strong> times\n```",
+      `<pre data-code-wrap="html"><code class=\"lang-html\">&lt;strong&gt;fun&lt;/strong&gt; times
+</code></pre>`,
+      "code block with html alias work"
+    );
+  });
+
+  test("image grid", function (assert) {
+    assert.cooked(
+      "[grid]\n![](http://folksy.com/images/folksy-colour.png)\n[/grid]",
+      `<div class="d-image-grid">
+<p><img src="http://folksy.com/images/folksy-colour.png" alt role="presentation"></p>
+</div>`,
+      "image grid works"
+    );
+
+    assert.cooked(
+      `[grid]
+![](http://folksy.com/images/folksy-colour.png)
+![](http://folksy.com/images/folksy-colour2.png)
+![](http://folksy.com/images/folksy-colour3.png)
+[/grid]`,
+      `<div class="d-image-grid">
+<p><img src="http://folksy.com/images/folksy-colour.png" alt role="presentation"><br>
+<img src="http://folksy.com/images/folksy-colour2.png" alt role="presentation"><br>
+<img src="http://folksy.com/images/folksy-colour3.png" alt role="presentation"></p>
+</div>`,
+      "image grid with 3 images works"
+    );
+
+    assert.cooked(
+      `[grid]
+![](http://folksy.com/images/folksy-colour.png) ![](http://folksy.com/images/folksy-colour2.png)
+![](http://folksy.com/images/folksy-colour3.png)
+[/grid]`,
+      `<div class="d-image-grid">
+<p><img src="http://folksy.com/images/folksy-colour.png" alt role="presentation"> <img src="http://folksy.com/images/folksy-colour2.png" alt role="presentation"><br>
+<img src="http://folksy.com/images/folksy-colour3.png" alt role="presentation"></p>
+</div>`,
+      "image grid with mixed block and inline images works"
+    );
+
+    assert.cooked(
+      "[grid]![](http://folksy.com/images/folksy-colour.png) ![](http://folksy.com/images/folksy-colour2.png)[/grid]",
+      `<div class="d-image-grid">
+<p><img src="http://folksy.com/images/folksy-colour.png" alt role="presentation"> <img src="http://folksy.com/images/folksy-colour2.png" alt role="presentation"></p>
+</div>`,
+      "image grid with inline images works"
     );
   });
 });

@@ -26,12 +26,14 @@
     .date-picker-wrapper {
       margin-right: 5px;
     }
+
+    &:last-child {
+      margin-bottom: 0;
+    }
   }
 
-  .poll-checkbox {
-    label {
-      width: unset;
-    }
+  .poll-public .d-toggle-switch__label {
+    margin-bottom: 0;
   }
 
   .radio-group {
@@ -48,32 +50,25 @@
   }
 
   .poll-type {
-    display: block;
-
     .poll-type-value {
-      border: none;
-      color: var(--primary);
-      display: inline-block;
-      padding: 6px 12px 3px;
-
-      &.active {
-        background-color: var(--quaternary);
-        color: var(--secondary);
-      }
+      font-size: var(--font-down-1);
     }
+    padding: 0;
+    margin-top: 0;
+    border: none;
   }
 
   .poll-options {
     margin-bottom: 15px;
 
     .poll-option-value {
-      align-items: center;
+      align-items: flex-start;
       display: flex;
       justify-content: space-between;
-      margin-bottom: 3px;
+      margin-bottom: 0;
 
       button {
-        margin-left: 3px;
+        margin-left: 0.5rem;
       }
     }
 
@@ -89,7 +84,7 @@
 
   .tip {
     display: block;
-    font-size: $font-down-1;
+    font-size: var(--font-down-1);
     margin: -0.5em 0 0.5em;
   }
 

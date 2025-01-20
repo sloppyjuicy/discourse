@@ -1,12 +1,24 @@
-import { alias, not } from "@ember/object/computed";
-import discourseComputed, { observes } from "discourse-common/utils/decorators";
 import Component from "@ember/component";
+import { alias, not } from "@ember/object/computed";
+import { service } from "@ember/service";
+import { observes } from "@ember-decorators/object";
+import $ from "jquery";
+import discourseComputed, { bind } from "discourse/lib/decorators";
 
-export default Component.extend({
-  loadingMore: alias("topicList.loadingMore"),
-  loading: not("loaded"),
+export default class BasicTopicList extends Component {
+  @service site;
 
-  hideMobileAvatar: true,
+  @alias("topicList.loadingMore") loadingMore;
+
+  @not("loaded") loading;
+
+  init() {
+    super.init(...arguments);
+    const topicList = this.topicList;
+    if (topicList) {
+      this._initFromTopicList(topicList);
+    }
+  }
 
   @discourseComputed("topicList.loaded")
   loaded() {
@@ -16,77 +28,62 @@ export default Component.extend({
     } else {
       return true;
     }
-  },
+  }
 
   @observes("topicList.[]")
-  _topicListChanged: function () {
+  _topicListChanged() {
     this._initFromTopicList(this.topicList);
-  },
+  }
 
   _initFromTopicList(topicList) {
     if (topicList !== null) {
       this.set("topics", topicList.get("topics"));
       this.rerender();
     }
-  },
-
-  init() {
-    this._super(...arguments);
-    const topicList = this.topicList;
-    if (topicList) {
-      this._initFromTopicList(topicList);
-    }
-  },
+  }
 
   didInsertElement() {
-    this._super(...arguments);
+    super.didInsertElement(...arguments);
 
     this.topics.forEach((topic) => {
-      const includeUnreadIndicator =
-        typeof topic.unread_by_group_member !== "undefined";
-
-      if (includeUnreadIndicator) {
-        const unreadIndicatorChannel = `/private-messages/unread-indicator/${topic.id}`;
-        this.messageBus.subscribe(unreadIndicatorChannel, (data) => {
-          const nodeClassList = document.querySelector(
-            `.indicator-topic-${data.topic_id}`
-          ).classList;
-
-          if (data.show_indicator) {
-            nodeClassList.remove("read");
-          } else {
-            nodeClassList.add("read");
-          }
-        });
+      if (typeof topic.unread_by_group_member !== "undefined") {
+        this.messageBus.subscribe(
+          `/private-messages/unread-indicator/${topic.id}`,
+          this.onMessage
+        );
       }
     });
-  },
+  }
 
   willDestroyElement() {
-    this._super(...arguments);
+    super.willDestroyElement(...arguments);
 
-    this.topics.forEach((topic) => {
-      const includeUnreadIndicator =
-        typeof topic.unread_by_group_member !== "undefined";
+    this.messageBus.unsubscribe(
+      "/private-messages/unread-indicator/*",
+      this.onMessage
+    );
+  }
 
-      if (includeUnreadIndicator) {
-        const unreadIndicatorChannel = `/private-messages/unread-indicator/${topic.id}`;
-        this.messageBus.unsubscribe(unreadIndicatorChannel);
-      }
-    });
-  },
+  @bind
+  onMessage(data) {
+    const nodeClassList = document.querySelector(
+      `.indicator-topic-${data.topic_id}`
+    ).classList;
+
+    nodeClassList.toggle("read", !data.show_indicator);
+  }
 
   @discourseComputed("topics")
   showUnreadIndicator(topics) {
     return topics.some(
       (topic) => typeof topic.unread_by_group_member !== "undefined"
     );
-  },
+  }
 
   click(e) {
     // Mobile basic-topic-list doesn't use the `topic-list-item` view so
     // the event for the topic entrance is never wired up.
-    if (!this.site.mobileView) {
+    if (this.site.desktopView) {
       return;
     }
 
@@ -116,5 +113,5 @@ export default Component.extend({
       }
       return false;
     }
-  },
-});
+  }
+}

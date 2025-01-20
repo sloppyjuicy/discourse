@@ -27,8 +27,6 @@ nb_NO:
         icons:
           title: "Ikoner"
           full_list: "Se hele listen over Font Awesome Icons"
-        input_fields:
-          title: "Input Fields"
         buttons:
           title: "Knapper"
         dropdowns:
@@ -85,3 +83,6 @@ nb_NO:
           title: "Toppikoner"
         spinners:
           title: "Spinnere"
+        tooltips:
+          description: "Beskrivelse"
+          header: "Hode"

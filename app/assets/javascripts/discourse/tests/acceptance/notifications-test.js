@@ -1,204 +1,51 @@
-import { visit } from "@ember/test-helpers";
+import { getOwner } from "@ember/owner";
+import { click, currentURL, visit } from "@ember/test-helpers";
+import { test } from "qunit";
+import { cloneJSON } from "discourse/lib/object";
+import NotificationFixtures from "discourse/tests/fixtures/notification-fixtures";
 import {
   acceptance,
-  count,
-  exists,
   publishToMessageBus,
-  query,
-  queryAll,
 } from "discourse/tests/helpers/qunit-helpers";
-import { test } from "qunit";
 
-acceptance("User Notifications", function (needs) {
-  needs.user();
+acceptance("Category Notifications", function (needs) {
+  needs.user({ muted_category_ids: [1], indirectly_muted_category_ids: [2] });
 
-  test("Update works correctly", async function (assert) {
+  test("New category is muted when parent category is muted", async function (assert) {
     await visit("/");
-    await click("li.current-user");
+    const user = getOwner(this).lookup("service:current-user");
 
-    // set older notifications to read
-
-    publishToMessageBus("/notification/19", {
-      unread_notifications: 5,
-      unread_private_messages: 0,
-      unread_high_priority_notifications: 0,
-      read_first_notification: false,
-      last_notification: {},
-      recent: [
-        [123, false],
-        [456, false],
-        [789, true],
-        [1234, true],
-        [5678, true],
-      ],
-      seen_notification_id: null,
-    });
-
-    await visit("/"); // wait for re-render
-
-    assert.equal(count("#quick-access-notifications li"), 6);
-
-    // high priority, unread notification - should be first
-
-    publishToMessageBus("/notification/19", {
-      unread_notifications: 6,
-      unread_private_messages: 0,
-      unread_high_priority_notifications: 1,
-      read_first_notification: false,
-      last_notification: {
-        notification: {
-          id: 42,
-          user_id: 1,
-          notification_type: 5,
-          read: false,
-          high_priority: true,
-          created_at: "2021-01-01 12:00:00 UTC",
-          post_number: 1,
-          topic_id: 42,
-          fancy_title: "First notification",
-          slug: "topic",
-          data: {
-            topic_title: "First notification",
-            original_post_id: 42,
-            original_post_type: 1,
-            original_username: "foo",
-            revision_number: null,
-            display_username: "foo",
-          },
+    await publishToMessageBus("/categories", {
+      categories: [
+        {
+          id: 3,
+          parent_category_id: 99,
         },
-      },
-      recent: [
-        [42, false],
-        [123, false],
-        [456, false],
-        [789, true],
-        [1234, true],
-        [5678, true],
-      ],
-      seen_notification_id: null,
-    });
-
-    await visit("/"); // wait for re-render
-
-    assert.equal(count("#quick-access-notifications li"), 6);
-    assert.equal(
-      query("#quick-access-notifications li span[data-topic-id]").innerText,
-      "First notification"
-    );
-
-    // high priority, read notification - should be second
-
-    publishToMessageBus("/notification/19", {
-      unread_notifications: 7,
-      unread_private_messages: 0,
-      unread_high_priority_notifications: 1,
-      read_first_notification: false,
-      last_notification: {
-        notification: {
-          id: 43,
-          user_id: 1,
-          notification_type: 5,
-          read: true,
-          high_priority: false,
-          created_at: "2021-01-01 12:00:00 UTC",
-          post_number: 1,
-          topic_id: 42,
-          fancy_title: "Second notification",
-          slug: "topic",
-          data: {
-            topic_title: "Second notification",
-            original_post_id: 42,
-            original_post_type: 1,
-            original_username: "foo",
-            revision_number: null,
-            display_username: "foo",
-          },
+        {
+          id: 4,
         },
-      },
-      recent: [
-        [42, false],
-        [43, true],
-        [123, false],
-        [456, false],
-        [789, true],
-        [1234, true],
-        [5678, true],
       ],
-      seen_notification_id: null,
     });
+    assert.deepEqual(user.indirectly_muted_category_ids, [2]);
 
-    await visit("/"); // wait for re-render
-
-    assert.equal(count("#quick-access-notifications li"), 7);
-    assert.equal(
-      queryAll("#quick-access-notifications li span[data-topic-id]")[1]
-        .innerText,
-      "Second notification"
-    );
-
-    // updates existing notifications
-
-    publishToMessageBus("/notification/19", {
-      unread_notifications: 8,
-      unread_private_messages: 0,
-      unread_high_priority_notifications: 1,
-      read_first_notification: false,
-      last_notification: {
-        notification: {
-          id: 44,
-          user_id: 1,
-          notification_type: 5,
-          read: true,
-          high_priority: false,
-          created_at: "2021-01-01 12:00:00 UTC",
-          post_number: 1,
-          topic_id: 42,
-          fancy_title: "Third notification",
-          slug: "topic",
-          data: {
-            topic_title: "Third notification",
-            original_post_id: 42,
-            original_post_type: 1,
-            original_username: "foo",
-            revision_number: null,
-            display_username: "foo",
-          },
+    await publishToMessageBus("/categories", {
+      categories: [
+        {
+          id: 4,
+          parent_category_id: 1,
         },
-      },
-      recent: [
-        [5678, false],
-        [1234, false],
-        [789, false],
-        [456, true],
-        [123, true],
-        [44, false],
-        [43, false],
-        [42, true],
+        {
+          id: 5,
+          parent_category_id: 2,
+        },
       ],
-      seen_notification_id: null,
     });
-
-    await visit("/"); // wait for re-render
-    assert.equal(count("#quick-access-notifications li"), 8);
-    const texts = [];
-    queryAll("#quick-access-notifications li").each((_, el) =>
-      texts.push(el.innerText.trim())
-    );
-    assert.deepEqual(texts, [
-      "foo First notification",
-      "foo Third notification",
-      "foo Second notification",
-      "velesin some title",
-      "aquaman liked 5 of your posts",
-      "5 messages in your test inbox",
-      "test1 accepted your invitation",
-      "Membership accepted in 'test'",
-    ]);
+    assert.deepEqual(user.indirectly_muted_category_ids, [2, 4, 5]);
   });
 });
 
 acceptance(
-  "User Notifications - there is no notifications yet",
+  "User Notifications - there are no notifications yet",
   function (needs) {
     needs.user();
 
@@ -210,15 +57,37 @@ acceptance(
       });
     });
 
-    test("It renders the empty state panel", async function (assert) {
-      await visit("/u/eviltrout/notifications");
-      assert.ok(exists("div.empty-state"));
-    });
-
-    test("It does not render filter", async function (assert) {
+    test("renders the empty state panel", async function (assert) {
       await visit("/u/eviltrout/notifications");
 
-      assert.notOk(exists("div.user-notifications-filter"));
+      assert.dom("div.empty-state").exists();
+      assert.dom("div.user-notifications-filter").doesNotExist();
     });
   }
 );
+
+acceptance("User Notifications", function (needs) {
+  needs.user();
+
+  needs.pretender((server, helper) => {
+    server.get("/notifications", () => {
+      return helper.response(cloneJSON(NotificationFixtures["/notifications"]));
+    });
+  });
+
+  test("shows the notifications list", async function (assert) {
+    await visit("/u/eviltrout/notifications");
+
+    assert.dom("div.empty-state").doesNotExist();
+    assert.dom("div.user-notifications-filter").exists();
+    assert
+      .dom(".user-notifications-list .notification.unread")
+      .exists({ count: 6 });
+
+    await click(".notification.liked-consolidated a");
+    assert.strictEqual(
+      currentURL(),
+      "/u/eviltrout/notifications/likes-received?acting_username=aquaman"
+    );
+  });
+});

@@ -1,13 +1,13 @@
 import Component from "@ember/component";
+import { tagName } from "@ember-decorators/component";
 import autoGroupFlairForUser from "discourse/lib/avatar-flair";
-import discourseComputed from "discourse-common/utils/decorators";
+import discourseComputed from "discourse/lib/decorators";
 
-export default Component.extend({
-  tagName: "",
-
+@tagName("")
+export default class UserAvatarFlair extends Component {
   @discourseComputed("user")
   flair(user) {
-    if (!user) {
+    if (!user || !user.flair_group_id) {
       return;
     }
 
@@ -29,5 +29,5 @@ export default Component.extend({
         flairColor: autoFlairAttrs.flair_color,
       };
     }
-  },
-});
+  }
+}

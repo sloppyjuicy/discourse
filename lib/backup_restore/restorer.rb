@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "colored2"
+
 module BackupRestore
   RestoreDisabledError = Class.new(RuntimeError)
   FilenameMissingError = Class.new(RuntimeError)
@@ -9,12 +11,20 @@ module BackupRestore
 
     attr_reader :success
 
-    def initialize(user_id:, filename:, factory:, disable_emails: true, location: nil)
+    def initialize(
+      user_id:,
+      filename:,
+      factory:,
+      disable_emails: true,
+      location: nil,
+      interactive: false
+    )
       @user_id = user_id
       @filename = filename
       @factory = factory
       @logger = factory.logger
       @disable_emails = disable_emails
+      @interactive = interactive
 
       ensure_restore_is_enabled
       ensure_we_have_a_user
@@ -48,7 +58,7 @@ module BackupRestore
       @system.flush_redis
       @system.clear_sidekiq_queues
 
-      @database_restorer.restore(db_dump_path)
+      @database_restorer.restore(db_dump_path, @interactive)
 
       reload_site_settings
 
@@ -58,15 +68,15 @@ module BackupRestore
       clear_stats
       reload_translations
 
-      @uploads_restorer.restore(@tmp_directory)
+      restore_uploads
 
       clear_emoji_cache
       clear_theme_cache
 
       after_restore_hook
     rescue Compression::Strategy::ExtractFailed
-      log 'ERROR: The uncompressed file is too big. Consider increasing the hidden ' \
-          '"decompressed_backup_max_file_size_mb" setting.'
+      log "ERROR: The uncompressed file is too big. Consider increasing the hidden " \
+            '"decompressed_backup_max_file_size_mb" setting.'
       @database_restorer.rollback
     rescue SystemExit
       log "Restore process was cancelled!"
@@ -118,10 +128,10 @@ module BackupRestore
 
       DiscourseEvent.trigger(:site_settings_restored)
 
-      if @disable_emails && SiteSetting.disable_emails == 'no'
+      if @disable_emails && SiteSetting.disable_emails == "no"
         log "Disabling outgoing emails for non-staff users..."
         user = User.find_by_email(@user_info[:email]) || Discourse.system_user
-        SiteSetting.set_and_log(:disable_emails, 'non-staff', user)
+        SiteSetting.set_and_log(:disable_emails, "non-staff", user)
       end
     end
 
@@ -143,7 +153,23 @@ module BackupRestore
       TranslationOverride.reload_all_overrides!
     end
 
+    def restore_uploads
+      if @interactive
+        puts ""
+        puts "Attention! Pausing restore before uploads.".red.bold
+        puts "You can work on the restored database in a separate Rails console."
+        puts ""
+        puts "Press any key to continue with the restore.".bold
+        puts ""
+        STDIN.getch
+      end
+
+      @uploads_restorer.restore(@tmp_directory)
+    end
+
     def notify_user
+      return if @success && @user_id == Discourse::SYSTEM_USER_ID
+
       if user = User.find_by_email(@user_info[:email])
         log "Notifying '#{user.username}' of the end of the restore..."
         status = @success ? :restore_succeeded : :restore_failed
@@ -152,7 +178,7 @@ module BackupRestore
         post = SystemMessage.create_from_system_user(user, status, logs: logs)
       else
         log "Could not send notification to '#{@user_info[:username]}' " \
-          "(#{@user_info[:email]}), because the user does not exist."
+              "(#{@user_info[:email]}), because the user does not exist."
       end
     rescue => ex
       log "Something went wrong while notifying user.", ex

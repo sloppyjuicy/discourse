@@ -1,18 +1,19 @@
-import CategoryRowComponent from "select-kit/components/category-row";
+import { htmlSafe } from "@ember/template";
+import { classNames } from "@ember-decorators/component";
 import { categoryBadgeHTML } from "discourse/helpers/category-link";
-import discourseComputed from "discourse-common/utils/decorators";
-import layout from "select-kit/templates/components/category-row";
+import discourseComputed from "discourse/lib/decorators";
+import CategoryRowComponent from "select-kit/components/category-row";
 
-export default CategoryRowComponent.extend({
-  layout,
-  classNames: "none category-row",
-
+@classNames("none category-row")
+export default class NoneCategoryRow extends CategoryRowComponent {
   @discourseComputed("category")
   badgeForCategory(category) {
-    return categoryBadgeHTML(category, {
-      link: this.categoryLink,
-      allowUncategorized: true,
-      hideParent: true,
-    }).htmlSafe();
-  },
-});
+    return htmlSafe(
+      categoryBadgeHTML(category, {
+        link: false,
+        allowUncategorized: true,
+        hideParent: true,
+      })
+    );
+  }
+}

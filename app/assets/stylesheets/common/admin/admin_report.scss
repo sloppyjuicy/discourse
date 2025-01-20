@@ -19,7 +19,7 @@
 
     .item {
       display: inline;
-      font-size: $font-up-1;
+      font-size: var(--font-up-1);
     }
 
     .all-reports .report-url {
@@ -67,17 +67,19 @@
     }
 
     .value {
-      font-size: $font-up-1;
+      font-size: var(--font-up-1);
     }
 
     .icon {
-      font-size: $font-up-1;
+      font-size: var(--font-up-1);
       font-weight: 700;
     }
   }
 
   .body {
     display: flex;
+    flex-direction: row;
+    margin-top: var(--space-3);
   }
 
   .main {
@@ -96,7 +98,7 @@
 
     .d-icon {
       color: currentColor;
-      font-size: $font-up-5;
+      font-size: var(--font-up-5);
       display: block;
       margin: 0.25em auto;
     }
@@ -121,11 +123,11 @@
 
   .average-chart {
     padding: 0.5em;
-    border: 1px solid var(--highlight-high);
-    color: var(--highlight-high);
+    border: 1px solid var(--highlight);
+    color: var(--highlight);
     margin-bottom: 1em;
     text-align: center;
-    background: var(--highlight-low);
+    background: var(--highlight-bg);
   }
 
   .filters {
@@ -200,5 +202,56 @@
 .admin-report.storage-stats {
   .main {
     flex: 1 0 auto;
+  }
+}
+
+.admin-reports-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--primary-low);
+  padding-bottom: 0.5em;
+
+  @media screen and (max-width: 400px) {
+    flex-wrap: wrap;
+  }
+
+  h2 {
+    margin: 0 0.5em 0 0;
+
+    a {
+      color: var(--primary);
+    }
+  }
+}
+
+.admin-reports-list {
+  --d-border-radius: var(--space-0);
+
+  display: flex;
+  flex-wrap: wrap;
+  list-style-type: none;
+
+  &.admin-section-landing-wrapper {
+    gap: 1em;
+    padding-top: 0;
+
+    .admin-section-landing-item {
+      margin-bottom: 0;
+      padding: var(--space-4);
+      border-radius: var(--d-border-radius);
+      outline: 1px solid var(--primary-low);
+      margin-bottom: 0;
+
+      @include breakpoint("mobile-extra-large", min-width) {
+        margin-bottom: 0;
+      }
+
+      &:hover {
+        border: 0;
+        box-shadow: 0 0 0 1px var(--primary-300), 0 0 0 4px var(--primary-100);
+        transition: all 0.2s ease-in-out;
+      }
+    }
   }
 }

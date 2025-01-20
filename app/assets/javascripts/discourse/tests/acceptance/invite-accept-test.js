@@ -1,13 +1,10 @@
-import {
-  acceptance,
-  exists,
-  query,
-  queryAll,
-} from "discourse/tests/helpers/qunit-helpers";
-import { fillIn, visit } from "@ember/test-helpers";
-import PreloadStore from "discourse/lib/preload-store";
-import I18n from "I18n";
+import { click, currentURL, fillIn, visit } from "@ember/test-helpers";
 import { test } from "qunit";
+import PreloadStore from "discourse/lib/preload-store";
+import Site from "discourse/models/site";
+import pretender, { response } from "discourse/tests/helpers/create-pretender";
+import { acceptance } from "discourse/tests/helpers/qunit-helpers";
+import { i18n } from "discourse-i18n";
 
 function setAuthenticationData(hooks, json) {
   hooks.beforeEach(() => {
@@ -38,9 +35,9 @@ function preloadInvite({
       title: "team",
     },
     username: "invited",
-    email_verified_by_link: email_verified_by_link,
-    different_external_email: different_external_email,
-    hidden_email: hidden_email,
+    email_verified_by_link,
+    different_external_email,
+    hidden_email,
   };
 
   if (link) {
@@ -54,9 +51,7 @@ function preloadInvite({
   PreloadStore.store("invite_info", info);
 }
 
-acceptance("Invite accept", function (needs) {
-  needs.settings({ full_name_required: true });
-
+acceptance("Invite accept", function () {
   test("email invite link", async function (assert) {
     PreloadStore.store("invite_info", {
       invited_by: {
@@ -71,19 +66,20 @@ acceptance("Invite accept", function (needs) {
       is_invite_link: false,
     });
 
-    await visit("/invites/myvalidinvitetoken");
+    await visit("/invites/my-valid-invite-token");
 
-    assert.ok(
-      queryAll(".col-form")
-        .text()
-        .includes(I18n.t("invites.social_login_available")),
-      "shows social login hint"
-    );
+    assert
+      .dom(".col-form")
+      .includesText(
+        i18n("invites.social_login_available"),
+        "shows social login hint"
+      );
 
-    assert.ok(!exists("#new-account-email"), "hides the email input");
+    assert.dom("#new-account-email").doesNotExist("hides the email input");
   });
 
   test("invite link", async function (assert) {
+    this.siteSettings.login_required = true;
     PreloadStore.store("invite_info", {
       invited_by: {
         id: 123,
@@ -97,70 +93,108 @@ acceptance("Invite accept", function (needs) {
       is_invite_link: true,
     });
 
-    await visit("/invites/myvalidinvitetoken");
-    assert.ok(exists("#new-account-email"), "shows the email input");
-    assert.ok(exists("#new-account-username"), "shows the username input");
-    assert.equal(
-      queryAll("#new-account-username").val(),
-      "invited",
-      "username is prefilled"
-    );
-    assert.ok(exists("#new-account-name"), "shows the name input");
-    assert.ok(exists("#new-account-password"), "shows the password input");
-    assert.ok(
-      exists(".invites-show .btn-primary:disabled"),
-      "submit is disabled because name and email is not filled"
-    );
+    await visit("/invites/my-valid-invite-token");
+
+    assert
+      .dom(document.body)
+      .hasNoClass(
+        "has-sidebar-page",
+        "does not display the sidebar on the invites page"
+      );
+
+    assert
+      .dom(".d-header")
+      .doesNotExist("does not display the site header on the invites page");
+
+    assert.dom("#new-account-email").exists("shows the email input");
+    assert.dom("#new-account-username").exists("shows the username input");
+    assert
+      .dom("#new-account-username")
+      .hasValue("invited", "username is prefilled");
+    assert.dom("#new-account-name").exists("shows the name input");
+    assert.dom("#new-account-password").exists("shows the password input");
+    assert
+      .dom(".invites-show .btn-primary")
+      .isDisabled("submit is disabled because name and email is not filled");
+    assert
+      .dom("#new-account-password")
+      .hasAttribute("type", "password", "password is masked by default");
+
+    await click(".toggle-password-mask");
+    assert
+      .dom("#new-account-password")
+      .hasAttribute(
+        "type",
+        "text",
+        "password is unmasked when toggle is clicked"
+      );
 
     await fillIn("#new-account-name", "John Doe");
-    assert.ok(
-      exists(".invites-show .btn-primary:disabled"),
-      "submit is disabled because email is not filled"
-    );
+    assert
+      .dom(".invites-show .btn-primary")
+      .isDisabled("submit is disabled because email is not filled");
 
     await fillIn("#new-account-email", "john.doe@example.com");
-    assert.not(
-      exists(".invites-show .btn-primary:disabled"),
-      "submit is enabled"
-    );
+    assert
+      .dom(".invites-show .btn-primary")
+      .isDisabled("submit is disabled because password is not filled");
+
+    await fillIn("#new-account-password", "top$ecretzz");
+    assert.dom(".invites-show .btn-primary").isEnabled("submit is enabled");
 
     await fillIn("#new-account-username", "a");
-    assert.ok(exists(".username-input .bad"), "username is not valid");
-    assert.ok(
-      exists(".invites-show .btn-primary:disabled"),
-      "submit is disabled"
-    );
+    assert.dom(".username-input .bad").exists("username is not valid");
+    assert.dom(".invites-show .btn-primary").isDisabled("submit is disabled");
 
     await fillIn("#new-account-password", "aaa");
-    assert.ok(exists(".password-input .bad"), "password is not valid");
-    assert.ok(
-      exists(".invites-show .btn-primary:disabled"),
-      "submit is disabled"
-    );
+    assert.dom(".password-input .bad").exists("password is not valid");
+    assert.dom(".invites-show .btn-primary").isDisabled("submit is disabled");
 
     await fillIn("#new-account-email", "john.doe@example");
-    assert.ok(exists(".email-input .bad"), "email is not valid");
-    assert.ok(
-      exists(".invites-show .btn-primary:disabled"),
-      "submit is disabled"
-    );
+    assert.dom(".email-input .bad").exists("email is not valid");
+    assert.dom(".invites-show .btn-primary").isDisabled("submit is disabled");
 
-    await fillIn("#new-account-username", "validname");
+    await fillIn("#new-account-username", "valid-name");
     await fillIn("#new-account-password", "secur3ty4Y0uAndMe");
     await fillIn("#new-account-email", "john.doe@example.com");
-    assert.ok(exists(".username-input .good"), "username is valid");
-    assert.ok(exists(".password-input .good"), "password is valid");
-    assert.ok(exists(".email-input .good"), "email is valid");
-    assert.not(
-      exists(".invites-show .btn-primary:disabled"),
-      "submit is enabled"
-    );
+    assert.dom(".username-input .good").exists("username is valid");
+    assert.dom(".password-input .good").exists("password is valid");
+    assert.dom(".email-input .good").exists("email is valid");
+    assert.dom(".invites-show .btn-primary").isEnabled("submit is enabled");
   });
 
-  test("invite name is required only if full name is required", async function (assert) {
+  test("invite name optional", async function (assert) {
+    const site = Site.current();
+    site.set("full_name_required_for_signup", false);
+    site.set("full_name_visible_in_signup", true);
+
     preloadInvite();
-    await visit("/invites/myvalidinvitetoken");
-    assert.ok(exists(".name-input .required"), "Full name is required");
+    await visit("/invites/my-valid-invite-token");
+    assert.dom("#new-account-name").exists();
+    assert
+      .dom(".name-input.name-required")
+      .doesNotExist("full name is not required");
+  });
+
+  test("invite name hidden", async function (assert) {
+    const site = Site.current();
+    site.set("full_name_required_for_signup", false);
+    site.set("full_name_visible_in_signup", false);
+
+    preloadInvite();
+    await visit("/invites/my-valid-invite-token");
+    assert.dom("#new-account-name").doesNotExist();
+  });
+
+  test("invite name required", async function (assert) {
+    const site = Site.current();
+    site.set("full_name_required_for_signup", true);
+    site.set("full_name_visible_in_signup", true);
+
+    preloadInvite();
+    await visit("/invites/my-valid-invite-token");
+    assert.dom("#new-account-name").exists();
+    assert.dom(".name-input.name-required").exists("full name is required");
   });
 });
 
@@ -170,18 +204,18 @@ acceptance("Invite accept when local login is disabled", function (needs) {
   test("invite link", async function (assert) {
     preloadInvite({ link: true });
 
-    await visit("/invites/myvalidinvitetoken");
+    await visit("/invites/my-valid-invite-token");
 
-    assert.ok(exists(".btn-social.facebook"), "shows Facebook login button");
-    assert.ok(!exists("form"), "does not display the form");
+    assert.dom(".btn-social.facebook").exists("shows Facebook login button");
+    assert.dom("form").doesNotExist("does not display the form");
   });
 
   test("email invite link", async function (assert) {
     preloadInvite();
-    await visit("/invites/myvalidinvitetoken");
+    await visit("/invites/my-valid-invite-token");
 
-    assert.ok(exists(".btn-social.facebook"), "shows Facebook login button");
-    assert.ok(!exists("form"), "does not display the form");
+    assert.dom(".btn-social.facebook").exists("shows Facebook login button");
+    assert.dom("form").doesNotExist("does not display the form");
   });
 });
 
@@ -196,38 +230,34 @@ acceptance(
     test("invite link", async function (assert) {
       preloadInvite({ link: true });
 
-      await visit("/invites/myvalidinvitetoken");
+      await visit("/invites/my-valid-invite-token");
 
-      assert.ok(
-        !exists(".btn-social.facebook"),
-        "does not show Facebook login button"
-      );
-      assert.ok(!exists("form"), "does not display the form");
-      assert.ok(
-        !exists(".email-message"),
-        "does not show the email message with the prefilled email"
-      );
-      assert.ok(exists(".discourse-connect"), "shows the Continue button");
+      assert
+        .dom(".btn-social.facebook")
+        .doesNotExist("does not show Facebook login button");
+      assert.dom("form").doesNotExist("does not display the form");
+      assert
+        .dom(".email-message")
+        .doesNotExist(
+          "does not show the email message with the prefilled email"
+        );
+      assert.dom(".discourse-connect").exists("shows the Continue button");
     });
 
     test("email invite link", async function (assert) {
       preloadInvite();
 
-      await visit("/invites/myvalidinvitetoken");
+      await visit("/invites/my-valid-invite-token");
 
-      assert.ok(
-        !exists(".btn-social.facebook"),
-        "does not show Facebook login button"
-      );
-      assert.ok(!exists("form"), "does not display the form");
-      assert.ok(
-        exists(".email-message"),
-        "shows the email message with the prefilled email"
-      );
-      assert.ok(exists(".discourse-connect"), "shows the Continue button");
-      assert.ok(
-        queryAll(".email-message").text().includes("foobar@example.com")
-      );
+      assert
+        .dom(".btn-social.facebook")
+        .doesNotExist("does not show Facebook login button");
+      assert.dom("form").doesNotExist("does not display the form");
+      assert
+        .dom(".email-message")
+        .exists("shows the email message with the prefilled email");
+      assert.dom(".discourse-connect").exists("shows the Continue button");
+      assert.dom(".email-message").includesText("foobar@example.com");
     });
   }
 );
@@ -243,8 +273,8 @@ acceptance(
     test("invite link", async function (assert) {
       preloadInvite({ link: true });
 
-      await visit("/invites/myvalidinvitetoken");
-      assert.ok(!exists("form"), "does not display the form");
+      await visit("/invites/my-valid-invite-token");
+      assert.dom("form").doesNotExist("does not display the form");
     });
   }
 );
@@ -263,36 +293,27 @@ acceptance("Invite link with authentication data", function (needs) {
   test("form elements and buttons are correct ", async function (assert) {
     preloadInvite({ link: true });
 
-    await visit("/invites/myvalidinvitetoken");
+    await visit("/invites/my-valid-invite-token");
 
-    assert.ok(
-      !exists(".btn-social.facebook"),
-      "does not show Facebook login button"
-    );
+    assert
+      .dom(".btn-social.facebook")
+      .doesNotExist("does not show Facebook login button");
 
-    assert.ok(!exists("#new-account-password"), "does not show password field");
+    assert
+      .dom("#new-account-password")
+      .doesNotExist("does not show password field");
 
-    assert.ok(
-      exists("#new-account-email[disabled]"),
-      "email field is disabled"
-    );
+    assert.dom("#new-account-email").isDisabled("email field is disabled");
 
-    assert.equal(
-      queryAll("#account-email-validation").text().trim(),
-      I18n.t("user.email.authenticated", { provider: "Facebook" })
-    );
+    assert
+      .dom("#account-email-validation")
+      .hasText(i18n("user.email.authenticated", { provider: "Facebook" }));
 
-    assert.equal(
-      queryAll("#new-account-username").val(),
-      "foobar",
-      "username is prefilled"
-    );
+    assert
+      .dom("#new-account-username")
+      .hasValue("foobar", "username is prefilled");
 
-    assert.equal(
-      queryAll("#new-account-name").val(),
-      "barfoo",
-      "name is prefilled"
-    );
+    assert.dom("#new-account-name").hasValue("barfoo", "name is prefilled");
   });
 });
 
@@ -310,14 +331,15 @@ acceptance("Email Invite link with authentication data", function (needs) {
   test("email invite link with authentication data when email does not match", async function (assert) {
     preloadInvite();
 
-    await visit("/invites/myvalidinvitetoken");
+    await visit("/invites/my-valid-invite-token");
 
-    assert.equal(
-      queryAll("#account-email-validation").text().trim(),
-      I18n.t("user.email.invite_auth_email_invalid", { provider: "Facebook" })
-    );
+    assert
+      .dom("#account-email-validation")
+      .hasText(
+        i18n("user.email.invite_auth_email_invalid", { provider: "Facebook" })
+      );
 
-    assert.ok(!exists("form"), "does not display the form");
+    assert.dom("form").doesNotExist("does not display the form");
   });
 });
 
@@ -337,35 +359,28 @@ acceptance(
     test("confirm form and buttons", async function (assert) {
       preloadInvite();
 
-      await visit("/invites/myvalidinvitetoken");
+      await visit("/invites/my-valid-invite-token");
 
-      assert.ok(
-        !exists(".btn-social.facebook"),
-        "does not show Facebook login button"
-      );
+      assert
+        .dom(".btn-social.facebook")
+        .doesNotExist("does not show Facebook login button");
 
-      assert.ok(
-        !exists("#new-account-password"),
-        "does not show password field"
-      );
-      assert.ok(!exists("#new-account-email"), "does not show email field");
+      assert
+        .dom("#new-account-password")
+        .doesNotExist("does not show password field");
+      assert
+        .dom("#new-account-email")
+        .doesNotExist("does not show email field");
 
-      assert.equal(
-        queryAll("#account-email-validation").text().trim(),
-        I18n.t("user.email.authenticated", { provider: "Facebook" })
-      );
+      assert
+        .dom("#account-email-validation")
+        .hasText(i18n("user.email.authenticated", { provider: "Facebook" }));
 
-      assert.equal(
-        queryAll("#new-account-username").val(),
-        "foobar",
-        "username is prefilled"
-      );
+      assert
+        .dom("#new-account-username")
+        .hasValue("foobar", "username is prefilled");
 
-      assert.equal(
-        queryAll("#new-account-name").val(),
-        "barfoo",
-        "name is prefilled"
-      );
+      assert.dom("#new-account-name").hasValue("barfoo", "name is prefilled");
     });
   }
 );
@@ -386,12 +401,13 @@ acceptance(
     test("display information that email is invalid", async function (assert) {
       preloadInvite({ different_external_email: true, hidden_email: true });
 
-      await visit("/invites/myvalidinvitetoken");
+      await visit("/invites/my-valid-invite-token");
 
-      assert.equal(
-        query(".bad").textContent.trim(),
-        "Your invitation email does not match the email authenticated by Facebook"
-      );
+      assert
+        .dom(".bad")
+        .hasText(
+          "Your invitation email does not match the email authenticated by Facebook"
+        );
     });
   }
 );
@@ -412,14 +428,15 @@ acceptance(
     test("confirm form and buttons", async function (assert) {
       preloadInvite({ email_verified_by_link: true });
 
-      await visit("/invites/myvalidinvitetoken");
+      await visit("/invites/my-valid-invite-token");
 
-      assert.ok(!exists("#new-account-email"), "does not show email field");
+      assert
+        .dom("#new-account-email")
+        .doesNotExist("does not show email field");
 
-      assert.equal(
-        queryAll("#account-email-validation").text().trim(),
-        I18n.t("user.email.authenticated_by_invite")
-      );
+      assert
+        .dom("#account-email-validation")
+        .hasText(i18n("user.email.authenticated_by_invite"));
     });
   }
 );
@@ -440,14 +457,13 @@ acceptance(
     test("confirm form and buttons", async function (assert) {
       preloadInvite({ email_verified_by_link: false });
 
-      await visit("/invites/myvalidinvitetoken");
+      await visit("/invites/my-valid-invite-token");
 
-      assert.ok(!exists("#new-account-email"), "does not show email field");
+      assert
+        .dom("#new-account-email")
+        .doesNotExist("does not show email field");
 
-      assert.equal(
-        queryAll("#account-email-validation").text().trim(),
-        I18n.t("user.email.ok")
-      );
+      assert.dom("#account-email-validation").hasText(i18n("user.email.ok"));
     });
   }
 );
@@ -469,12 +485,84 @@ acceptance(
     test("shows the associate link", async function (assert) {
       preloadInvite({ link: true });
 
-      await visit("/invites/myvalidinvitetoken");
+      await visit("/invites/my-valid-invite-token");
 
-      assert.ok(
-        exists(".create-account-associate-link"),
-        "shows the associate account link"
-      );
+      assert
+        .dom(".create-account-associate-link")
+        .exists("shows the associate account link");
     });
   }
 );
+
+acceptance("Associate link", function (needs) {
+  needs.user();
+  needs.settings({ enable_local_logins: false });
+
+  setAuthenticationData(needs.hooks, {
+    auth_provider: "facebook",
+    email: "blah@example.com",
+    email_valid: true,
+    username: "foobar",
+    name: "barfoo",
+    associate_url: "/associate/abcde",
+  });
+
+  test("associates the account", async function (assert) {
+    preloadInvite({ link: true });
+    pretender.get("/associate/abcde.json", () => {
+      return response({
+        token: "abcde",
+        provider_name: "facebook",
+      });
+    });
+
+    pretender.post("/associate/abcde", () => {
+      return response({ success: true });
+    });
+
+    await visit("/invites/my-valid-invite-token");
+    assert
+      .dom(".create-account-associate-link")
+      .exists("shows the associate account link");
+
+    await click(".create-account-associate-link a");
+    assert.dom(".d-modal").exists();
+
+    await click(".d-modal .btn-primary");
+    assert.strictEqual(currentURL(), "/u/eviltrout/preferences/account");
+  });
+});
+
+acceptance("Associate link, with an error", function (needs) {
+  needs.user();
+  needs.settings({ enable_local_logins: false });
+
+  setAuthenticationData(needs.hooks, {
+    auth_provider: "facebook",
+    email: "blah@example.com",
+    email_valid: true,
+    username: "foobar",
+    name: "barfoo",
+    associate_url: "/associate/abcde",
+  });
+
+  test("shows the error", async function (assert) {
+    preloadInvite({ link: true });
+    pretender.get("/associate/abcde.json", () => {
+      return response({
+        token: "abcde",
+        provider_name: "facebook",
+      });
+    });
+
+    pretender.post("/associate/abcde", () => {
+      return response({ error: "sorry, no" });
+    });
+
+    await visit("/invites/my-valid-invite-token");
+    await click(".create-account-associate-link a");
+    await click(".d-modal .btn-primary");
+
+    assert.dom(".d-modal .alert").hasText("sorry, no");
+  });
+});

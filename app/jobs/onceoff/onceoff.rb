@@ -1,12 +1,22 @@
 # frozen_string_literal: true
 
-require_relative '../base.rb'
-
 class Jobs::Onceoff < ::Jobs::Base
   sidekiq_options retry: false
 
+  class << self
+    @@onceoff_job_klasses = Set.new
+
+    def inherited(klass)
+      @@onceoff_job_klasses << klass
+    end
+
+    def onceoff_job_klasses
+      @@onceoff_job_klasses
+    end
+  end
+
   def self.name_for(klass)
-    klass.name.sub(/^Jobs\:\:/, '')
+    klass.name.sub(/\AJobs\:\:/, "")
   end
 
   def running_key_name
@@ -28,18 +38,14 @@ class Jobs::Onceoff < ::Jobs::Base
         Discourse.redis.del(running_key_name) if has_lock
       end
     end
-
   end
 
   def self.enqueue_all
     previously_ran = OnceoffLog.pluck(:job_name).uniq
 
-    ObjectSpace.each_object(Class).select { |klass| klass < self }.each do |klass|
+    self.onceoff_job_klasses.each do |klass|
       job_name = name_for(klass)
-      unless previously_ran.include?(job_name)
-        Jobs.enqueue(job_name.underscore.to_sym)
-      end
+      Jobs.enqueue(job_name.underscore.to_sym) if previously_ran.exclude?(job_name)
     end
   end
-
 end

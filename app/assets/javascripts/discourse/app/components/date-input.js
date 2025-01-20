@@ -1,11 +1,13 @@
-import discourseComputed, { on } from "discourse-common/utils/decorators";
-import Component from "@ember/component";
-import I18n from "I18n";
-import { Promise } from "rsvp";
-import { action } from "@ember/object";
 /* global Pikaday:true */
-import loadScript from "discourse/lib/load-script";
+import Component from "@ember/component";
+import { action, computed } from "@ember/object";
 import { schedule } from "@ember/runloop";
+import { classNames } from "@ember-decorators/component";
+import { on } from "@ember-decorators/object";
+import { Promise } from "rsvp";
+import discourseComputed from "discourse/lib/decorators";
+import loadScript from "discourse/lib/load-script";
+import { i18n } from "discourse-i18n";
 
 function isInputDateSupported() {
   const input = document.createElement("input");
@@ -15,24 +17,23 @@ function isInputDateSupported() {
   return input.value !== value;
 }
 
-export default Component.extend({
-  classNames: ["d-date-input"],
-  date: null,
-  _picker: null,
+@classNames("d-date-input")
+export default class DateInput extends Component {
+  date = null;
+  useNativePicker = isInputDateSupported();
+  _picker = null;
 
   @discourseComputed("site.mobileView")
   inputType() {
     return this.useNativePicker ? "date" : "text";
-  },
-
-  useNativePicker: isInputDateSupported(),
+  }
 
   click(event) {
     event.stopPropagation();
-  },
+  }
 
   didInsertElement() {
-    this._super(...arguments);
+    super.didInsertElement(...arguments);
 
     schedule("afterRender", () => {
       if (!this.element || this.isDestroying || this.isDestroying) {
@@ -52,27 +53,36 @@ export default Component.extend({
         this._picker = picker;
 
         if (this._picker && this.date) {
-          this._picker.setDate(moment(this.date).toDate(), true);
+          const parsedDate =
+            this.date instanceof moment ? this.date : moment(this.date);
+          this._picker.setDate(parsedDate, true);
         }
       });
     });
-  },
+  }
 
   didUpdateAttrs() {
-    this._super(...arguments);
+    super.didUpdateAttrs(...arguments);
 
     if (this._picker && this.date) {
-      this._picker.setDate(moment(this.date).toDate(), true);
+      const parsedDate =
+        this.date instanceof moment ? this.date : moment(this.date);
+      this._picker.setDate(parsedDate, true);
     }
 
     if (this._picker && this.relativeDate) {
-      this._picker.setMinDate(moment(this.relativeDate).toDate(), true);
+      const parsedRelativeDate =
+        this.relativeDate instanceof moment
+          ? this.relativeDate
+          : moment(this.relativeDate);
+
+      this._picker.setMinDate(parsedRelativeDate, true);
     }
 
     if (this._picker && !this.date) {
       this._picker.setDate(null);
     }
-  },
+  }
 
   _loadPikadayPicker(container) {
     return loadScript("/javascripts/pikaday.js").then(() => {
@@ -83,8 +93,8 @@ export default Component.extend({
         format: "LL",
         firstDay: 1,
         i18n: {
-          previousMonth: I18n.t("dates.previous_month"),
-          nextMonth: I18n.t("dates.next_month"),
+          previousMonth: i18n("dates.previous_month"),
+          nextMonth: i18n("dates.next_month"),
           months: moment.months(),
           weekdays: moment.weekdays(),
           weekdaysShort: moment.weekdaysShort(),
@@ -93,14 +103,12 @@ export default Component.extend({
       };
 
       if (this.relativeDate) {
-        defaultOptions = Object.assign({}, defaultOptions, {
-          minDate: moment(this.relativeDate).toDate(),
-        });
+        defaultOptions.minDate = moment(this.relativeDate).toDate();
       }
 
-      return new Pikaday(Object.assign({}, defaultOptions, this._opts()));
+      return new Pikaday({ ...defaultOptions, ...this._opts() });
     });
-  },
+  }
 
   _loadNativePicker(container) {
     const wrapper = container || this.element;
@@ -124,7 +132,7 @@ export default Component.extend({
     }
 
     return Promise.resolve(picker);
-  },
+  }
 
   _handleSelection(value) {
     if (!this.element || this.isDestroying || this.isDestroyed) {
@@ -134,7 +142,7 @@ export default Component.extend({
     if (this.onChange) {
       this.onChange(value ? moment(value) : null);
     }
-  },
+  }
 
   @on("willDestroyElement")
   _destroy() {
@@ -142,19 +150,23 @@ export default Component.extend({
       this._picker.destroy();
       this._picker = null;
     }
-  },
+  }
 
-  @discourseComputed()
-  placeholder() {
-    return I18n.t("dates.placeholder");
-  },
+  @computed("_placeholder")
+  get placeholder() {
+    return this._placeholder || i18n("dates.placeholder");
+  }
+
+  set placeholder(value) {
+    this.set("_placeholder", value);
+  }
 
   _opts() {
     return null;
-  },
+  }
 
   @action
   onChangeDate(event) {
     this._handleSelection(event.target.value);
-  },
-});
+  }
+}

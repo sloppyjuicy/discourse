@@ -1,7 +1,15 @@
 # frozen_string_literal: true
 
 class ReviewableActionSerializer < ApplicationSerializer
-  attributes :id, :icon, :button_class, :label, :confirm_message, :description, :client_action, :require_reject_reason, :custom_modal
+  attributes :id,
+             :icon,
+             :button_class,
+             :label,
+             :confirm_message,
+             :description,
+             :server_action,
+             :client_action,
+             :require_reject_reason
 
   def label
     I18n.t(object.label)
@@ -13,6 +21,10 @@ class ReviewableActionSerializer < ApplicationSerializer
 
   def description
     I18n.t(object.description, default: nil)
+  end
+
+  def server_action
+    object.server_action
   end
 
   def include_description?
@@ -29,9 +41,5 @@ class ReviewableActionSerializer < ApplicationSerializer
 
   def include_require_reject_reason?
     object.require_reject_reason.present?
-  end
-
-  def include_custom_modal?
-    object.custom_modal.present?
   end
 end

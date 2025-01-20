@@ -122,6 +122,9 @@
         "can_admin_group": {
           "type": "boolean"
         },
+        "can_edit_group": {
+          "type": "boolean"
+        },
         "publish_read_state": {
           "type": "boolean"
         },
@@ -167,9 +170,9 @@
             "null"
           ]
         },
-        "smtp_ssl": {
+        "smtp_ssl_mode": {
           "type": [
-            "string",
+            "integer",
             "null"
           ]
         },
@@ -211,11 +214,17 @@
         },
         "imap_mailboxes": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "email_username": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email_from_alias": {
           "type": [
             "string",
             "null"
@@ -251,65 +260,71 @@
         "allow_unknown_sender_topic_replies": {
           "type": "boolean"
         },
+        "associated_group_ids": {
+          "type": "array",
+          "items": {
+
+          }
+        },
         "watching_category_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "tracking_category_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "watching_first_post_category_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "regular_category_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "muted_category_ids": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "watching_tags": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "watching_first_post_tags": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "tracking_tags": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "regular_tags": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         },
         "muted_tags": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         }
       },
       "required": [
@@ -348,7 +363,7 @@
         "automatic_membership_email_domains",
         "smtp_server",
         "smtp_port",
-        "smtp_ssl",
+        "smtp_ssl_mode",
         "imap_server",
         "imap_port",
         "imap_ssl",
@@ -374,9 +389,9 @@
       "properties": {
         "visible_group_names": {
           "type": "array",
-          "items": [
+          "items": {
 
-          ]
+          }
         }
       },
       "required": [

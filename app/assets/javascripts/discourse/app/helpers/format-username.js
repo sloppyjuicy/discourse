@@ -1,4 +1,5 @@
+import { registerRawHelper } from "discourse/lib/helpers";
 import { formatUsername } from "discourse/lib/utilities";
-import { registerUnbound } from "discourse-common/lib/helpers";
 
-export default registerUnbound("format-username", formatUsername);
+export default formatUsername;
+registerRawHelper("format-username", formatUsername);

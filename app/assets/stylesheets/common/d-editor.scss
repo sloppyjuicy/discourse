@@ -10,17 +10,23 @@
   min-height: 0;
 }
 
-.d-editor-textarea-wrapper,
-.d-editor-preview-wrapper {
+.d-editor-textarea-column {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .d-editor-textarea-wrapper {
   display: flex;
+  flex: 1;
   flex-direction: column;
   background-color: var(--secondary);
   position: relative;
-  border: 1px solid var(--primary-medium);
+  border: 1px solid var(--primary-400);
+  border-radius: var(--d-input-border-radius);
+  min-height: 0;
 
   textarea {
     background: transparent;
@@ -44,19 +50,15 @@
 }
 
 .d-editor-preview-wrapper {
-  max-width: 49%;
-  margin-left: 1%;
   display: flex;
+  flex: 1;
   flex-direction: column;
-}
-
-.d-editor-preview-wrapper {
+  margin-left: 16px;
   overflow: auto;
+  overflow-anchor: none;
   cursor: default;
   -webkit-overflow-scrolling: touch;
-  // the below gives text little space to overflow without being cropped (e.g., Õ in headings)
-  padding-top: 1em;
-  margin-top: -1em;
+  overscroll-behavior: contain;
 }
 
 .d-editor-input,
@@ -76,6 +78,8 @@
   padding: 10px;
   height: 100%;
   overflow-x: hidden;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
   resize: none;
 }
 
@@ -145,12 +149,12 @@
 }
 
 .d-editor-preview img {
-  padding-bottom: 1.4em;
+  vertical-align: baseline; // consistent with cooked
   &.emoji,
   &.avatar,
   &.onebox-avatar,
   &.site-icon {
-    padding-bottom: 0;
+    vertical-align: text-bottom;
   }
   &.resizable {
     object-fit: cover;
@@ -159,41 +163,46 @@
 }
 
 .d-editor-preview .image-wrapper {
-  --resizer-height: 1.75em;
+  --resizer-height: 2.25em;
   position: relative;
   display: inline-block;
-  .desktop-view & {
-    // need the extra space on mobile because controls are always visible
-    padding-bottom: var(--resizer-height);
-    margin-bottom: calc(var(--resizer-height) * -1);
-  }
+  padding-bottom: var(--resizer-height);
 
-  img {
-    padding-bottom: 0;
-  }
-
-  &:hover {
-    .button-wrapper {
-      opacity: 1;
-    }
-  }
   .button-wrapper {
+    box-sizing: border-box;
+    padding: 0.25em 0.5em;
+    min-width: 19em; // wide enough to contain all controls
+    width: 100%;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0 0.5em;
     position: absolute;
     height: var(--resizer-height);
     bottom: 0;
     left: 0;
-    opacity: 0;
-    display: flex;
-    align-items: center;
-    transition: all 0.25s;
+    opacity: 0.9;
     z-index: 1; // needs to be higher than image
-    width: 100%;
-    background: var(--secondary); // for when images are wider than controls
+    background: var(--secondary);
+    color: var(--primary);
+
+    .scale-btn-container,
+    .alt-text-readonly-container,
+    .alt-text-edit-container,
+    .delete-image-button {
+      display: flex;
+      height: var(--resizer-height);
+      align-items: center;
+
+      &[hidden] {
+        display: none;
+      }
+    }
 
     .scale-btn {
-      background: var(--secondary); // for when controls are wider than image
       color: var(--tertiary);
       padding: 0 1em;
+
       &:first-child,
       &:last-child {
         padding: 0;
@@ -209,32 +218,97 @@
         cursor: pointer;
       }
     }
-  }
-}
 
-.mobile-view .d-editor-preview .image-wrapper .button-wrapper {
-  opacity: 1;
+    .alt-text-readonly-container {
+      flex: 1 1 auto;
+      // arbitrary min-width value allows for correct shrinking
+      min-width: 100px;
+
+      .alt-text {
+        margin-right: 0.5em;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .alt-text-edit-btn {
+        cursor: pointer;
+        color: var(--tertiary);
+
+        svg {
+          padding-right: 0.5em;
+        }
+      }
+    }
+
+    .alt-text-edit-container {
+      gap: 0 0.25em;
+      flex: 1;
+      max-width: 100%;
+      height: 95%; // gives input some padding
+      .alt-text-input,
+      .alt-text-edit-ok,
+      .alt-text-edit-cancel {
+        height: 100%;
+      }
+
+      .alt-text-input {
+        display: inline-flex;
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        margin: 0;
+        padding-left: 0.25em;
+      }
+
+      .alt-text-edit-ok,
+      .alt-text-edit-cancel {
+        border: none;
+        width: var(--resizer-height);
+
+        svg {
+          margin: 0;
+        }
+      }
+    }
+
+    .delete-image-button {
+      cursor: pointer;
+      color: var(--danger);
+
+      .d-icon-trash-can {
+        margin-left: 0.5em;
+      }
+    }
+
+    .wrap-image-grid-button {
+      cursor: pointer;
+      color: var(--tertiary);
+    }
+
+    svg {
+      pointer-events: none;
+    }
+  }
 }
 
 // d-editor bar button sizing
 .d-editor-button-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.35em, 1fr));
+  @include breakpoint(tablet) {
+    // occupy available space on narrower screens
+    grid-template-columns: repeat(auto-fit, minmax(2em, 1fr));
+  }
+  @include breakpoint(mobile-medium) {
+    font-size: var(--font-down-1);
+  }
   align-items: center;
   border-bottom: 1px solid var(--primary-low);
   width: 100%;
   box-sizing: border-box;
-  padding-left: 2px;
-  padding-right: 2px;
-
-  .d-editor-spacer {
-    height: 1em;
-    display: inline-block;
-    border-left: 1px solid var(--primary-low-mid);
-    margin: 0 0.25em;
-    .mobile-view & {
-      display: none;
-    }
-  }
+  flex-shrink: 0;
 
   .btn:focus {
     @include default-focus;
@@ -248,27 +322,23 @@
     .d-icon {
       color: currentColor;
     }
-    &:hover {
-      color: var(--primary-low);
-    }
-  }
-
-  // ensures items grow/shrink on mobile to fit available space
-  @include breakpoint(mobile-large) {
-    .btn {
-      flex-grow: 1;
-      flex-shrink: 1;
-      flex-basis: auto;
-      padding-left: 0.25em;
-      padding-right: 0.25em;
-    }
-
-    .select-kit.toolbar-popup-menu-options {
-      flex-grow: 1;
-      flex-basis: auto;
-      .select-kit-header .select-kit-header-wrapper {
-        justify-content: center;
+    .discourse-no-touch & {
+      &:hover {
+        color: var(--primary-low);
       }
     }
   }
+
+  .select-kit-header-wrapper {
+    justify-content: center;
+  }
+}
+
+.d-editor #form-template-form {
+  overflow: auto;
+  background: var(--primary-very-low);
+  padding: 1rem;
+  border: 1px solid var(--primary-400);
+  margin-bottom: 0;
+  height: 100%;
 }

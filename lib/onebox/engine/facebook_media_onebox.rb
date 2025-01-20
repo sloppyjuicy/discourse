@@ -6,7 +6,7 @@ module Onebox
       include Engine
       include StandardEmbed
 
-      matches_regexp(/^https?:\/\/.*\.facebook\.com\/(\w+)\/(videos|\?).*/)
+      matches_regexp(%r{^https?://(?:www\.)?facebook\.com/(\w+)/(videos|\?).*})
       always_https
       requires_iframe_origins "https://www.facebook.com"
 
@@ -25,8 +25,7 @@ module Onebox
           HTML
         else
           html = Onebox::Engine::AllowlistedGenericOnebox.new(@url, @timeout).to_html
-          return if Onebox::Helpers.blank?(html)
-          html
+          html.presence
         end
       end
     end

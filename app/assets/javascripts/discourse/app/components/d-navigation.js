@@ -1,39 +1,84 @@
+import { tracked } from "@glimmer/tracking";
 import Component from "@ember/component";
-import FilterModeMixin from "discourse/mixins/filter-mode";
+import { action } from "@ember/object";
+import { dependentKeyCompat } from "@ember/object/compat";
+import { service } from "@ember/service";
+import { htmlSafe } from "@ember/template";
+import { tagName } from "@ember-decorators/component";
+import { setting } from "discourse/lib/computed";
+import discourseComputed from "discourse/lib/decorators";
+import { filterTypeForMode } from "discourse/lib/filter-mode";
+import { NotificationLevels } from "discourse/lib/notification-levels";
 import NavItem from "discourse/models/nav-item";
-import bootbox from "bootbox";
-import discourseComputed from "discourse-common/utils/decorators";
-import { inject as service } from "@ember/service";
 
-export default Component.extend(FilterModeMixin, {
-  router: service(),
+@tagName("")
+export default class DNavigation extends Component {
+  @service router;
+  @service dialog;
 
-  tagName: "",
+  @tracked filterMode;
+
+  @setting("fixed_category_positions") fixedCategoryPositions;
+
+  createTopicLabel = "topic.create";
+
+  @dependentKeyCompat
+  get filterType() {
+    return filterTypeForMode(this.filterMode);
+  }
 
   // Should be a `readOnly` instead but some themes/plugins still pass
   // the `categories` property into this component
-  @discourseComputed("site.categoriesList")
-  categories(categoriesList) {
-    return categoriesList;
-  },
+  @discourseComputed()
+  categories() {
+    let categories = this.site.categoriesList;
+
+    if (!this.siteSettings.allow_uncategorized_topics) {
+      categories = categories.filter(
+        (category) => category.id !== this.site.uncategorized_category_id
+      );
+    }
+
+    if (this.currentUser?.indirectly_muted_category_ids) {
+      categories = categories.filter(
+        (category) =>
+          !this.currentUser.indirectly_muted_category_ids.includes(category.id)
+      );
+    }
+
+    return categories;
+  }
 
   @discourseComputed("category")
   showCategoryNotifications(category) {
     return category && this.currentUser;
-  },
+  }
+
+  @discourseComputed("category.notification_level")
+  categoryNotificationLevel(notificationLevel) {
+    if (
+      this.currentUser?.indirectly_muted_category_ids?.includes(
+        this.category.id
+      )
+    ) {
+      return NotificationLevels.MUTED;
+    } else {
+      return notificationLevel;
+    }
+  }
 
   // don't show tag notification menu on tag intersections
   @discourseComputed("tagNotification", "additionalTags")
   showTagNotifications(tagNotification, additionalTags) {
     return tagNotification && !additionalTags;
-  },
+  }
 
   @discourseComputed("category", "createTopicDisabled")
   categoryReadOnlyBanner(category, createTopicDisabled) {
     if (category && this.currentUser && createTopicDisabled) {
       return category.read_only_banner;
     }
-  },
+  }
 
   @discourseComputed(
     "createTopicDisabled",
@@ -55,43 +100,44 @@ export default Component.extend(FilterModeMixin, {
       return false;
     }
     return createTopicDisabled;
-  },
+  }
 
   @discourseComputed("categoryReadOnlyBanner", "hasDraft")
   createTopicClass(categoryReadOnlyBanner, hasDraft) {
-    if (categoryReadOnlyBanner && !hasDraft) {
-      return "btn-default disabled";
-    } else {
-      return "btn-default";
+    let classNames = ["btn-default"];
+    if (hasDraft) {
+      classNames.push("open-draft");
+    } else if (categoryReadOnlyBanner) {
+      classNames.push("disabled");
     }
-  },
-
-  @discourseComputed("hasDraft")
-  createTopicLabel(hasDraft) {
-    return hasDraft ? "topic.open_draft" : "topic.create";
-  },
+    return classNames.join(" ");
+  }
 
   @discourseComputed("category.can_edit")
-  showCategoryEdit: (canEdit) => canEdit,
+  showCategoryEdit(canEdit) {
+    return canEdit;
+  }
 
   @discourseComputed("additionalTags", "category", "tag.id")
   showToggleInfo(additionalTags, category, tagId) {
     return !additionalTags && !category && tagId !== "none";
-  },
+  }
 
   @discourseComputed(
     "filterType",
     "category",
     "noSubcategories",
     "tag.id",
-    "router.currentRoute.queryParams"
+    "router.currentRoute.queryParams",
+    "skipCategoriesNavItem"
   )
   navItems(
     filterType,
     category,
     noSubcategories,
     tagId,
-    currentRouteQueryParams
+    currentRouteQueryParams,
+    skipCategoriesNavItem
   ) {
     return NavItem.buildList(category, {
       filterType,
@@ -99,31 +145,57 @@ export default Component.extend(FilterModeMixin, {
       currentRouteQueryParams,
       tagId,
       siteSettings: this.siteSettings,
+      skipCategoriesNavItem,
     });
-  },
+  }
 
-  actions: {
-    changeCategoryNotificationLevel(notificationLevel) {
-      this.category.setNotification(notificationLevel);
-    },
+  @discourseComputed("filterType")
+  notCategoriesRoute(filterType) {
+    return filterType !== "categories";
+  }
 
-    selectCategoryAdminDropdownAction(actionId) {
-      switch (actionId) {
-        case "create":
-          this.createCategory();
-          break;
-        case "reorder":
-          this.reorderCategories();
-          break;
-      }
-    },
+  @action
+  async changeTagNotificationLevel(notificationLevel) {
+    const response = await this.tagNotification.update({
+      notification_level: notificationLevel,
+    });
 
-    clickCreateTopicButton() {
-      if (this.categoryReadOnlyBanner && !this.hasDraft) {
-        bootbox.alert(this.categoryReadOnlyBanner);
-      } else {
-        this.createTopic();
-      }
-    },
-  },
-});
+    const payload = response.responseJson;
+
+    this.tagNotification.set("notification_level", notificationLevel);
+
+    this.currentUser.setProperties({
+      watched_tags: payload.watched_tags,
+      watching_first_post_tags: payload.watching_first_post_tags,
+      tracked_tags: payload.tracked_tags,
+      muted_tags: payload.muted_tags,
+      regular_tags: payload.regular_tags,
+    });
+  }
+
+  @action
+  changeCategoryNotificationLevel(notificationLevel) {
+    this.category.setNotification(notificationLevel);
+  }
+
+  @action
+  selectCategoryAdminDropdownAction(actionId) {
+    switch (actionId) {
+      case "create":
+        this.createCategory();
+        break;
+      case "reorder":
+        this.reorderCategories();
+        break;
+    }
+  }
+
+  @action
+  clickCreateTopicButton() {
+    if (this.categoryReadOnlyBanner && !this.hasDraft) {
+      this.dialog.alert({ message: htmlSafe(this.categoryReadOnlyBanner) });
+    } else {
+      this.createTopic();
+    }
+  }
+}

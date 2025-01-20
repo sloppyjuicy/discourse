@@ -1,23 +1,26 @@
 import Component from "@ember/component";
-import I18n from "I18n";
-import { bind } from "discourse-common/utils/decorators";
-import bootbox from "bootbox";
-import logout from "discourse/lib/logout";
-import { inject as service } from "@ember/service";
+import { service } from "@ember/service";
+import { tagName } from "@ember-decorators/component";
 import { setLogoffCallback } from "discourse/lib/ajax";
+import { clearAllBodyScrollLocks } from "discourse/lib/body-scroll-lock";
+import { bind } from "discourse/lib/decorators";
+import logout from "discourse/lib/logout";
+import { i18n } from "discourse-i18n";
 
 let pluginCounterFunctions = [];
 export function addPluginDocumentTitleCounter(counterFunction) {
   pluginCounterFunctions.push(counterFunction);
 }
 
-export default Component.extend({
-  tagName: "",
-  documentTitle: service(),
-  _showingLogout: false,
+@tagName("")
+export default class DDocument extends Component {
+  @service documentTitle;
+  @service dialog;
+
+  _showingLogout = false;
 
   didInsertElement() {
-    this._super(...arguments);
+    super.didInsertElement(...arguments);
 
     this.documentTitle.setTitle(document.title);
     document.addEventListener("visibilitychange", this._focusChanged);
@@ -27,10 +30,10 @@ export default Component.extend({
 
     this.appEvents.on("notifications:changed", this, this._updateNotifications);
     setLogoffCallback(() => this.displayLogoff());
-  },
+  }
 
   willDestroyElement() {
-    this._super(...arguments);
+    super.willDestroyElement(...arguments);
 
     setLogoffCallback(null);
     document.removeEventListener("visibilitychange", this._focusChanged);
@@ -42,22 +45,26 @@ export default Component.extend({
       this,
       this._updateNotifications
     );
-  },
+  }
 
-  _updateNotifications() {
+  _updateNotifications(opts) {
     if (!this.currentUser) {
       return;
     }
 
-    const count =
-      pluginCounterFunctions.reduce((sum, fn) => sum + fn(), 0) +
-      this.currentUser.unread_notifications +
-      this.currentUser.unread_high_priority_notifications;
-    this.documentTitle.updateNotificationCount(count);
-  },
+    let count = pluginCounterFunctions.reduce((sum, fn) => sum + fn(), 0);
+    count += this.currentUser.all_unread_notifications_count;
+    if (this.currentUser.unseen_reviewable_count) {
+      count += this.currentUser.unseen_reviewable_count;
+    }
+    this.documentTitle.updateNotificationCount(count, { forced: opts?.forced });
+  }
 
   @bind
   _focusChanged() {
+    // changing app while keyboard is up could cause the keyboard to not collapse and not release lock
+    clearAllBodyScrollLocks();
+
     if (document.visibilityState === "hidden") {
       if (this.session.hasFocus) {
         this.documentTitle.setFocus(false);
@@ -65,7 +72,7 @@ export default Component.extend({
     } else if (!this.hasFocus) {
       this.documentTitle.setFocus(true);
     }
-  },
+  }
 
   displayLogoff() {
     if (this._showingLogout) {
@@ -74,13 +81,12 @@ export default Component.extend({
 
     this._showingLogout = true;
     this.messageBus.stop();
-    bootbox.dialog(
-      I18n.t("logout"),
-      { label: I18n.t("refresh"), callback: logout },
-      {
-        onEscape: () => logout(),
-        backdrop: "static",
-      }
-    );
-  },
-});
+
+    this.dialog.alert({
+      message: i18n("logout"),
+      confirmButtonLabel: "refresh",
+      didConfirm: () => logout(),
+      didCancel: () => logout(),
+    });
+  }
+}

@@ -1,12 +1,12 @@
-<a href {{action closeMessage message}} class="close">{{d-icon "times"}}</a>
+<ComposerTipCloseButton @action={{fn this.closeMessage this.message}} />
 
-{{html-safe message.body}}
+{{html-safe this.message.body}}
 
-{{#if currentUser.can_invite_to_forum}}
-  {{d-button
+{{#if this.currentUser.can_invite_to_forum}}
+  <DButton
+    @label="footer_nav.share"
+    @icon="link"
+    @action={{this.shareModal}}
     class="btn-primary"
-    label="footer_nav.share"
-    icon="link"
-    action=(action shareModal)
-  }}
+  />
 {{/if}}

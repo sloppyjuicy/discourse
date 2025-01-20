@@ -5,6 +5,8 @@
 // Media queries
 // --------------------------------------------------
 
+@use "sass:math";
+
 $breakpoints: (
   mobile-small: 320px,
   mobile-medium: 350px,
@@ -16,9 +18,27 @@ $breakpoints: (
   extra-large: 1140px,
 );
 
-@mixin breakpoint($bp, $rule: max-width, $type: screen) {
-  @media #{$type} and (#{$rule}: map-get($breakpoints, $bp)) {
+@mixin breakpoint($bp, $rule: max-width, $type: screen, $sidebar: false) {
+  $bp-value: map-get($breakpoints, $bp);
+
+  @if $rule == min-width {
+    $bp-value: calc(#{$bp-value} + 1px);
+  }
+
+  @media #{$type} and (#{$rule}: #{$bp-value}) {
     @content;
+  }
+
+  // if you want to consider the sidebar in your breakpoint
+  // you can pass in $sidebar: true
+  // note that your breakpoint will need to be at the root level
+  @if $sidebar {
+    // when the sidebar is shown, we want to increase the breakpoints by the width of the sidebar
+    @media #{$type} and (#{$rule}: calc(#{map-get($breakpoints, $bp)} + #{$d-sidebar-width})) {
+      .has-sidebar-page {
+        @content;
+      }
+    }
   }
 }
 
@@ -42,6 +62,14 @@ $breakpoints: (
 @mixin linear-gradient($start-color, $end-color) {
   background-color: $start-color;
   background-image: linear-gradient(to bottom, $start-color, $end-color);
+}
+
+@mixin darken-background($background-color, $amt) {
+  $overlay: dark-light-choose(
+    rgba(var(--primary-rgb), $amt),
+    rgba(var(--secondary-rgb), $amt)
+  );
+  background-image: linear-gradient(to bottom, $overlay 100%, $overlay 100%);
 }
 
 // Visibility
@@ -69,6 +97,7 @@ $breakpoints: (
   text-overflow: ellipsis;
   word-wrap: break-word;
   -webkit-line-clamp: $lines;
+  -moz-box-orient: vertical;
   -webkit-box-orient: vertical;
 }
 
@@ -101,24 +130,22 @@ $hpad: 0.65em;
 
 @mixin user-select($mode) {
   -webkit-user-select: $mode;
-  -moz-user-select: $mode;
-  -ms-user-select: $mode;
   user-select: $mode;
 }
 
 @mixin unselectable {
   @include user-select(none);
+  cursor: default;
 }
 
 // Stuff we repeat
 @mixin post-aside {
-  border-left: 5px solid var(--primary-low);
+  border-left: 5px solid var(--primary-300);
   background-color: var(--blend-primary-secondary-5);
 }
 
 // We still need -webkit for latest iPhone and Safari
 @mixin transform($transforms) {
-  -webkit-transform: $transforms;
   transform: $transforms;
 }
 
@@ -131,14 +158,11 @@ $hpad: 0.65em;
 
 @mixin default-focus() {
   border-color: var(--tertiary);
-  outline: 1px solid var(--tertiary);
-  outline-offset: 0;
+  outline: 2px solid var(--tertiary);
+  outline-offset: -2px;
 }
 
 @mixin fa-rotate($degrees, $rotation) {
-  -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=#{$rotation})";
-  -webkit-transform: rotate($degrees);
-  -ms-transform: rotate($degrees);
   transform: rotate($degrees);
 }
 
@@ -154,7 +178,7 @@ $hpad: 0.65em;
   $encoded: "";
   $slice: 2000;
   $index: 0;
-  $loops: ceil(str-length($svg) / $slice);
+  $loops: ceil(math.div(str-length($svg), $slice));
 
   @for $i from 1 through $loops {
     $chunk: str-slice($svg, $index, $index + $slice - 1);
@@ -226,4 +250,63 @@ $hpad: 0.65em;
   } @else {
     @return url("#{$path}");
   }
+}
+
+@mixin mention() {
+  display: inline;
+  font-size: 0.93em;
+  font-weight: normal;
+  color: var(--primary);
+  padding: 0.14em 0.34em 0.19em;
+  background: var(--primary-low);
+  border-radius: 0.6em;
+  text-decoration: none;
+  text-wrap: nowrap;
+
+  &.--bot {
+    background: var(--success-low);
+  }
+
+  &.--wide {
+    background: var(--highlight-low-or-medium);
+  }
+
+  &.--current {
+    background: var(--tertiary-400);
+  }
+}
+
+@mixin nav-active() {
+  color: var(--d-nav-color--active);
+  background: var(--d-nav-bg-color--active);
+  .d-icon {
+    color: var(--d-nav-color--active);
+  }
+  &:after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    height: var(--d-nav-underline-height);
+    background: var(--d-nav-color--active);
+  }
+}
+
+@mixin click-counter-badge {
+  content: attr(data-clicks);
+  font-weight: normal;
+  background-color: var(--primary-low);
+  color: var(--primary-medium);
+  position: relative;
+  top: -1px;
+  padding: 0.21em 0.42em;
+  min-width: 0.5em;
+  line-height: var(--line-height-small);
+  font-size: var(--font-down-2);
+  text-align: center;
+  border-radius: 10px;
+  white-space: nowrap;
+  display: inline-block;
+  margin: 0.15em;
 }

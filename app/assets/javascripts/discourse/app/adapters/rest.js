@@ -1,7 +1,7 @@
 import EmberObject from "@ember/object";
+import { underscore } from "@ember/string";
 import { ajax } from "discourse/lib/ajax";
 import { hashString } from "discourse/lib/hash";
-import { underscore } from "@ember/string";
 
 const ADMIN_MODELS = [
   "plugin",
@@ -26,8 +26,9 @@ function rethrow(error) {
   throw error;
 }
 
-export default EmberObject.extend({
-  primaryKey: "id",
+export default class RestAdapter extends EmberObject {
+  primaryKey = "id";
+  jsonMode = false;
 
   storageKey(type, findArgs, options) {
     if (options && options.cacheKey) {
@@ -35,68 +36,68 @@ export default EmberObject.extend({
     }
     const hashedArgs = Math.abs(hashString(JSON.stringify(findArgs)));
     return `${type}_${hashedArgs}`;
-  },
+  }
 
   basePath(store, type) {
-    if (ADMIN_MODELS.indexOf(type.replace("_", "-")) !== -1) {
+    if (ADMIN_MODELS.includes(type.replace("_", "-"))) {
       return "/admin/";
     }
     return "/";
-  },
+  }
 
   appendQueryParams(path, findArgs, extension) {
     if (findArgs) {
       if (typeof findArgs === "object") {
-        const queryString = Object.keys(findArgs)
-          .reject((k) => !findArgs[k])
-          .map((k) => k + "=" + encodeURIComponent(findArgs[k]));
+        const urlSearchParams = new URLSearchParams();
 
-        if (queryString.length) {
-          return `${path}${extension ? extension : ""}?${queryString.join(
-            "&"
-          )}`;
+        for (const [key, value] of Object.entries(findArgs)) {
+          if (value) {
+            urlSearchParams.set(key, value);
+          }
+        }
+
+        const queryString = urlSearchParams.toString();
+
+        if (queryString) {
+          return `${path}${extension || ""}?${queryString}`;
         }
       } else {
         // It's serializable as a string if not an object
-        return `${path}/${encodeURIComponent(findArgs)}${
-          extension ? extension : ""
-        }`;
+        return `${path}/${encodeURIComponent(findArgs)}${extension || ""}`;
       }
     }
     return path;
-  },
+  }
 
   pathFor(store, type, findArgs) {
     let path =
       this.basePath(store, type, findArgs) +
       underscore(store.pluralize(this.apiNameFor(type)));
     return this.appendQueryParams(path, findArgs);
-  },
+  }
 
   apiNameFor(type) {
     return type;
-  },
+  }
 
   findAll(store, type, findArgs) {
     return ajax(this.pathFor(store, type, findArgs)).catch(rethrow);
-  },
+  }
 
   find(store, type, findArgs) {
     return ajax(this.pathFor(store, type, findArgs)).catch(rethrow);
-  },
+  }
 
   findStale(store, type, findArgs, options) {
     if (this.cached) {
       return this.cached[this.storageKey(type, findArgs, options)];
     }
-  },
+  }
 
   cacheFind(store, type, findArgs, opts, hydrated) {
     this.cached = this.cached || {};
     this.cached[this.storageKey(type, findArgs, opts)] = hydrated;
-  },
-
-  jsonMode: false,
+  }
 
   getPayload(method, data) {
     let payload = { method, data };
@@ -107,7 +108,7 @@ export default EmberObject.extend({
     }
 
     return payload;
-  },
+  }
 
   update(store, type, id, attrs) {
     const data = {};
@@ -120,7 +121,7 @@ export default EmberObject.extend({
     ).then(function (json) {
       return new Result(json[typeField], json);
     });
-  },
+  }
 
   createRecord(store, type, attrs) {
     const data = {};
@@ -131,11 +132,11 @@ export default EmberObject.extend({
         return new Result(json[typeField], json);
       }
     );
-  },
+  }
 
   destroyRecord(store, type, record) {
     return ajax(this.pathFor(store, type, record.get(this.primaryKey)), {
       type: "DELETE",
     });
-  },
-});
+  }
+}

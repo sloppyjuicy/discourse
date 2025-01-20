@@ -1,6 +1,6 @@
-import BufferedProxy from "ember-buffered-proxy/proxy";
-import Mixin from "@ember/object/mixin";
 import { computed } from "@ember/object";
+import Mixin from "@ember/object/mixin";
+import BufferedProxy from "ember-buffered-proxy/proxy";
 
 export function bufferedProperty(property) {
   const mixin = {
@@ -10,11 +10,11 @@ export function bufferedProperty(property) {
       });
     }),
 
-    rollbackBuffer: function () {
+    rollbackBuffer() {
       this.buffered.discardBufferedChanges();
     },
 
-    commitBuffer: function () {
+    commitBuffer() {
       this.buffered.applyBufferedChanges();
     },
   };

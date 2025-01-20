@@ -1,10 +1,12 @@
 import Component from "@ember/component";
-export default Component.extend({
-  classNames: ["item"],
+import { action } from "@ember/object";
+import { classNames } from "@ember-decorators/component";
 
-  actions: {
-    remove() {
-      this.removeAction(this.member);
-    },
-  },
-});
+@classNames("item")
+export default class GroupMember extends Component {
+  @action
+  remove(event) {
+    event?.preventDefault();
+    this.removeAction(this.member);
+  }
+}

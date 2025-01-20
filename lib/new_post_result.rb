@@ -29,14 +29,15 @@ class NewPostResult
     if arr.empty?
       @success = true
     else
-      arr.each { |e| errors.add(:base, e) unless errors[:base].include?(e) }
+      arr.each { |e| errors.add(:base, e) if errors[:base].exclude?(e) }
     end
   end
 
   def queued_post
     Discourse.deprecate(
       "NewPostManager#queued_post is deprecated. Please use #reviewable instead.",
-      output_in_test: true
+      output_in_test: true,
+      drop_from: "2.9.0",
     )
 
     reviewable
@@ -49,5 +50,4 @@ class NewPostResult
   def failed?
     !@success
   end
-
 end

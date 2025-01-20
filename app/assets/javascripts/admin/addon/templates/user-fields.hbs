@@ -1,24 +1,28 @@
-<div class="user-fields">
-  <h2>{{i18n "admin.user_fields.title"}}</h2>
+<div class="admin-user_fields admin-config-page">
+  <DPageHeader
+    @titleLabel={{i18n "admin.user_fields.title"}}
+    @descriptionLabel={{i18n "admin.user_fields.help"}}
+    @hideTabs={{true}}
+    @learnMoreUrl="https://meta.discourse.org/t/creating-and-configuring-custom-user-fields/113192"
+  >
+    <:breadcrumbs>
+      <DBreadcrumbsItem @path="/admin" @label={{i18n "admin_title"}} />
+      <DBreadcrumbsItem
+        @path="/admin/config/user-fields"
+        @label={{i18n "admin.user_fields.title"}}
+      />
+    </:breadcrumbs>
+    <:actions as |actions|>
+      <actions.Primary
+        @route="adminUserFields.new"
+        @label="admin.user_fields.add"
+      />
+    </:actions>
+  </DPageHeader>
 
-  <p class="desc">{{i18n "admin.user_fields.help"}}</p>
-
-  {{#if model}}
-    {{#each sortedFields as |uf|}}
-      {{admin-user-field-item userField=uf
-                              fieldTypes=fieldTypes
-                              firstField=sortedFields.firstObject
-                              lastField=sortedFields.lastObject
-                              destroyAction=(action "destroy")
-                              moveUpAction=(action "moveUp")
-                              moveDownAction=(action "moveDown")}}
-    {{/each}}
-  {{/if}}
-
-  {{d-button disabled=createDisabled
-             class="btn-primary"
-             action=(action "createField")
-             label="admin.user_fields.create"
-             icon="plus"}}
-
+  <div class="admin-config-page__main-area">
+    <div class="user-fields">
+      {{outlet}}
+    </div>
+  </div>
 </div>

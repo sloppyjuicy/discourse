@@ -1,130 +1,31 @@
 // Styles for admin/api
 
-table.web-hooks.grid {
-  td.delivery-status {
-    div {
-      display: flex;
-      align-items: center;
-    }
-    .d-icon {
-      margin-right: 0.25em;
-    }
-  }
-  td.payload-url {
+.d-admin-table.web-hooks {
+  .d-admin-row__overview.payload-url {
     word-wrap: break-word;
-    max-width: 55vw;
-  }
-  td.controls {
-    display: flex;
-    button {
-      margin-left: 0.25em;
-    }
-  }
-  @media screen and (min-width: 550px) {
-    tbody {
-      tr {
-        grid-template-columns: 0.5fr repeat(2, 1fr) 0.5fr;
-      }
+    max-width: 20vw;
 
-      td.controls {
-        text-align: right;
-      }
+    @include breakpoint(medium) {
+      max-width: 70vw;
     }
   }
-  @include breakpoint(mobile-extra-large) {
-    tbody {
-      tr {
-        grid-template-columns: 0.5fr 1fr;
-      }
+
+  .d-admin-row__detail.description {
+    @include breakpoint(medium) {
+      display: block;
     }
-    td.controls {
-      grid-row: 2;
+
+    .d-admin-row__mobile-label {
+      @include breakpoint(medium) {
+        display: block;
+      }
     }
   }
 }
 
 // Api keys
 
-table.api-keys {
-  margin-bottom: 0.25em;
-
-  .key-controls {
-    text-align: right;
-  }
-
-  tr.revoked {
-    color: var(--primary-medium);
-  }
-
-  @include breakpoint(tablet) {
-    tr {
-      grid-template-columns: 0.25fr 1fr 1fr;
-    }
-    td.key {
-      grid-row: 1;
-      grid-column-start: 1;
-      grid-column-end: 1;
-      max-width: 100%;
-    }
-    td.key-description {
-      grid-row: 1;
-      grid-column-start: 2;
-      grid-column-end: -1;
-      max-width: 100%;
-    }
-    td.key-user {
-      grid-row: 2;
-      grid-column-start: 1;
-    }
-    td.key-controls {
-      grid-row: 2;
-      grid-column-end: -1;
-      grid-column-start: 2;
-      text-align: right;
-      .btn {
-        margin-bottom: 0.25em;
-      }
-    }
-  }
-}
-
 .admin-api-keys {
-  h2 {
-    margin-bottom: 10px;
-  }
-  .api-key-new {
-    .form-element,
-    .form-element-desc {
-      &.input-area {
-        width: 100%;
-
-        .value-list,
-        .select-kit,
-        input[type="text"],
-        input[type="text"].filter-input {
-          width: 100%;
-          margin: 0;
-        }
-
-        @include breakpoint(mobile-extra-large, min-width) {
-          width: 75%;
-          .value-list,
-          .select-kit,
-          input[type="text"] {
-            width: 50%;
-          }
-        }
-      }
-      &.label-area {
-        label {
-          margin: 0.5em 1em 0 0;
-        }
-        @include breakpoint(mobile-extra-large, min-width) {
-          width: 25%;
-        }
-      }
-    }
-  }
   .api-key-show {
     .form-element,
     .form-element-desc {
@@ -149,6 +50,10 @@ table.api-keys {
         }
       }
     }
+  }
+
+  .generated-api-key {
+    margin: 1em 0;
   }
 
   .api-key {
@@ -179,9 +84,6 @@ table.api-keys {
       width: 50%;
     }
     .scopes-title {
-      font-size: $font-up-2;
-      font-weight: bold;
-      text-decoration: underline;
       margin-top: 20px;
     }
   }
@@ -205,16 +107,16 @@ table.api-keys {
     }
 
     .scope-resource-name {
-      font-size: $font-up-1;
+      font-size: var(--font-up-1);
     }
 
     .scope-tooltip {
-      font-size: $font-down-1;
+      font-size: var(--font-down-1);
     }
 
     .scope-name {
       font-weight: bold;
-      font-size: $font-0;
+      font-size: var(--font-0);
       display: inline;
     }
   }
@@ -235,9 +137,15 @@ table.api-keys {
   }
 
   .event-selector {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto auto;
     margin: 0.5em 0;
+    margin-left: 1.5em;
+
+    .event-group {
+      display: inline-block;
+      margin-bottom: 1em;
+    }
 
     .hook-event {
       margin-bottom: 0.5em;
@@ -263,18 +171,31 @@ table.api-keys {
   .instructions {
     margin-top: 5px;
   }
+
   .subscription-choice {
     margin-bottom: 10px;
+
+    label {
+      display: inline-block;
+    }
   }
 }
 
-.web-hook-direction {
-  button {
-    margin-right: 10px;
-  }
+.admin-webhooks__summary {
+  margin-bottom: 1rem;
+}
+
+.admin-webhooks__edit-button,
+.admin-webhooks__delete-button {
+  font-size: var(--font-0-rem);
 }
 
 .web-hook-events {
+  .heading-container {
+    width: 100%;
+    background-color: var(--primary-low);
+  }
+
   li {
     padding: 2px 0;
   }
@@ -284,6 +205,13 @@ table.api-keys {
     vertical-align: top;
     overflow-y: auto;
     overflow-x: hidden;
+  }
+  .col.heading {
+    font-weight: bold;
+    padding: 4px 0;
+  }
+  .col.heading.actions {
+    padding: 4px 0;
   }
   .col.first {
     width: 90px;
@@ -298,38 +226,39 @@ table.api-keys {
     width: 250px;
   }
   .col.actions {
-    width: 455px;
     padding-top: 0;
     a {
       text-decoration: underline;
     }
   }
-  .col.heading.actions {
-    padding: 4px 0;
-  }
   .details {
     display: block;
-    margin-top: 10px;
+    margin-top: 1rem;
   }
   label {
-    font-size: $font-0;
+    font-size: var(--font-0);
   }
   &.content-list {
     width: 100%;
   }
 }
 
+.web-hook-events-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 .web-hook-events-listing {
-  margin-top: 15px;
   .alert {
-    margin: 15px 0 0 0;
+    margin: 0;
   }
 }
 
 .hook-event {
   display: inline-block;
-  width: 40%;
-  margin-left: 20px;
+  width: 100%;
   label {
     display: inline-block;
   }

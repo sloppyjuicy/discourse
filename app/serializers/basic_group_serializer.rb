@@ -31,6 +31,7 @@ class BasicGroupSerializer < ApplicationSerializer
              :members_visibility_level,
              :can_see_members,
              :can_admin_group,
+             :can_edit_group,
              :publish_read_state
 
   def include_display_name?
@@ -43,8 +44,16 @@ class BasicGroupSerializer < ApplicationSerializer
     end
   end
 
+  def bio_cooked
+    if object.automatic
+      return I18n.t("groups.default_descriptions.#{Group::AUTO_GROUP_IDS[object.id]}")
+    end
+
+    object.bio_cooked
+  end
+
   def bio_excerpt
-    PrettyText.excerpt(object.bio_cooked, 110, keep_emoji_images: true) if object.bio_cooked.present?
+    PrettyText.excerpt(bio_cooked, 200, keep_emoji_images: true) if bio_cooked.present?
   end
 
   def include_incoming_email?
@@ -69,6 +78,14 @@ class BasicGroupSerializer < ApplicationSerializer
 
   def include_is_group_owner?
     owner_group_ids.present?
+  end
+
+  def can_edit_group
+    scope.can_edit_group?(object)
+  end
+
+  def include_can_edit_group?
+    scope.can_edit_group?(object)
   end
 
   def can_admin_group

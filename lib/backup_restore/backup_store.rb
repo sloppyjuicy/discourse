@@ -10,10 +10,10 @@ module BackupRestore
     def self.create(opts = {})
       case opts[:location] || SiteSetting.backup_location
       when BackupLocationSiteSetting::LOCAL
-        require_dependency "backup_restore/local_backup_store"
+        require "backup_restore/local_backup_store"
         BackupRestore::LocalBackupStore.new(opts)
       when BackupLocationSiteSetting::S3
-        require_dependency "backup_restore/s3_backup_store"
+        require "backup_restore/s3_backup_store"
         BackupRestore::S3BackupStore.new(opts)
       end
     end
@@ -37,10 +37,18 @@ module BackupRestore
       return unless cleanup_allowed?
       return if (backup_files = files).size <= SiteSetting.maximum_backups
 
-      backup_files[SiteSetting.maximum_backups..-1].each do |file|
-        delete_file(file.filename)
-      end
+      backup_files[SiteSetting.maximum_backups..-1].each { |file| delete_file(file.filename) }
 
+      reset_cache
+    end
+
+    def delete_prior_to_n_days
+      window = SiteSetting.remove_older_backups.to_i
+      return unless window && window.is_a?(Numeric) && window > 0
+      return unless cleanup_allowed?
+      files.each do |file|
+        delete_file(file.filename) if file.last_modified < Time.now.ago(window.days)
+      end
       reset_cache
     end
 
@@ -74,7 +82,7 @@ module BackupRestore
         used_bytes: used_bytes,
         free_bytes: free_bytes,
         count: files.size,
-        last_backup_taken_at: latest_file&.last_modified
+        last_backup_taken_at: latest_file&.last_modified,
       }
     end
 

@@ -1,32 +1,34 @@
 import Component from "@ember/component";
-import I18n from "I18n";
-import UtilsMixin from "select-kit/mixins/utils";
 import { action, computed } from "@ember/object";
-import discourseComputed from "discourse-common/utils/decorators";
-import { isPresent } from "@ember/utils";
-import layout from "select-kit/templates/components/select-kit/select-kit-filter";
 import { not } from "@ember/object/computed";
+import { isPresent } from "@ember/utils";
+import {
+  attributeBindings,
+  classNameBindings,
+  classNames,
+} from "@ember-decorators/component";
+import discourseComputed from "discourse/lib/decorators";
+import { i18n } from "discourse-i18n";
+import UtilsMixin from "select-kit/mixins/utils";
 
-export default Component.extend(UtilsMixin, {
-  layout,
-  classNames: ["select-kit-filter"],
-  classNameBindings: ["isExpanded:is-expanded"],
-  attributeBindings: ["role"],
-  tabIndex: -1,
+@classNames("select-kit-filter")
+@classNameBindings("isExpanded:is-expanded")
+@attributeBindings("role")
+export default class SelectKitFilter extends Component.extend(UtilsMixin) {
+  tabIndex = -1;
 
-  isHidden: computed(
+  @not("isHidden") isExpanded;
+  @computed(
     "selectKit.options.{filterable,allowAny,autoFilterable}",
-    "content.[]",
-    function () {
-      return (
-        !this.selectKit.options.filterable &&
-        !this.selectKit.options.allowAny &&
-        !this.selectKit.options.autoFilterable
-      );
-    }
-  ),
-
-  isExpanded: not("isHidden"),
+    "content.[]"
+  )
+  get isHidden() {
+    return (
+      !this.selectKit.options.filterable &&
+      !this.selectKit.options.allowAny &&
+      !this.selectKit.options.autoFilterable
+    );
+  }
 
   @discourseComputed(
     "selectKit.options.filterPlaceholder",
@@ -39,31 +41,31 @@ export default Component.extend(UtilsMixin, {
     }
 
     if (isPresent(placeholder)) {
-      return I18n.t(placeholder);
+      return i18n(placeholder);
     }
 
-    return I18n.t(
+    return i18n(
       this.selectKit.options.allowAny
         ? "select_kit.filter_placeholder_with_any"
         : "select_kit.filter_placeholder"
     );
-  },
+  }
 
   @action
-  onPaste() {},
+  onPaste() {}
 
   @action
   onInput(event) {
     this.selectKit.onInput(event);
     return true;
-  },
+  }
 
   @action
   onKeyup(event) {
     event.preventDefault();
     event.stopImmediatePropagation();
     return true;
-  },
+  }
 
   @action
   onKeydown(event) {
@@ -81,19 +83,32 @@ export default Component.extend(UtilsMixin, {
       return true;
     }
 
+    if (event.key === "Backspace" && !this.selectKit.filter) {
+      this.selectKit.deselectLast();
+      event.preventDefault();
+      return false;
+    }
+
     if (event.key === "ArrowUp") {
       this.selectKit.highlightLast();
+      event.preventDefault();
       return false;
     }
 
     if (event.key === "ArrowDown") {
+      if (!this.selectKit.isExpanded) {
+        this.selectKit.open(event);
+      }
       this.selectKit.highlightFirst();
+      event.preventDefault();
       return false;
     }
 
     if (event.key === "Escape") {
       this.selectKit.close(event);
       this.selectKit.headerElement().focus();
+      event.preventDefault();
+      event.stopPropagation();
       return false;
     }
 
@@ -120,5 +135,5 @@ export default Component.extend(UtilsMixin, {
     }
 
     this.selectKit.set("highlighted", null);
-  },
-});
+  }
+}

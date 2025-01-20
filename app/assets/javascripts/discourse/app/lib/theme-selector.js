@@ -1,22 +1,25 @@
 import cookie, { removeCookie } from "discourse/lib/cookie";
-import I18n from "I18n";
-import deprecated from "discourse-common/lib/deprecated";
+import deprecated from "discourse/lib/deprecated";
+import { i18n } from "discourse-i18n";
 
 const keySelector = "meta[name=discourse_theme_id]";
+const COOKIE_NAME = "theme_ids";
+const COOKIE_EXPIRY_DAYS = 365;
 
 export function currentThemeKey() {
   // eslint-disable-next-line no-console
   if (console && console.warn && console.trace) {
     // TODO: Remove this code Jan 2019
     deprecated(
-      "'currentThemeKey' is is deprecated use 'currentThemeId' instead. A theme component may require updating."
+      "'currentThemeKey' is deprecated use 'currentThemeId' instead. A theme component may require updating.",
+      { id: "discourse.current-theme-key" }
     );
   }
 }
 
 export function currentThemeIds() {
   const themeIds = [];
-  const elem = $(keySelector)[0];
+  const elem = document.querySelector(keySelector);
   if (elem) {
     elem.content.split(",").forEach((num) => {
       num = parseInt(num, 10);
@@ -35,12 +38,22 @@ export function currentThemeId() {
 export function setLocalTheme(ids, themeSeq) {
   ids = ids.reject((id) => !id);
   if (ids && ids.length > 0) {
-    cookie("theme_ids", `${ids.join(",")}|${themeSeq}`, {
+    cookie(COOKIE_NAME, `${ids.join(",")}|${themeSeq}`, {
       path: "/",
-      expires: 9999,
+      expires: COOKIE_EXPIRY_DAYS,
     });
   } else {
-    removeCookie("theme_ids", { path: "/", expires: 1 });
+    removeCookie(COOKIE_NAME, { path: "/" });
+  }
+}
+
+export function extendThemeCookie() {
+  const currentValue = cookie(COOKIE_NAME);
+  if (currentValue) {
+    cookie(COOKIE_NAME, currentValue, {
+      path: "/",
+      expires: COOKIE_EXPIRY_DAYS,
+    });
   }
 }
 
@@ -55,7 +68,7 @@ export function listThemes(site) {
 
   let results = [];
   if (!hasDefault) {
-    results.push({ name: I18n.t("themes.default_description"), id: null });
+    results.push({ name: i18n("themes.default_description"), id: null });
   }
 
   themes.forEach((t) => {

@@ -1,27 +1,32 @@
 import Controller, { inject as controller } from "@ember/controller";
 import EmberObject, { action } from "@ember/object";
-import I18n from "I18n";
-import bootbox from "bootbox";
-import deprecated from "discourse-common/lib/deprecated";
-import discourseComputed from "discourse-common/utils/decorators";
+import { service } from "@ember/service";
+import GroupDeleteDialog from "discourse/components/dialog-messages/group-delete";
+import discourseComputed from "discourse/lib/decorators";
+import { i18n } from "discourse-i18n";
 
-const Tab = EmberObject.extend({
+class Tab extends EmberObject {
   init() {
-    this._super(...arguments);
+    super.init(...arguments);
 
     this.setProperties({
       route: this.route || `group.${this.name}`,
-      message: I18n.t(`groups.${this.i18nKey || this.name}`),
+      message: i18n(`groups.${this.i18nKey || this.name}`),
     });
-  },
-});
+  }
+}
 
-export default Controller.extend({
-  application: controller(),
-  counts: null,
-  showing: "members",
-  destroying: null,
-  showTooltip: false,
+export default class GroupController extends Controller {
+  @service dialog;
+  @service currentUser;
+  @service router;
+  @service composer;
+  @controller application;
+
+  counts = null;
+  showing = "members";
+  destroying = null;
+  showTooltip = false;
 
   @discourseComputed(
     "showMessages",
@@ -85,11 +90,15 @@ export default Controller.extend({
     );
 
     return defaultTabs;
-  },
+  }
 
-  @discourseComputed("model.has_messages", "model.is_group_user")
+  @discourseComputed(
+    "model.has_messages",
+    "model.is_group_user",
+    "currentUser.can_send_private_messages"
+  )
   showMessages(hasMessages, isGroupUser) {
-    if (!this.siteSettings.enable_personal_messages) {
+    if (!this.currentUser?.can_send_private_messages) {
       return false;
     }
 
@@ -98,83 +107,57 @@ export default Controller.extend({
     }
 
     return isGroupUser || (this.currentUser && this.currentUser.admin);
-  },
-
-  @discourseComputed("model.displayName", "model.full_name")
-  groupName(displayName, fullName) {
-    return (fullName || displayName).capitalize();
-  },
+  }
 
   @discourseComputed("model.messageable")
   displayGroupMessageButton(messageable) {
     return this.currentUser && messageable;
-  },
+  }
 
   @discourseComputed("model", "model.automatic")
-  canManageGroup(model, automatic) {
-    return (
-      this.currentUser &&
-      (this.currentUser.canManageGroup(model) ||
-        (model.can_admin_group && automatic))
-    );
-  },
+  canManageGroup(model) {
+    return this.currentUser?.canManageGroup(model);
+  }
 
   @action
   messageGroup() {
-    this.send("createNewMessageViaParams", {
+    this.composer.openNewMessage({
       recipients: this.get("model.name"),
       hasGroups: true,
     });
-  },
+  }
 
   @action
   destroyGroup() {
     this.set("destroying", true);
 
     const model = this.model;
-    let message = I18n.t("admin.groups.delete_confirm");
 
-    if (model.has_messages && model.message_count > 0) {
-      message = I18n.t("admin.groups.delete_with_messages_confirm", {
-        count: model.message_count,
-      });
-    }
-
-    bootbox.confirm(
-      message,
-      I18n.t("no_value"),
-      I18n.t("yes_value"),
-      (confirmed) => {
-        if (confirmed) {
-          model
-            .destroy()
-            .then(() => this.transitionToRoute("groups.index"))
-            .catch((error) => {
-              // eslint-disable-next-line no-console
-              console.error(error);
-              bootbox.alert(I18n.t("admin.groups.delete_failed"));
-            })
-            .finally(() => this.set("destroying", false));
-        } else {
-          this.set("destroying", false);
-        }
-      }
-    );
-  },
+    this.dialog.deleteConfirm({
+      title: i18n("admin.groups.delete_confirm", { group: model.name }),
+      bodyComponent: GroupDeleteDialog,
+      bodyComponentModel: model,
+      didConfirm: () => {
+        model
+          .destroy()
+          .catch((error) => {
+            // eslint-disable-next-line no-console
+            console.error(error);
+            this.dialog.alert(i18n("admin.groups.delete_failed"));
+          })
+          .then(() => {
+            this.router.transitionTo("groups.index");
+          })
+          .finally(() => {
+            this.set("destroying", false);
+          });
+      },
+      didCancel: () => this.set("destroying", false),
+    });
+  }
 
   @action
   toggleDeleteTooltip() {
     this.toggleProperty("showTooltip");
-  },
-
-  actions: {
-    destroy() {
-      deprecated("Use `destroyGroup` action instead of `destroy`.", {
-        since: "2.5.0",
-        dropFrom: "2.6.0",
-      });
-
-      this.destroyGroup();
-    },
-  },
-});
+  }
+}

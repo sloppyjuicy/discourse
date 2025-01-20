@@ -1,14 +1,16 @@
 import Controller, { inject as controller } from "@ember/controller";
+import { action } from "@ember/object";
+import { service } from "@ember/service";
 
-export default Controller.extend({
-  tagGroups: controller(),
+export default class TagGroupsNewController extends Controller {
+  @service router;
+  @controller tagGroups;
 
-  actions: {
-    onSave() {
-      const tagGroups = this.tagGroups.model;
-      tagGroups.pushObject(this.model);
+  @action
+  onSave() {
+    const tagGroups = this.tagGroups.model;
+    tagGroups.pushObject(this.model);
 
-      this.transitionToRoute("tagGroups.index");
-    },
-  },
-});
+    this.router.transitionTo("tagGroups.index");
+  }
+}

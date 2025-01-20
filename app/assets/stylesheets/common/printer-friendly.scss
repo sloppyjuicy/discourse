@@ -16,7 +16,7 @@
   #topic-progress,
   .quote-controls,
   .topic-timer-info,
-  div.lazyYT,
+  div.lazy-video-container,
   .post-info.edits,
   .post-action,
   .saving-text,
@@ -32,11 +32,11 @@
   #footer,
   .alert-info,
   .badge-category,
-  .badge-category-bg,
-  .badge-notification.clicks,
+  a[data-clicks]::after,
   .crawler-nav,
   .powered-by-link,
-  .timeline-container {
+  .timeline-container,
+  .poll-info {
     display: none !important;
   }
   /* For readability */

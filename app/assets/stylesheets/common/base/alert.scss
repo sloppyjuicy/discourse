@@ -6,10 +6,11 @@
   margin-bottom: 1em;
 
   .close {
-    font-size: $font-up-3;
+    font-size: var(--font-up-3);
     position: absolute;
     top: 0.265em;
     right: 0.66em;
+    padding: 0;
     .d-icon {
       color: var(--primary-medium);
     }
@@ -24,7 +25,7 @@
     color: var(--primary);
   }
   &.alert-warning {
-    background-color: var(--highlight-low);
+    background-color: var(--highlight-bg);
     color: var(--primary);
   }
   &.alert-info {
@@ -34,6 +35,10 @@
       color: var(--tertiary);
       z-index: z("base");
     }
+  }
+
+  &.-top-margin {
+    margin-top: 1em;
   }
 }
 

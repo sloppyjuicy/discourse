@@ -1,25 +1,38 @@
 import Controller from "@ember/controller";
-import discourseComputed from "discourse-common/utils/decorators";
+import { service } from "@ember/service";
+import { adminRouteValid } from "discourse/lib/admin-utilities";
 
-export default Controller.extend({
-  @discourseComputed
-  adminRoutes: function () {
+export default class AdminPluginsController extends Controller {
+  @service adminPluginNavManager;
+  @service router;
+
+  get adminRoutes() {
+    return this.allAdminRoutes.filter((route) =>
+      adminRouteValid(this.router, route)
+    );
+  }
+
+  get brokenAdminRoutes() {
+    return this.allAdminRoutes.filter(
+      (route) => !adminRouteValid(this.router, route)
+    );
+  }
+
+  // NOTE: See also AdminPluginsIndexController, there is some duplication here
+  // while we convert plugins to use_new_show_route
+  get allAdminRoutes() {
     return this.model
-      .map((p) => {
-        if (p.get("enabled")) {
-          return p.admin_route;
-        }
-      })
-      .compact();
-  },
+      .filter((plugin) => plugin?.enabled && plugin?.adminRoute)
+      .map((plugin) => {
+        return Object.assign(plugin.adminRoute, { plugin_id: plugin.id });
+      });
+  }
 
-  actions: {
-    clearFilter() {
-      this.setProperties({ filter: "", onlyOverridden: false });
-    },
-
-    toggleMenu() {
-      $(".admin-detail").toggleClass("mobile-closed mobile-open");
-    },
-  },
-});
+  get showTopNav() {
+    return (
+      !this.adminPluginNavManager.viewingPluginsList &&
+      (!this.adminPluginNavManager.currentPlugin ||
+        this.adminPluginNavManager.isSidebarMode)
+    );
+  }
+}

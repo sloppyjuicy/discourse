@@ -1,24 +1,23 @@
 # frozen_string_literal: true
 
 desc "Runs the qunit test suite"
-
-task "qunit:test", [:timeout, :qunit_path] do |_, args|
+task "qunit:test", %i[qunit_path filter] do |_, args|
   require "socket"
   require "chrome_installed_checker"
 
   begin
     ChromeInstalledChecker.run
-  rescue ChromeNotInstalled, ChromeVersionTooLow => err
+  rescue ChromeInstalledChecker::ChromeError => err
     abort err.message
   end
 
-  unless system("command -v yarn >/dev/null;")
-    abort "Yarn is not installed. Download from https://yarnpkg.com/lang/en/docs/install/"
+  unless system("command -v pnpm >/dev/null;")
+    abort "pnpm is not installed. See https://pnpm.io/installation"
   end
 
-  report_requests = ENV['REPORT_REQUESTS'] == "1"
+  report_requests = ENV["REPORT_REQUESTS"] == "1"
 
-  system("yarn install")
+  system("pnpm install", exception: true)
 
   # ensure we have this port available
   def port_available?(port)
@@ -29,21 +28,15 @@ task "qunit:test", [:timeout, :qunit_path] do |_, args|
     false
   end
 
-  ember_cli = ENV['QUNIT_EMBER_CLI'] == "1"
-
-  port = ENV['TEST_SERVER_PORT'] || 60099
-  while !port_available? port
-    port += 1
+  if ENV["QUNIT_EMBER_CLI"] == "0"
+    puts "The 'legacy' ember environment is discontinued - running tests with ember-cli assets..."
   end
 
-  if ember_cli
-    unicorn_port = 60098
-    while unicorn_port == port || !port_available?(unicorn_port)
-      unicorn_port += 1
-    end
-  else
-    unicorn_port = port
-  end
+  port = ENV["TEST_SERVER_PORT"] || 60_099
+  port += 1 while !port_available? port
+
+  unicorn_port = 60_098
+  unicorn_port += 1 while unicorn_port == port || !port_available?(unicorn_port)
 
   env = {
     "RAILS_ENV" => ENV["QUNIT_RAILS_ENV"] || "test",
@@ -54,43 +47,33 @@ task "qunit:test", [:timeout, :qunit_path] do |_, args|
     "DISCOURSE_SKIP_CSS_WATCHER" => "1",
     "UNICORN_LISTENER" => "127.0.0.1:#{unicorn_port}",
     "LOGSTASH_UNICORN_URI" => nil,
-    "UNICORN_WORKERS" => "3"
+    "UNICORN_WORKERS" => "1",
+    "UNICORN_TIMEOUT" => "90",
   }
 
-  cmd = if ember_cli
-    "#{Rails.root}/bin/ember-cli -u --port #{port} --proxy http://localhost:#{unicorn_port} -lr false"
-  else
-    "#{Rails.root}/bin/unicorn"
-  end
-
-  pid = Process.spawn(
-    env,
-    cmd,
-    pgroup: true
-  )
+  pid = Process.spawn(env, "#{Rails.root}/bin/unicorn", pgroup: true)
 
   begin
     success = true
-    test_path = "#{Rails.root}/test"
     qunit_path = args[:qunit_path]
-    qunit_path ||= "/tests" if ember_cli
-    qunit_path ||= "/qunit"
-    cmd = "node #{test_path}/run-qunit.js http://localhost:#{port}#{qunit_path}"
+    filter = args[:filter]
+
     options = { seed: (ENV["QUNIT_SEED"] || Random.new.seed), hidepassed: 1 }
 
-    %w{module filter qunit_skip_core qunit_single_plugin theme_name theme_url theme_id}.each do |arg|
-      options[arg] = ENV[arg.upcase] if ENV[arg.upcase].present?
-    end
+    %w[
+      module
+      filter
+      qunit_skip_core
+      qunit_single_plugin
+      theme_name
+      theme_url
+      theme_id
+      target
+    ].each { |arg| options[arg] = ENV[arg.upcase] if ENV[arg.upcase].present? }
 
-    if report_requests
-      options['report_requests'] = '1'
-    end
+    options["report_requests"] = "1" if report_requests
 
-    cmd += "?#{options.to_query.gsub('+', '%20').gsub("&", '\\\&')}"
-
-    if args[:timeout].present?
-      cmd += " #{args[:timeout]}"
-    end
+    query = options.to_query
 
     @now = Time.now
     def elapsed
@@ -98,20 +81,63 @@ task "qunit:test", [:timeout, :qunit_path] do |_, args|
     end
 
     # wait for server to accept connections
-    require 'net/http'
-    uri = URI("http://localhost:#{port}/#{qunit_path}")
+    require "net/http"
+    uri = URI("http://localhost:#{unicorn_port}/srv/status")
     puts "Warming up Rails server"
+
     begin
       Net::HTTP.get(uri)
-    rescue Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL, Net::ReadTimeout, EOFError
+    rescue Errno::ECONNREFUSED,
+           Errno::EADDRNOTAVAIL,
+           Net::ReadTimeout,
+           Net::HTTPBadResponse,
+           EOFError
       sleep 1
-      retry unless elapsed() > 60
+      retry if elapsed() <= 60
       puts "Timed out. Can not connect to forked server!"
       exit 1
     end
     puts "Rails server is warmed up"
 
-    sh(cmd)
+    env = { "UNICORN_PORT" => unicorn_port.to_s }
+    cmd = []
+
+    parallel = ENV["QUNIT_PARALLEL"]
+
+    if qunit_path
+      # Bypass `ember test` - it only works properly for the `/tests` path.
+      # We have to trigger a `build` manually so that JS is available for rails to serve.
+      system(
+        "pnpm",
+        "ember",
+        "build",
+        chdir: "#{Rails.root}/app/assets/javascripts/discourse",
+        exception: true,
+      )
+
+      env["THEME_TEST_PAGES"] = if ENV["THEME_IDS"]
+        ENV["THEME_IDS"]
+          .split("|")
+          .map { |theme_id| "#{qunit_path}?#{query}&testem=1&id=#{theme_id}" }
+          .shuffle
+          .join(",")
+      else
+        "#{qunit_path}?#{query}&testem=1"
+      end
+
+      cmd += %w[pnpm testem ci -f testem.js]
+      cmd += ["--parallel", parallel] if parallel
+    else
+      cmd += ["pnpm", "ember", "exam", "--query", query]
+      cmd += ["--load-balance", "--parallel", parallel] if parallel
+      cmd += ["--filter", filter] if filter
+      cmd << "--write-execution-file" if ENV["QUNIT_WRITE_EXECUTION_FILE"]
+    end
+
+    # Print out all env for debugging purposes
+    p env
+    system(env, *cmd, chdir: "#{Rails.root}/app/assets/javascripts/discourse")
+
     success &&= $?.success?
   ensure
     # was having issues with HUP
@@ -125,5 +151,4 @@ task "qunit:test", [:timeout, :qunit_path] do |_, args|
     puts "\nTests Failed"
     exit(1)
   end
-
 end

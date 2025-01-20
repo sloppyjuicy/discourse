@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 class WizardStepSerializer < ApplicationSerializer
-
-  attributes :id, :next, :previous, :description, :title, :index, :banner
+  attributes :id, :next, :previous, :description, :title, :index, :emoji
   has_many :fields, serializer: WizardFieldSerializer, embed: :objects
 
   def id
@@ -57,12 +56,7 @@ class WizardStepSerializer < ApplicationSerializer
     title.present?
   end
 
-  def banner
-    object.banner
+  def emoji
+    object.emoji
   end
-
-  def include_banner?
-    object.banner.present?
-  end
-
 end

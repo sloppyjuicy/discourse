@@ -1,4 +1,5 @@
 import Component from "@ember/component";
-export default Component.extend({
-  classNames: ["flag-user-lists"],
-});
+import { classNames } from "@ember-decorators/component";
+
+@classNames("flag-user-lists")
+export default class FlagUserLists extends Component {}

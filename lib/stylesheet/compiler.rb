@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
-require 'stylesheet/importer'
-require 'stylesheet/functions'
+require "stylesheet/importer"
 
 module Stylesheet
-
   class Compiler
-    ASSET_ROOT = "#{Rails.root}/app/assets/stylesheets" unless defined? ASSET_ROOT
+    ASSET_ROOT = "#{Rails.root}/app/assets/stylesheets" unless defined?(ASSET_ROOT)
 
     def self.compile_asset(asset, options = {})
       importer = Importer.new(options)
@@ -17,7 +15,7 @@ module Stylesheet
         file += options[:theme_variables].to_s
         file += importer.theme_import(asset)
       elsif plugin_assets = Importer.plugin_assets[asset.to_s]
-        filename = "#{asset.to_s}.scss"
+        filename = "#{asset}.scss"
         options[:load_paths] = [] if options[:load_paths].nil?
         plugin_assets.each do |src|
           file += File.read src
@@ -36,7 +34,6 @@ module Stylesheet
         when Stylesheet::Manager::COLOR_SCHEME_STYLESHEET
           file += importer.import_color_definitions
           file += importer.import_wcag_overrides
-          file += importer.category_backgrounds
           file += importer.font
         end
       end
@@ -50,22 +47,21 @@ module Stylesheet
       load_paths = [ASSET_ROOT]
       load_paths += options[:load_paths] if options[:load_paths]
 
-      engine = SassC::Engine.new(stylesheet,
-                                 filename: filename,
-                                 style: :compressed,
-                                 source_map_file: source_map_file,
-                                 source_map_contents: true,
-                                 theme_id: options[:theme_id],
-                                 theme: options[:theme],
-                                 theme_field: options[:theme_field],
-                                 color_scheme_id: options[:color_scheme_id],
-                                 load_paths: load_paths)
+      engine =
+        SassC::Engine.new(
+          stylesheet,
+          filename: filename,
+          style: :compressed,
+          source_map_file: source_map_file,
+          source_map_contents: true,
+          load_paths: load_paths,
+        )
 
       result = engine.render
 
       if options[:rtl]
-        require 'r2'
-        [R2.r2(result), nil]
+        require "rtlcss"
+        [Rtlcss.flip_css(result), nil]
       else
         source_map = engine.source_map
         source_map.force_encoding("UTF-8")

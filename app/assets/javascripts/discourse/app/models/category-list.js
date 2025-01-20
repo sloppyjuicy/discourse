@@ -1,121 +1,142 @@
 import ArrayProxy from "@ember/array/proxy";
-import Category from "discourse/models/category";
-import I18n from "I18n";
+import { ajax } from "discourse/lib/ajax";
+import { bind } from "discourse/lib/decorators";
+import deprecated from "discourse/lib/deprecated";
+import { number } from "discourse/lib/formatter";
 import PreloadStore from "discourse/lib/preload-store";
 import Site from "discourse/models/site";
 import Topic from "discourse/models/topic";
-import { ajax } from "discourse/lib/ajax";
-import { number } from "discourse/lib/formatter";
+import { i18n } from "discourse-i18n";
 
-const CategoryList = ArrayProxy.extend({
-  init() {
-    this.set("content", []);
-    this._super(...arguments);
-  },
-});
+export default class CategoryList extends ArrayProxy {
+  static categoriesFrom(store, result, parentCategory = null) {
+    // Find the period that is most relevant
+    const statPeriod =
+      ["week", "month"].find(
+        (period) =>
+          result.category_list.categories.filter(
+            (c) => c[`topics_${period}`] > 0
+          ).length >=
+          result.category_list.categories.length * 0.66
+      ) || "all";
 
-CategoryList.reopenClass({
-  categoriesFrom(store, result) {
-    const categories = CategoryList.create();
-    const list = Category.list();
+    // Update global category list to make sure that `findById` works as
+    // expected later
+    result.category_list.categories.forEach((c) =>
+      Site.current().updateCategory(c)
+    );
 
-    let statPeriod = "all";
-    const minCategories = result.category_list.categories.length * 0.66;
-
-    ["week", "month"].some((period) => {
-      const filteredCategories = result.category_list.categories.filter(
-        (c) => c[`topics_${period}`] > 0
-      );
-      if (filteredCategories.length >= minCategories) {
-        statPeriod = period;
-        return true;
-      }
-    });
-
+    const categories = CategoryList.create({ store });
     result.category_list.categories.forEach((c) => {
-      if (c.parent_category_id) {
-        c.parentCategory = list.findBy("id", c.parent_category_id);
+      c = this._buildCategoryResult(c, statPeriod);
+      if (
+        (parentCategory && c.parent_category_id === parentCategory.id) ||
+        (!parentCategory && !c.parent_category_id)
+      ) {
+        categories.pushObject(c);
       }
-
-      if (c.subcategory_ids) {
-        c.subcategories = c.subcategory_ids.map((scid) =>
-          list.findBy("id", parseInt(scid, 10))
-        );
-      }
-
-      if (c.topics) {
-        c.topics = c.topics.map((t) => Topic.create(t));
-      }
-
-      switch (statPeriod) {
-        case "week":
-        case "month":
-          const stat = c[`topics_${statPeriod}`];
-          if (stat > 0) {
-            const unit = I18n.t(`categories.topic_stat_unit.${statPeriod}`);
-
-            c.stat = I18n.t("categories.topic_stat", {
-              count: stat, // only used to correctly pluralize the string
-              number: `<span class="value">${number(stat)}</span>`,
-              unit: `<span class="unit">${unit}</span>`,
-            });
-
-            c.statTitle = I18n.t(
-              `categories.topic_stat_sentence_${statPeriod}`,
-              {
-                count: stat,
-              }
-            );
-
-            c.pickAll = false;
-            break;
-          }
-        default:
-          c.stat = `<span class="value">${number(c.topics_all_time)}</span>`;
-          c.statTitle = I18n.t("categories.topic_sentence", {
-            count: c.topics_all_time,
-          });
-          c.pickAll = true;
-          break;
-      }
-
-      if (Site.currentProp("mobileView")) {
-        c.statTotal = I18n.t("categories.topic_stat_all_time", {
-          count: c.topics_all_time,
-          number: `<span class="value">${number(c.topics_all_time)}</span>`,
-        });
-      }
-
-      const record = Site.current().updateCategory(c);
-      record.setupGroupsAndPermissions();
-      categories.pushObject(record);
     });
     return categories;
-  },
+  }
 
-  listForParent(store, category) {
-    return ajax(
-      `/categories.json?parent_category_id=${category.get("id")}`
-    ).then((result) => {
+  static _buildCategoryResult(c, statPeriod) {
+    if (c.topics) {
+      c.topics = c.topics.map((t) => Topic.create(t));
+    }
+
+    const stat = c[`topics_${statPeriod}`];
+    if ((statPeriod === "week" || statPeriod === "month") && stat > 0) {
+      const unit = i18n(`categories.topic_stat_unit.${statPeriod}`);
+
+      c.stat = i18n("categories.topic_stat", {
+        count: stat, // only used to correctly pluralize the string
+        number: `<span class="value">${number(stat)}</span>`,
+        unit: `<span class="unit">${unit}</span>`,
+      });
+
+      c.statTitle = i18n(`categories.topic_stat_sentence_${statPeriod}`, {
+        count: stat,
+      });
+
+      c.pickAll = false;
+    } else {
+      c.stat = `<span class="value">${number(c.topics_all_time)}</span>`;
+      c.statTitle = i18n("categories.topic_sentence", {
+        count: c.topics_all_time,
+      });
+      c.pickAll = true;
+    }
+
+    if (Site.current().mobileView) {
+      c.statTotal = i18n("categories.topic_stat_all_time", {
+        count: c.topics_all_time,
+        number: `<span class="value">${number(c.topics_all_time)}</span>`,
+      });
+    }
+
+    const record = Site.current().updateCategory(c);
+    record.setupGroupsAndPermissions();
+    return record;
+  }
+
+  static listForParent(store, category) {
+    deprecated(
+      "The listForParent method of CategoryList is deprecated. Use list instead",
+      { id: "discourse.category-list.listForParent" }
+    );
+
+    return CategoryList.list(store, category);
+  }
+
+  static list(store, parentCategory = null) {
+    return PreloadStore.getAndRemove("categories_list", () => {
+      const data = {};
+      if (parentCategory) {
+        data.parent_category_id = parentCategory?.id;
+      }
+      return ajax("/categories.json", { data });
+    }).then((result) => {
       return CategoryList.create({
-        categories: this.categoriesFrom(store, result),
-        parentCategory: category,
+        store,
+        categories: this.categoriesFrom(store, result, parentCategory),
+        parentCategory,
+        can_create_category: result.category_list.can_create_category,
+        can_create_topic: result.category_list.can_create_topic,
       });
     });
-  },
+  }
 
-  list(store) {
-    const getCategories = () => ajax("/categories.json");
-    return PreloadStore.getAndRemove("categories_list", getCategories).then(
-      (result) => {
-        return CategoryList.create({
-          categories: this.categoriesFrom(store, result),
-          can_create_category: result.category_list.can_create_category,
-          can_create_topic: result.category_list.can_create_topic,
-        });
-      }
-    );
-  },
-});
+  init() {
+    this.set("content", this.categories || []);
+    super.init(...arguments);
+    this.set("page", 1);
+    this.set("fetchedLastPage", false);
+  }
 
-export default CategoryList;
+  @bind
+  async loadMore() {
+    if (this.isLoading || this.fetchedLastPage) {
+      return;
+    }
+
+    this.set("isLoading", true);
+
+    const data = { page: this.page + 1 };
+    if (this.parentCategory) {
+      data.parent_category_id = this.parentCategory.id;
+    }
+    const result = await ajax("/categories.json", { data });
+
+    this.set("page", data.page);
+    if (result.category_list.categories.length === 0) {
+      this.set("fetchedLastPage", true);
+    }
+    this.set("isLoading", false);
+
+    CategoryList.categoriesFrom(
+      this.store,
+      result,
+      this.parentCategory
+    ).forEach((c) => this.categories.pushObject(c));
+  }
+}

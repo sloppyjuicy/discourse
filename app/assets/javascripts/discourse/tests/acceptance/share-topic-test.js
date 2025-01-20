@@ -1,52 +1,95 @@
-import { click, visit } from "@ember/test-helpers";
-import {
-  acceptance,
-  count,
-  exists,
-  queryAll,
-} from "discourse/tests/helpers/qunit-helpers";
-import selectKit from "discourse/tests/helpers/select-kit-helper";
+import { click, currentURL, visit } from "@ember/test-helpers";
 import { test } from "qunit";
+import CategoryFixtures from "discourse/tests/fixtures/category-fixtures";
+import { acceptance } from "discourse/tests/helpers/qunit-helpers";
+import { i18n } from "discourse-i18n";
 
 acceptance("Share and Invite modal", function (needs) {
   needs.user();
 
-  test("Topic footer button", async function (assert) {
-    await visit("/t/internationalization-localization/280");
-
-    assert.ok(
-      exists("#topic-footer-button-share-and-invite"),
-      "the button exists"
+  needs.pretender((server, helper) => {
+    server.get(`/c/2481/visible_groups.json`, () =>
+      helper.response(200, {
+        groups: ["group_name_1", "group_name_2"],
+      })
     );
 
-    await click("#topic-footer-button-share-and-invite");
-
-    assert.ok(exists(".share-topic-modal"), "it shows the modal");
-
-    assert.ok(
-      queryAll("input.invite-link")
-        .val()
-        .includes("/t/internationalization-localization/280?u=eviltrout"),
-      "it shows the topic sharing url"
-    );
-
-    assert.ok(count("button[class*='share-']") > 1, "it shows social sources");
-    assert.ok(
-      exists(".link-share-actions .notify"),
-      "it shows the notify button"
-    );
-
-    assert.ok(
-      exists(".link-share-actions .invite"),
-      "it shows the invite button"
+    server.get(`/c/2/visible_groups.json`, () =>
+      helper.response(200, {
+        groups: [],
+      })
     );
   });
 
-  test("Post date link", async function (assert) {
+  test("Topic footer button", async function (assert) {
     await visit("/t/internationalization-localization/280");
-    await click("#post_2 .post-info.post-date a");
 
-    assert.ok(exists("#share-link"), "it shows the share modal");
+    assert
+      .dom("#topic-footer-button-share-and-invite")
+      .exists("the button exists");
+
+    await click("#topic-footer-button-share-and-invite");
+
+    assert.dom(".share-topic-modal").exists("shows the modal");
+
+    assert
+      .dom("#modal-alert.alert-warning")
+      .doesNotExist("it does not show the alert with restricted groups");
+
+    assert
+      .dom("input.invite-link")
+      .includesValue(
+        "/t/internationalization-localization/280?u=eviltrout",
+        "shows the topic sharing url"
+      );
+
+    assert
+      .dom(".link-share-actions .invite")
+      .exists("it shows the invite button");
+
+    await click(".link-share-actions .invite");
+
+    assert.dom(".create-invite-modal").exists();
+  });
+
+  test("Post date link", async function (assert) {
+    await visit("/t/short-topic-with-two-posts/54077");
+    assert
+      .dom("#post_2 .post-info.post-date a")
+      .hasAttribute(
+        "href",
+        "/t/short-topic-with-two-posts/54077/2?u=eviltrout"
+      );
+
+    await click("#post_2 a.post-date");
+    assert.dom(".share-topic-modal").exists("shows the share modal");
+    assert.strictEqual(
+      currentURL(),
+      "/t/short-topic-with-two-posts/54077",
+      "it does not route to post #2"
+    );
+  });
+
+  test("Share topic in a restricted category", async function (assert) {
+    await visit("/t/topic-in-restricted-group/2481");
+
+    assert
+      .dom("#topic-footer-button-share-and-invite")
+      .exists("the button exists");
+
+    await click("#topic-footer-button-share-and-invite");
+
+    assert.dom(".share-topic-modal").exists("shows the modal");
+    assert
+      .dom("#modal-alert.alert-warning")
+      .exists("it shows restricted warning");
+    assert.dom("#modal-alert.alert-warning").hasText(
+      i18n("topic.share.restricted_groups", {
+        count: 2,
+        groupNames: "group_name_1, group_name_2",
+      }),
+      "it shows correct restricted group name"
+    );
   });
 });
 
@@ -57,29 +100,54 @@ acceptance("Share and Invite modal - mobile", function (needs) {
   test("Topic footer mobile button", async function (assert) {
     await visit("/t/internationalization-localization/280");
 
-    assert.ok(
-      !exists("#topic-footer-button-share-and-invite"),
-      "the button doesn’t exist"
-    );
+    await click(".topic-footer-button.share-and-invite");
 
-    const subject = selectKit(".topic-footer-mobile-dropdown");
-    await subject.expand();
-    await subject.selectRowByValue("share-and-invite");
-
-    assert.ok(exists(".share-topic-modal"), "it shows the modal");
+    assert.dom(".share-topic-modal").exists("shows the modal");
   });
 });
 
 acceptance("Share url with badges disabled - desktop", function (needs) {
   needs.user();
   needs.settings({ enable_badges: false });
+
+  needs.pretender((server, helper) => {
+    server.get("/c/feature/find_by_slug.json", () =>
+      helper.response(200, CategoryFixtures["/c/1/show.json"])
+    );
+  });
+
   test("topic footer button - badges disabled - desktop", async function (assert) {
     await visit("/t/internationalization-localization/280");
     await click("#topic-footer-button-share-and-invite");
 
-    assert.notOk(
-      queryAll("input.invite-link").val().includes("?u=eviltrout"),
-      "it doesn't add the username param when badges are disabled"
+    assert
+      .dom("input.invite-link")
+      .doesNotIncludeValue(
+        "?u=eviltrout",
+        "doesn't add the username param when badges are disabled"
+      );
+  });
+});
+
+acceptance("With username in share links disabled - desktop", function (needs) {
+  needs.user();
+  needs.settings({ allow_username_in_share_links: false });
+
+  needs.pretender((server, helper) => {
+    server.get("/c/feature/find_by_slug.json", () =>
+      helper.response(200, CategoryFixtures["/c/1/show.json"])
     );
+  });
+
+  test("topic footer button - username in share links disabled - desktop", async function (assert) {
+    await visit("/t/internationalization-localization/280");
+    await click("#topic-footer-button-share-and-invite");
+
+    assert
+      .dom("input.invite-link")
+      .doesNotIncludeValue(
+        "?u=eviltrout",
+        "doesn't add the username param when username in share links are disabled"
+      );
   });
 });

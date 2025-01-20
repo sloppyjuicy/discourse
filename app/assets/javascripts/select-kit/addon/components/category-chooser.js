@@ -1,30 +1,51 @@
 import { computed, set } from "@ember/object";
-import Category from "discourse/models/category";
-import ComboBoxComponent from "select-kit/components/combo-box";
-import I18n from "I18n";
-import PermissionType from "discourse/models/permission-type";
-import { categoryBadgeHTML } from "discourse/helpers/category-link";
+import { htmlSafe } from "@ember/template";
 import { isNone } from "@ember/utils";
+import { classNames } from "@ember-decorators/component";
+import { categoryBadgeHTML } from "discourse/helpers/category-link";
 import { setting } from "discourse/lib/computed";
+import Category from "discourse/models/category";
+import PermissionType from "discourse/models/permission-type";
+import { i18n } from "discourse-i18n";
+import CategoryRow from "select-kit/components/category-row";
+import ComboBoxComponent from "select-kit/components/combo-box";
+import { pluginApiIdentifiers, selectKitOptions } from "./select-kit";
 
-export default ComboBoxComponent.extend({
-  pluginApiIdentifiers: ["category-chooser"],
-  classNames: ["category-chooser"],
-  allowUncategorizedTopics: setting("allow_uncategorized_topics"),
-  fixedCategoryPositionsOnCreate: setting("fixed_category_positions_on_create"),
+@classNames("category-chooser")
+@selectKitOptions({
+  filterable: true,
+  allowUncategorized: "allowUncategorized",
+  autoInsertNoneItem: false,
+  allowSubCategories: true,
+  permissionType: PermissionType.FULL,
+  excludeCategoryId: null,
+  scopedCategoryId: null,
+  prioritizedCategoryId: null,
+})
+@pluginApiIdentifiers(["category-chooser"])
+export default class CategoryChooser extends ComboBoxComponent {
+  @setting("allow_uncategorized_topics") allowUncategorized;
+  @setting("fixed_category_positions_on_create") fixedCategoryPositionsOnCreate;
 
-  selectKitOptions: {
-    filterable: true,
-    allowUncategorized: false,
-    allowSubCategories: true,
-    permissionType: PermissionType.FULL,
-    excludeCategoryId: null,
-    scopedCategoryId: null,
-  },
+  init() {
+    super.init(...arguments);
+
+    if (
+      this.site.lazy_load_categories &&
+      this.value &&
+      !Category.hasAsyncFoundAll([this.value])
+    ) {
+      // eslint-disable-next-line no-console
+      console.warn("Category selected with category-chooser was not loaded");
+      Category.asyncFindByIds([this.value]).then(() => {
+        this.notifyPropertyChange("value");
+      });
+    }
+  }
 
   modifyComponentForRow() {
-    return "category-row";
-  },
+    return CategoryRow;
+  }
 
   modifyNoSelection() {
     if (!isNone(this.selectKit.options.none)) {
@@ -32,19 +53,20 @@ export default ComboBoxComponent.extend({
       const isString = typeof none === "string";
       return this.defaultItem(
         null,
-        I18n.t(
-          isString ? this.selectKit.options.none : "category.none"
-        ).htmlSafe()
+        htmlSafe(i18n(isString ? this.selectKit.options.none : "category.none"))
       );
-    } else if (
-      this.allowUncategorizedTopics ||
-      this.selectKit.options.allowUncategorized
-    ) {
+    } else if (this.selectKit.options.allowUncategorized) {
       return Category.findUncategorized();
     } else {
-      return this.defaultItem(null, I18n.t("category.choose").htmlSafe());
+      const defaultCategoryId = parseInt(
+        this.siteSettings.default_composer_category,
+        10
+      );
+      if (!defaultCategoryId || defaultCategoryId < 0) {
+        return this.defaultItem(null, htmlSafe(i18n("category.choose")));
+      }
     }
-  },
+  }
 
   modifySelection(content) {
     if (this.selectKit.hasSelection) {
@@ -53,19 +75,30 @@ export default ComboBoxComponent.extend({
       set(
         content,
         "label",
-        categoryBadgeHTML(category, {
-          link: false,
-          hideParent: category ? !!category.parent_category_id : true,
-          allowUncategorized: true,
-          recursive: true,
-        }).htmlSafe()
+        htmlSafe(
+          categoryBadgeHTML(category, {
+            link: false,
+            hideParent: category ? !!category.parent_category_id : true,
+            allowUncategorized: true,
+            recursive: true,
+          })
+        )
       );
     }
 
     return content;
-  },
+  }
 
   search(filter) {
+    if (this.site.lazy_load_categories) {
+      return Category.asyncSearch(this._normalize(filter), {
+        includeUncategorized: this.selectKit.options.allowUncategorized,
+        rejectCategoryIds: [this.selectKit.options.excludeCategoryId],
+        scopedCategoryId: this.selectKit.options.scopedCategoryId,
+        prioritizedCategoryId: this.selectKit.options.prioritizedCategoryId,
+      });
+    }
+
     if (filter) {
       filter = this._normalize(filter);
       return this.content.filter((item) => {
@@ -85,31 +118,28 @@ export default ComboBoxComponent.extend({
     } else {
       return this.content;
     }
-  },
+  }
 
-  content: computed(
+  @computed(
     "selectKit.filter",
     "selectKit.options.scopedCategoryId",
-    "selectKit.options.prioritizedCategoryId",
-    function () {
-      if (!this.selectKit.filter) {
-        let {
-          scopedCategoryId,
-          prioritizedCategoryId,
-        } = this.selectKit.options;
+    "selectKit.options.prioritizedCategoryId"
+  )
+  get content() {
+    if (!this.selectKit.filter) {
+      let { scopedCategoryId, prioritizedCategoryId } = this.selectKit.options;
 
-        if (scopedCategoryId) {
-          return this.categoriesByScope({ scopedCategoryId });
-        }
-
-        if (prioritizedCategoryId) {
-          return this.categoriesByScope({ prioritizedCategoryId });
-        }
+      if (scopedCategoryId) {
+        return this.categoriesByScope({ scopedCategoryId });
       }
 
-      return this.categoriesByScope();
+      if (prioritizedCategoryId) {
+        return this.categoriesByScope({ prioritizedCategoryId });
+      }
     }
-  ),
+
+    return this.categoriesByScope();
+  }
 
   categoriesByScope({
     scopedCategoryId = null,
@@ -186,9 +216,14 @@ export default ComboBoxComponent.extend({
     } else {
       return scopedCategories;
     }
-  },
+  }
 
   _matchCategory(filter, categoryName) {
-    return this._normalize(categoryName).indexOf(filter) > -1;
-  },
-});
+    return this._normalize(categoryName).includes(filter);
+  }
+
+  _onChange(value) {
+    this._boundaryActionHandler("onChangeCategory", Category.findById(value));
+    return true;
+  }
+}

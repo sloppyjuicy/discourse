@@ -1,35 +1,40 @@
 import Component from "@ember/component";
-import discourseComputed from "discourse-common/utils/decorators";
+import { action } from "@ember/object";
 import { gt } from "@ember/object/computed";
-import { historyHeat } from "discourse/widgets/post-edits-indicator";
+import { service } from "@ember/service";
+import HistoryModal from "discourse/components/modal/history";
+import discourseComputed from "discourse/lib/decorators";
 import { longDate } from "discourse/lib/formatter";
-import showModal from "discourse/lib/show-modal";
+import { historyHeat } from "discourse/widgets/post-edits-indicator";
 
-export default Component.extend({
-  hasEdits: gt("reviewable.post_version", 1),
+export default class ReviewablePostEdits extends Component {
+  @service modal;
+
+  @gt("reviewable.post_version", 1) hasEdits;
 
   @discourseComputed("reviewable.post_updated_at")
   historyClass(updatedAt) {
     return historyHeat(this.siteSettings, new Date(updatedAt));
-  },
+  }
 
   @discourseComputed("reviewable.post_updated_at")
   editedDate(updatedAt) {
     return longDate(updatedAt);
-  },
+  }
 
-  actions: {
-    showEditHistory() {
-      let postId = this.get("reviewable.post_id");
-      this.store.find("post", postId).then((post) => {
-        let historyController = showModal("history", {
-          model: post,
-          modalClass: "history-modal",
-        });
-        historyController.refresh(postId, "latest");
-        historyController.set("post", post);
-        historyController.set("topicController", null);
+  @action
+  showEditHistory(event) {
+    event?.preventDefault();
+    let postId = this.get("reviewable.post_id");
+    this.store.find("post", postId).then((post) => {
+      this.modal.show(HistoryModal, {
+        model: {
+          post,
+          postId,
+          postVersion: "latest",
+          topicController: null,
+        },
       });
-    },
-  },
-});
+    });
+  }
+}

@@ -1,17 +1,34 @@
-import Component from "@ember/component";
-import { computed } from "@ember/object";
-import { inject as service } from "@ember/service";
+import Component from "@glimmer/component";
+import { service } from "@ember/service";
+import { makeArray } from "discourse/lib/helpers";
 
-export default Component.extend({
-  tagName: "li",
+export default class DNavigationItem extends Component {
+  @service router;
 
-  route: null,
+  get ariaCurrent() {
+    // when there are multiple levels of navigation
+    // we want the active parent to get `aria-current="page"`
+    // and the active child to get `aria-current="location"`
+    if (
+      this.args.ariaCurrentContext === "parentNav" &&
+      this.router.currentRouteName !== this.args.route && // not the current route
+      this.router.currentRoute.parent.name.includes(this.args.route) // but is the current parent route
+    ) {
+      return "page";
+    }
 
-  router: service(),
+    if (this.router.currentRouteName !== this.args.route) {
+      return null;
+    }
 
-  attributeBindings: ["ariaCurrent:aria-current", "title"],
+    if (this.args.ariaCurrentContext === "subNav") {
+      return "location";
+    } else {
+      return "page";
+    }
+  }
 
-  ariaCurrent: computed("router.currentRouteName", "route", function () {
-    return this.router.currentRouteName === this.route ? "page" : null;
-  }),
-});
+  get models() {
+    return makeArray(this.args.models || this.args.model);
+  }
+}

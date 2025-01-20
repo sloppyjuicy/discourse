@@ -1,43 +1,36 @@
-import { helperContext, registerUnbound } from "discourse-common/lib/helpers";
-import { findRawTemplate } from "discourse-common/lib/raw-templates";
+import Helper from "@ember/component/helper";
+import { registerDestructor } from "@ember/destroyable";
+import { getOwner, setOwner } from "@ember/owner";
+import { schedule } from "@ember/runloop";
+import { service } from "@ember/service";
 import { htmlSafe } from "@ember/template";
-import { RUNTIME_OPTIONS } from "discourse-common/lib/raw-handlebars-helpers";
-import { buildResolver } from "discourse-common/resolver";
-
-let resolver;
-
-function lookupView(templateName) {
-  if (!resolver) {
-    resolver = buildResolver("discourse").create();
-  }
-
-  return resolver.customResolve({
-    type: "raw-view",
-    fullNameWithoutType: templateName,
-  });
-}
+import { bind } from "discourse/lib/decorators";
+import { helperContext, registerRawHelper } from "discourse/lib/helpers";
+import { RUNTIME_OPTIONS } from "discourse/lib/raw-handlebars-helpers";
+import { findRawTemplate } from "discourse/lib/raw-templates";
 
 function renderRaw(ctx, template, templateName, params) {
-  params = jQuery.extend({}, params);
-  params.parent = params.parent || ctx;
+  params = { ...params };
+  params.parent ||= ctx;
 
   let context = helperContext();
   if (!params.view) {
-    const viewClass = lookupView(templateName);
+    const viewClass = context.registry.resolve(`raw-view:${templateName}`);
 
     if (viewClass) {
+      setOwner(params, getOwner(context));
       params.view = viewClass.create(params, context);
     }
 
     if (!params.view) {
-      params = jQuery.extend({}, params, context);
+      params = { ...params, ...context };
     }
   }
 
   return htmlSafe(template(params, RUNTIME_OPTIONS));
 }
 
-registerUnbound("raw", function (templateName, params) {
+const helperFunction = function (templateName, params) {
   templateName = templateName.replace(".", "/");
 
   const template = findRawTemplate(templateName);
@@ -47,4 +40,20 @@ registerUnbound("raw", function (templateName, params) {
     return;
   }
   return renderRaw(this, template, templateName, params);
-});
+};
+
+registerRawHelper("raw", helperFunction);
+
+export default class RawHelper extends Helper {
+  @service renderGlimmer;
+
+  compute(args, params) {
+    registerDestructor(this, this.cleanup);
+    return helperFunction(...args, params);
+  }
+
+  @bind
+  cleanup() {
+    schedule("afterRender", () => this.renderGlimmer.cleanup());
+  }
+}

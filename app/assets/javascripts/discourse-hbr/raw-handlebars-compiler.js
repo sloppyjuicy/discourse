@@ -130,22 +130,41 @@ TemplateCompiler.prototype.targetExtension = "js";
 
 TemplateCompiler.prototype.registerPlugins = function registerPlugins() {};
 
-TemplateCompiler.prototype.initializeFeatures = function initializeFeatures() {};
+TemplateCompiler.prototype.initializeFeatures =
+  function initializeFeatures() {};
 
 TemplateCompiler.prototype.processString = function (string, relativePath) {
-  let filename = relativePath.replace(/^templates\//, "").replace(/\.hbr$/, "");
+  let filename;
 
-  return (
-    'import { template as compiler } from "discourse-common/lib/raw-handlebars";\n' +
-    'import { addRawTemplate } from "discourse-common/lib/raw-templates";\n\n' +
-    "let template = compiler(" +
-    this.precompile(string, false) +
-    ");\n\n" +
-    'addRawTemplate("' +
-    filename +
-    '", template, { core: true });\n' +
-    "export default template;"
+  const pluginName = relativePath.match(/^discourse\/plugins\/([^\/]+)\//)?.[1];
+
+  if (pluginName) {
+    filename = relativePath
+      .replace(`discourse/plugins/${pluginName}/`, "")
+      .replace(/^(discourse\/)?raw-templates\//, "javascripts/");
+  } else {
+    filename = relativePath.replace(/^raw-templates\//, "");
+  }
+
+  filename = filename.replace(/\.hbr$/, "");
+  const hasModernReplacement = string.includes(
+    "{{!-- has-modern-replacement --}}"
   );
+
+  return `
+    import { template as compiler } from "discourse/lib/raw-handlebars";
+    import { addRawTemplate } from "discourse/lib/raw-templates";
+
+    let template = compiler(${this.precompile(string, false)});
+
+    addRawTemplate("${filename}", template, {
+      core: ${!pluginName},
+      pluginName: ${JSON.stringify(pluginName)},
+      hasModernReplacement: ${hasModernReplacement},
+    });
+
+    export default template;
+  `;
 };
 
 TemplateCompiler.prototype.precompile = function (value, asObject) {

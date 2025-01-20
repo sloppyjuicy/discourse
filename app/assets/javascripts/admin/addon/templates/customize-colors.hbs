@@ -1,24 +1,42 @@
-<div class="content-list color-schemes">
-  <h3>{{i18n "admin.customize.colors.long_title"}}</h3>
+<DPageHeader
+  @titleLabel={{i18n "admin.customize.colors.long_title"}}
+  @descriptionLabel={{i18n "admin.customize.colors.description"}}
+  @learnMoreUrl="https://meta.discourse.org/t/allow-users-to-select-new-color-palettes/60857"
+  @hideTabs={{true}}
+>
+  <:breadcrumbs>
+    <DBreadcrumbsItem @path="/admin" @label={{i18n "admin_title"}} />
+    <DBreadcrumbsItem
+      @path="/admin/customize/colors"
+      @label={{i18n "admin.customize.colors.long_title"}}
+    />
+  </:breadcrumbs>
+</DPageHeader>
 
+<div class="content-list color-schemes">
   <ul>
-    {{#each model as |scheme|}}
+    {{#each this.model as |scheme|}}
       {{#unless scheme.is_base}}
         <li>
-          {{#link-to "adminCustomize.colors.show" scheme replace=true}}
-            {{d-icon "paint-brush"}}
+          <LinkTo
+            @route="adminCustomize.colors.show"
+            @model={{scheme}}
+            @replace={{true}}
+          >
+            {{d-icon "paintbrush"}}
             {{scheme.description}}
-          {{/link-to}}
+          </LinkTo>
         </li>
       {{/unless}}
     {{/each}}
   </ul>
 
-  {{d-button
+  <DButton
+    @action={{this.newColorScheme}}
+    @icon="plus"
+    @label="admin.customize.new"
     class="btn-default"
-    action=(action "newColorScheme")
-    icon="plus"
-    label="admin.customize.new"}}
+  />
 </div>
 
 {{outlet}}

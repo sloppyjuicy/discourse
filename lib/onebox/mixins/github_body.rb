@@ -9,12 +9,12 @@ module Onebox
       end
 
       module InstanceMethods
-        GITHUB_COMMENT_REGEX = /<!--.*?-->/
+        GITHUB_COMMENT_REGEX = /<!--.*?-->/m
         MAX_BODY_LENGTH = 80
 
         def compute_body(body)
           if body
-            body = body.gsub(GITHUB_COMMENT_REGEX, '').strip
+            body = body.gsub(GITHUB_COMMENT_REGEX, "").strip
             if body.length == 0
               body = nil
             elsif body.length > MAX_BODY_LENGTH

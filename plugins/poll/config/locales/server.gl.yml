@@ -11,11 +11,9 @@ gl:
     poll_edit_window_mins: "Número de minutos en que se permite editar a enquisa desde o momento en que se crea unha publicación"
     poll_minimum_trust_level_to_create: "Defina o nivel de confianza mínimo para crear enquisas"
     poll_groupable_user_fields: "Un conxunto de nomes de campo de usuario que se poden empregar para agrupar e filtrar os resultados da votación."
-    poll_export_data_explorer_query_id: "ID da Consulta do Explorador de datos que se usa para exportar os resultados da enquisa (0 para desactivar)."
   poll:
     poll: "enquisa"
     invalid_argument: "O valor «%{value}» non é válido para o argumento «%{argument}»."
-    multiple_polls_without_name: "Hai múltiplas enquisas sen nome. Utilice o atributo «<code>nome</code>» para singularizar as súas enquisas."
     multiple_polls_with_same_name: "Hai múltiplas enquisas co mesmo nome: <strong>%{name}</strong>. Utiliza o atributo «<code>nome</code>» para singularizar as súas enquisas."
     default_poll_must_have_at_least_1_option: "A enquisa debe ter polo menos unha opción"
     named_poll_must_have_at_least_1_option: "A enquisa chamada <strong>%{name}</strong> debe ter polo menos 1 opción."

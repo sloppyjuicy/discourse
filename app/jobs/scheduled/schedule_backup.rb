@@ -6,6 +6,7 @@ module Jobs
     sidekiq_options retry: false
 
     def execute(args)
+      delete_prior_to_n_days
       return unless SiteSetting.enable_backups? && SiteSetting.automatic_backups_enabled?
 
       store = BackupRestore::BackupStore.create
@@ -25,12 +26,16 @@ module Jobs
       raise
     end
 
+    def delete_prior_to_n_days
+      BackupRestore::Backuper.new(Discourse.system_user.id).delete_prior_to_n_days
+    end
+
     def notify_user(ex)
       SystemMessage.create_from_system_user(
         Discourse.system_user,
         :backup_failed,
         target_group_names: Group[:admins].name,
-        logs: "#{ex}\n" + ex.backtrace.join("\n")
+        logs: "#{ex}\n" + ex.backtrace.join("\n"),
       )
     end
   end

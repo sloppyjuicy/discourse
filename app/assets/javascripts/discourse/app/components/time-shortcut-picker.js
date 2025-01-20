@@ -1,23 +1,18 @@
-import {
-  START_OF_DAY_HOUR,
-  laterToday,
-  now,
-  parseCustomDatetime,
-} from "discourse/lib/time-utils";
-import {
-  TIME_SHORTCUT_TYPES,
-  defaultShortcutOptions,
-  specialShortcutOptions,
-} from "discourse/lib/time-shortcut";
-import discourseComputed, {
-  observes,
-  on,
-} from "discourse-common/utils/decorators";
-
 import Component from "@ember/component";
-import I18n from "I18n";
 import { action } from "@ember/object";
 import { and, equal } from "@ember/object/computed";
+import { tagName } from "@ember-decorators/component";
+import { observes, on } from "@ember-decorators/object";
+import discourseComputed from "discourse/lib/decorators";
+import {
+  defaultTimeShortcuts,
+  formatTime,
+  hideDynamicTimeShortcuts,
+  specialShortcutOptions,
+  TIME_SHORTCUT_TYPES,
+} from "discourse/lib/time-shortcut";
+import { laterToday, now, parseCustomDatetime } from "discourse/lib/time-utils";
+import { i18n } from "discourse-i18n";
 
 const BINDINGS = {
   "l t": {
@@ -44,39 +39,39 @@ const BINDINGS = {
   "n r": { handler: "selectShortcut", args: [TIME_SHORTCUT_TYPES.NONE] },
 };
 
-export default Component.extend({
-  tagName: "",
+@tagName("")
+export default class TimeShortcutPicker extends Component {
+  @equal("selectedShortcut", TIME_SHORTCUT_TYPES.CUSTOM) customDatetimeSelected;
+  @equal("selectedShortcut", TIME_SHORTCUT_TYPES.RELATIVE)
+  relativeTimeSelected;
+  @and("customDate", "customTime") customDatetimeFilled;
 
-  userTimezone: null,
+  userTimezone = null;
 
-  onTimeSelected: null,
+  onTimeSelected = null;
 
-  selectedShortcut: null,
-  selectedTime: null,
-  selectedDate: null,
-  selectedDatetime: null,
-  prefilledDatetime: null,
+  selectedShortcut = null;
+  selectedTime = null;
+  selectedDate = null;
+  selectedDatetime = null;
+  prefilledDatetime = null;
+  selectedDurationMins = null;
 
-  additionalOptionsToShow: null,
-  hiddenOptions: null,
-  customOptions: null,
+  hiddenOptions = null;
+  customOptions = null;
 
-  lastCustomDate: null,
-  lastCustomTime: null,
-  parsedLastCustomDatetime: null,
-  customDate: null,
-  customTime: null,
+  lastCustomDate = null;
+  lastCustomTime = null;
+  parsedLastCustomDatetime = null;
+  customDate = null;
+  customTime = null;
 
-  _itsatrap: null,
-
-  defaultCustomReminderTime: `0${START_OF_DAY_HOUR}:00`,
+  _itsatrap = null;
 
   @on("init")
   _setupPicker() {
     this.setProperties({
-      customTime: this.defaultCustomReminderTime,
-      userTimezone: this.currentUser.resolvedTimezone(this.currentUser),
-      additionalOptionsToShow: this.additionalOptionsToShow || [],
+      userTimezone: this.currentUser.user_option.timezone,
       hiddenOptions: this.hiddenOptions || [],
       customOptions: this.customOptions || [],
       customLabels: this.customLabels || {},
@@ -87,7 +82,7 @@ export default Component.extend({
     }
 
     this._bindKeyboardShortcuts();
-  },
+  }
 
   @observes("prefilledDatetime")
   prefilledDatetimeChanged() {
@@ -100,13 +95,13 @@ export default Component.extend({
         selectedShortcut: null,
       });
     }
-  },
+  }
 
   willDestroyElement() {
-    this._super(...arguments);
+    super.willDestroyElement(...arguments);
 
     this._itsatrap.unbind(Object.keys(BINDINGS));
-  },
+  }
 
   parsePrefilledDatetime() {
     let parsedDatetime = parseCustomDatetime(
@@ -124,11 +119,11 @@ export default Component.extend({
       customTime: parsedDatetime.format("HH:mm"),
       selectedShortcut: TIME_SHORTCUT_TYPES.CUSTOM,
     });
-  },
+  }
 
   _loadLastUsedCustomDatetime() {
-    let lastTime = localStorage.lastCustomTime;
-    let lastDate = localStorage.lastCustomDate;
+    const lastTime = this.keyValueStore.lastCustomTime;
+    const lastDate = this.keyValueStore.lastCustomDate;
 
     if (lastTime && lastDate) {
       let parsed = parseCustomDatetime(lastDate, lastTime, this.userTimezone);
@@ -143,7 +138,7 @@ export default Component.extend({
         parsedLastCustomDatetime: parsed,
       });
     }
-  },
+  }
 
   _bindKeyboardShortcuts() {
     Object.keys(BINDINGS).forEach((shortcut) => {
@@ -153,11 +148,7 @@ export default Component.extend({
         return false;
       });
     });
-  },
-
-  customDatetimeSelected: equal("selectedShortcut", TIME_SHORTCUT_TYPES.CUSTOM),
-  relativeTimeSelected: equal("selectedShortcut", TIME_SHORTCUT_TYPES.RELATIVE),
-  customDatetimeFilled: and("customDate", "customTime"),
+  }
 
   @observes("customDate", "customTime")
   customDatetimeChanged() {
@@ -165,65 +156,39 @@ export default Component.extend({
       return;
     }
     this.selectShortcut(TIME_SHORTCUT_TYPES.CUSTOM);
-  },
+  }
 
   @discourseComputed(
-    "additionalOptionsToShow",
+    "timeShortcuts",
     "hiddenOptions",
-    "customOptions",
     "customLabels",
     "userTimezone"
   )
-  options(
-    additionalOptionsToShow,
-    hiddenOptions,
-    customOptions,
-    customLabels,
-    userTimezone
-  ) {
+  options(timeShortcuts, hiddenOptions, customLabels, userTimezone) {
     this._loadLastUsedCustomDatetime();
 
-    let options = defaultShortcutOptions(userTimezone);
-
-    if (additionalOptionsToShow.length > 0) {
-      options.forEach((opt) => {
-        if (additionalOptionsToShow.includes(opt.id)) {
-          opt.hidden = false;
-        }
-      });
+    let options;
+    if (timeShortcuts && timeShortcuts.length) {
+      options = timeShortcuts;
+    } else {
+      options = defaultTimeShortcuts(userTimezone);
     }
-
-    customOptions.forEach((opt) => {
-      if (!opt.timeFormatted && opt.time) {
-        opt.timeFormatted = opt.time.format(I18n.t(opt.timeFormatKey));
-      }
-    });
-
-    options = options.concat(customOptions);
-    options.sort((a, b) => {
-      if (a.time < b.time) {
-        return -1;
-      }
-      if (a.time > b.time) {
-        return 1;
-      }
-      return 0;
-    });
+    options = hideDynamicTimeShortcuts(
+      options,
+      userTimezone,
+      this.siteSettings
+    );
 
     let specialOptions = specialShortcutOptions();
-
     if (this.lastCustomDate && this.lastCustomTime) {
       let lastCustom = specialOptions.findBy(
         "id",
         TIME_SHORTCUT_TYPES.LAST_CUSTOM
       );
       lastCustom.time = this.parsedLastCustomDatetime;
-      lastCustom.timeFormatted = this.parsedLastCustomDatetime.format(
-        I18n.t("dates.long_no_year")
-      );
+      lastCustom.timeFormatKey = "dates.long_no_year";
       lastCustom.hidden = false;
     }
-
     options = options.concat(specialOptions);
 
     if (hiddenOptions.length > 0) {
@@ -234,25 +199,22 @@ export default Component.extend({
       });
     }
 
-    options.forEach((option) => {
-      if (customLabels[option.id]) {
-        option.label = customLabels[option.id];
-      }
-    });
-
+    this._applyCustomLabels(options, customLabels);
+    options.forEach((o) => (o.timeFormatted = formatTime(o)));
     return options;
-  },
+  }
 
   @action
   relativeTimeChanged(relativeTimeMins) {
-    let dateTime = now(this.userTimezone).add(relativeTimeMins, "minutes");
+    const dateTime = now(this.userTimezone).add(relativeTimeMins, "minutes");
 
-    this.set("selectedDatetime", dateTime);
+    this.setProperties({
+      selectedDurationMins: relativeTimeMins,
+      selectedDatetime: dateTime,
+    });
 
-    if (this.onTimeSelected) {
-      this.onTimeSelected(TIME_SHORTCUT_TYPES.RELATIVE, dateTime);
-    }
-  },
+    this.onTimeSelected?.(TIME_SHORTCUT_TYPES.RELATIVE, dateTime);
+  }
 
   @action
   selectShortcut(type) {
@@ -262,7 +224,16 @@ export default Component.extend({
 
     let dateTime = null;
     if (type === TIME_SHORTCUT_TYPES.CUSTOM) {
-      this.set("customTime", this.customTime || this.defaultCustomReminderTime);
+      const defaultCustomDateTime = this._defaultCustomDateTime();
+      this.set(
+        "customDate",
+        this.customDate || defaultCustomDateTime.format("YYYY-MM-DD")
+      );
+      this.set(
+        "customTime",
+        this.customTime || defaultCustomDateTime.format("HH:mm")
+      );
+
       const customDatetime = parseCustomDatetime(
         this.customDate,
         this.customTime,
@@ -272,8 +243,8 @@ export default Component.extend({
       if (customDatetime.isValid() && this.customDate) {
         dateTime = customDatetime;
 
-        localStorage.lastCustomTime = this.customTime;
-        localStorage.lastCustomDate = this.customDate;
+        this.keyValueStore.lastCustomTime = this.customTime;
+        this.keyValueStore.lastCustomDate = this.customDate;
       }
     } else {
       dateTime = this.options.findBy("id", type).time;
@@ -287,5 +258,25 @@ export default Component.extend({
     if (this.onTimeSelected) {
       this.onTimeSelected(type, dateTime);
     }
-  },
-});
+  }
+
+  _applyCustomLabels(options, customLabels) {
+    options.forEach((option) => {
+      if (customLabels[option.id]) {
+        option.label = customLabels[option.id];
+      }
+    });
+  }
+
+  _formatTime(options) {
+    options.forEach((option) => {
+      if (option.time && option.timeFormatKey) {
+        option.timeFormatted = option.time.format(i18n(option.timeFormatKey));
+      }
+    });
+  }
+
+  _defaultCustomDateTime() {
+    return moment.tz(this.userTimezone).add(1, "hour");
+  }
+}

@@ -1,11 +1,12 @@
+import { capitalize } from "@ember/string";
 import Site from "discourse/models/site";
 
 export default function () {
   // Error page
-  this.route("exception", { path: "/exception" });
+  this.route("exception");
   this.route("exception-unknown", { path: "/404" });
 
-  this.route("about", { path: "/about", resetNamespace: true });
+  this.route("about", { resetNamespace: true });
 
   this.route("post", { path: "/p/:id" });
 
@@ -19,7 +20,10 @@ export default function () {
     }
   );
 
-  this.route("topicBySlugOrId", { path: "/t/:slugOrId", resetNamespace: true });
+  this.route("topicBySlugOrId", {
+    path: "/t/:slug_or_id",
+    resetNamespace: true,
+  });
 
   this.route("newCategory", { path: "/new-category" });
   this.route("editCategory", { path: "/c/*slug/edit" }, function () {
@@ -29,7 +33,7 @@ export default function () {
   this.route("discovery", { path: "/", resetNamespace: true }, function () {
     // top by periods - legacy route
     Site.currentProp("periods").forEach((period) => {
-      const top = "top" + period.capitalize();
+      const top = "top" + capitalize(period);
 
       this.route(top, { path: "/top/" + period });
       this.route(top + "CategoryNone", {
@@ -51,12 +55,18 @@ export default function () {
       });
     });
 
+    this.route("filter");
     this.route("categories");
 
     // default filter for a category
     this.route("categoryNone", { path: "/c/*category_slug_path_with_id/none" });
     this.route("categoryAll", { path: "/c/*category_slug_path_with_id/all" });
+    this.route("subcategories", {
+      path: "/c/*category_slug_path_with_id/subcategories",
+    });
     this.route("category", { path: "/c/*category_slug_path_with_id" });
+
+    this.route("custom");
   });
 
   this.route("groups", { resetNamespace: true, path: "/g" }, function () {
@@ -99,6 +109,9 @@ export default function () {
     this.route("resent");
     this.route("edit-email");
   });
+  this.route("activate-account", { path: "/u/activate-account/:token" });
+  this.route("confirm-new-email", { path: "/u/confirm-new-email/:token" });
+  this.route("confirm-old-email", { path: "/u/confirm-old-email/:token" });
   this.route(
     "user",
     { path: "/u/:username", resetNamespace: true },
@@ -130,6 +143,7 @@ export default function () {
           this.route("likesReceived", { path: "likes-received" });
           this.route("mentions");
           this.route("edits");
+          this.route("links");
         }
       );
 
@@ -140,17 +154,23 @@ export default function () {
         "userPrivateMessages",
         { path: "/messages", resetNamespace: true },
         function () {
-          this.route("new");
-          this.route("unread");
-          this.route("archive");
-          this.route("sent");
-          this.route("warnings");
-          this.route("group", { path: "group/:name" });
-          this.route("groupArchive", { path: "group/:name/archive" });
-          this.route("groupNew", { path: "group/:name/new" });
-          this.route("groupUnread", { path: "group/:name/unread" });
-          this.route("tags");
-          this.route("tagsShow", { path: "tags/:id" });
+          this.route("user", { path: "/" }, function () {
+            this.route("new");
+            this.route("unread");
+            this.route("archive");
+            this.route("sent");
+            this.route("warnings");
+          });
+
+          this.route("group", { path: "group/:name" }, function () {
+            this.route("archive");
+            this.route("new");
+            this.route("unread");
+          });
+
+          this.route("tags", function () {
+            this.route("show", { path: ":id" });
+          });
         }
       );
 
@@ -160,16 +180,15 @@ export default function () {
         this.route("profile");
         this.route("emails");
         this.route("notifications");
-        this.route("categories");
+        this.route("tracking");
         this.route("users");
         this.route("tags");
         this.route("interface");
         this.route("apps");
+        this.route("navigation-menu");
 
-        this.route("username");
         this.route("email");
         this.route("second-factor");
-        this.route("second-factor-backup");
       });
 
       this.route(
@@ -182,27 +201,30 @@ export default function () {
     }
   );
 
-  this.route("review", { path: "/review" }, function () {
+  this.route("review", function () {
     this.route("show", { path: "/:reviewable_id" });
-    this.route("index", { path: "/" });
-    this.route("topics", { path: "/topics" });
-    this.route("settings", { path: "/settings" });
+    this.route("topics");
+    this.route("settings");
   });
-  this.route("signup", { path: "/signup" });
-  this.route("login", { path: "/login" });
+  this.route("signup");
+  this.route("login");
   this.route("email-login", { path: "/session/email-login/:token" });
+  this.route("second-factor-auth", { path: "/session/2fa" });
   this.route("associate-account", { path: "/associate/:token" });
   this.route("login-preferences");
   this.route("forgot-password", { path: "/password-reset" });
-  this.route("faq", { path: "/faq" });
-  this.route("tos", { path: "/tos" });
-  this.route("privacy", { path: "/privacy" });
-  this.route("guidelines", { path: "/guidelines" });
-  this.route("rules", { path: "/rules" });
-  this.route("conduct", { path: "/conduct" });
 
-  this.route("new-topic", { path: "/new-topic" });
-  this.route("new-message", { path: "/new-message" });
+  this.route("faq");
+  this.route("guidelines");
+  this.route("conduct");
+  this.route("rules");
+
+  this.route("tos");
+  this.route("privacy");
+
+  this.route("new-topic");
+  this.route("new-message");
+  this.route("new-invite");
 
   this.route("badges", { resetNamespace: true }, function () {
     this.route("show", { path: "/:id/:slug" });
@@ -214,7 +236,7 @@ export default function () {
     this.route("show", { path: "/:tag_id" });
 
     Site.currentProp("filters").forEach((filter) => {
-      this.route("show" + filter.capitalize(), {
+      this.route("show" + capitalize(filter), {
         path: "/:tag_id/l/" + filter,
       });
     });
@@ -224,21 +246,30 @@ export default function () {
     this.route("showCategory", {
       path: "/c/*category_slug_path_with_id/:tag_id",
     });
+    this.route("showCategoryAll", {
+      path: "/c/*category_slug_path_with_id/all/:tag_id",
+    });
     this.route("showCategoryNone", {
       path: "/c/*category_slug_path_with_id/none/:tag_id",
     });
 
     Site.currentProp("filters").forEach((filter) => {
-      this.route("showCategory" + filter.capitalize(), {
+      this.route("showCategory" + capitalize(filter), {
         path: "/c/*category_slug_path_with_id/:tag_id/l/" + filter,
       });
-      this.route("showCategoryNone" + filter.capitalize(), {
+      this.route("showCategoryAll" + capitalize(filter), {
+        path: "/c/*category_slug_path_with_id/all/:tag_id/l/" + filter,
+      });
+      this.route("showCategoryNone" + capitalize(filter), {
         path: "/c/*category_slug_path_with_id/none/:tag_id/l/" + filter,
       });
     });
     this.route("intersection", {
       path: "intersection/:tag_id/*additional_tags",
     });
+
+    // legacy route
+    this.route("legacyRedirect", { path: "/:tag_id" });
   });
 
   this.route(
@@ -250,11 +281,11 @@ export default function () {
     }
   );
 
-  this.route(
-    "invites",
-    { path: "/invites", resetNamespace: true },
-    function () {
-      this.route("show", { path: "/:token" });
-    }
-  );
+  this.route("invites", { resetNamespace: true }, function () {
+    this.route("show", { path: "/:token" });
+  });
+
+  this.route("wizard", function () {
+    this.route("step", { path: "/steps/:step_id" });
+  });
 }

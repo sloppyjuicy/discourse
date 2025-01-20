@@ -1,48 +1,26 @@
+import { tracked } from "@glimmer/tracking";
 import Controller, { inject as controller } from "@ember/controller";
-import I18n from "I18n";
-import { alias } from "@ember/object/computed";
-import bootbox from "bootbox";
-import { exportUserArchive } from "discourse/lib/export-csv";
-import discourseComputed, { observes } from "discourse-common/utils/decorators";
+import { service } from "@ember/service";
+import discourseComputed from "discourse/lib/decorators";
+import { i18n } from "discourse-i18n";
 
-export default Controller.extend({
-  application: controller(),
-  user: controller(),
-  userActionType: null,
+export default class UserActivityController extends Controller {
+  @service currentUser;
+  @controller user;
 
-  canDownloadPosts: alias("user.viewingSelf"),
-
-  @observes("userActionType", "model.stream.itemsLoaded")
-  _showFooter: function () {
-    let showFooter;
-    if (this.userActionType) {
-      const stat = (this.get("model.stats") || []).find(
-        (s) => s.action_type === this.userActionType
-      );
-      showFooter = stat && stat.count <= this.get("model.stream.itemsLoaded");
-    } else {
-      showFooter =
-        this.get("model.statsCountNonPM") <=
-        this.get("model.stream.itemsLoaded");
-    }
-    this.set("application.showFooter", showFooter);
-  },
+  @tracked userActionType = null;
 
   @discourseComputed("currentUser.draft_count")
   draftLabel(count) {
     return count > 0
-      ? I18n.t("drafts.label_with_count", { count })
-      : I18n.t("drafts.label");
-  },
+      ? i18n("drafts.label_with_count", { count })
+      : i18n("drafts.label");
+  }
 
-  actions: {
-    exportUserArchive() {
-      bootbox.confirm(
-        I18n.t("user.download_archive.confirm"),
-        I18n.t("no_value"),
-        I18n.t("yes_value"),
-        (confirmed) => (confirmed ? exportUserArchive() : null)
-      );
-    },
-  },
-});
+  @discourseComputed("model.pending_posts_count")
+  pendingLabel(count) {
+    return count > 0
+      ? i18n("pending_posts.label_with_count", { count })
+      : i18n("pending_posts.label");
+  }
+}

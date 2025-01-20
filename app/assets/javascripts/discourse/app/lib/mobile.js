@@ -1,4 +1,5 @@
-import { isTesting } from "discourse-common/config/environment";
+import $ from "jquery";
+import { isTesting } from "discourse/lib/environment";
 
 let mobileForced = false;
 
@@ -32,7 +33,7 @@ const Mobile = {
           this.reloadPage(savedValue);
         }
       }
-    } catch (err) {
+    } catch {
       // localStorage may be disabled, just skip this
       // you get security errors if it is disabled
     }
@@ -43,7 +44,7 @@ const Mobile = {
       if (localStorage) {
         localStorage.mobileView = !this.mobileView;
       }
-    } catch (err) {
+    } catch {
       // localStorage may be disabled, skip
     }
     this.reloadPage(!this.mobileView);

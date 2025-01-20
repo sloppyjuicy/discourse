@@ -34,7 +34,7 @@ class Wizard
       value = value.strip if value.is_a?(String)
 
       if !value.is_a?(Upload) && SiteSetting.type_supervisor.get_type(id) == :upload
-        value = Upload.get_from_url(value) || ''
+        value = Upload.get_from_url(value) || ""
       end
 
       SiteSetting.set_and_log(id, value, @current_user) if SiteSetting.get(id) != value
@@ -47,12 +47,11 @@ class Wizard
     end
 
     def ensure_changed(id)
-      errors.add(id, '') if @fields[id] == SiteSetting.defaults[id]
+      errors.add(id, "") if @fields[id] == SiteSetting.defaults[id]
     end
 
     def apply_settings(*ids)
       ids.each { |id| apply_setting(id) }
     end
-
   end
 end

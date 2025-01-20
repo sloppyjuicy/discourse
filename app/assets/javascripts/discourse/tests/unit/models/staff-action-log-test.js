@@ -1,8 +1,15 @@
+import { getOwner } from "@ember/owner";
+import { setupTest } from "ember-qunit";
 import { module, test } from "qunit";
-import StaffActionLog from "admin/models/staff-action-log";
 
-module("Unit | Model | staff-action-log", function () {
+module("Unit | Model | staff-action-log", function (hooks) {
+  setupTest(hooks);
+
   test("create", function (assert) {
-    assert.ok(StaffActionLog.create(), "it can be created without arguments");
+    const store = getOwner(this).lookup("service:store");
+    assert.true(
+      !!store.createRecord("staff-action-log"),
+      "can be created without arguments"
+    );
   });
 });

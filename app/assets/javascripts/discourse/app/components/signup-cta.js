@@ -1,25 +1,29 @@
 import Component from "@ember/component";
-import { later } from "@ember/runloop";
-import { on } from "@ember/object/evented";
+import { action } from "@ember/object";
+import { on } from "@ember-decorators/object";
+import discourseLater from "discourse/lib/later";
 
-export default Component.extend({
-  action: "showCreateAccount",
+export default class SignupCta extends Component {
+  action = "showCreateAccount";
 
-  actions: {
-    neverShow() {
-      this.keyValueStore.setItem("anon-cta-never", "t");
-      this.session.set("showSignupCta", false);
-    },
-    hideForSession() {
-      this.session.set("hideSignupCta", true);
-      this.keyValueStore.setItem("anon-cta-hidden", Date.now());
-      later(() => this.session.set("showSignupCta", false), 20 * 1000);
-    },
-  },
+  @action
+  neverShow(event) {
+    event?.preventDefault();
+    this.keyValueStore.setItem("anon-cta-never", "t");
+    this.session.set("showSignupCta", false);
+  }
 
-  _turnOffIfHidden: on("willDestroyElement", function () {
+  @action
+  hideForSession() {
+    this.session.set("hideSignupCta", true);
+    this.keyValueStore.setItem("anon-cta-hidden", Date.now());
+    discourseLater(() => this.session.set("showSignupCta", false), 20 * 1000);
+  }
+
+  @on("willDestroyElement")
+  _turnOffIfHidden() {
     if (this.session.get("hideSignupCta")) {
       this.session.set("showSignupCta", false);
     }
-  }),
-});
+  }
+}

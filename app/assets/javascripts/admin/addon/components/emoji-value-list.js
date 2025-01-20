@@ -1,16 +1,18 @@
 import Component from "@ember/component";
-import I18n from "I18n";
-import discourseComputed from "discourse-common/utils/decorators";
-import { emojiUrlFor } from "discourse/lib/text";
 import { action, set, setProperties } from "@ember/object";
-import { later, schedule } from "@ember/runloop";
+import { schedule } from "@ember/runloop";
+import { service } from "@ember/service";
+import { classNameBindings } from "@ember-decorators/component";
+import EmojiPickerDetached from "discourse/components/emoji-picker/detached";
+import discourseComputed from "discourse/lib/decorators";
+import { emojiUrlFor } from "discourse/lib/text";
+import { i18n } from "discourse-i18n";
 
-export default Component.extend({
-  classNameBindings: [":value-list", ":emoji-list"],
-  values: null,
-  validationMessage: null,
-  emojiPickerIsActive: false,
-  isEditorFocused: false,
+@classNameBindings(":value-list", ":emoji-list")
+export default class EmojiValueList extends Component {
+  @service menu;
+
+  values = null;
 
   @discourseComputed("values")
   collection(values) {
@@ -27,14 +29,7 @@ export default Component.extend({
           emojiUrl: emojiUrlFor(value),
         };
       });
-  },
-
-  @action
-  closeEmojiPicker() {
-    this.collection.setEach("isEditing", false);
-    this.set("emojiPickerIsActive", false);
-    this.set("isEditorFocused", false);
-  },
+  }
 
   @action
   emojiSelected(code) {
@@ -61,15 +56,12 @@ export default Component.extend({
       this.collection.addObject(newCollectionValue);
       this._saveValues();
     }
-
-    this.set("emojiPickerIsActive", false);
-    this.set("isEditorFocused", false);
-  },
+  }
 
   @discourseComputed("collection")
   showUpDownButtons(collection) {
     return collection.length - 1 ? true : false;
-  },
+  }
 
   _splitValues(values) {
     if (values && values.length) {
@@ -90,11 +82,10 @@ export default Component.extend({
     } else {
       return [];
     }
-  },
+  }
 
   @action
-  editValue(index) {
-    this.closeEmojiPicker();
+  editValue(index, event) {
     schedule("afterRender", () => {
       if (parseInt(index, 10) >= 0) {
         const item = this.collection[index];
@@ -103,19 +94,25 @@ export default Component.extend({
         }
       }
 
-      this.set("isEditorFocused", true);
-      later(() => {
-        if (this.element && !this.isDestroying && !this.isDestroyed) {
-          this.set("emojiPickerIsActive", true);
-        }
-      }, 100);
+      this.menu.show(event.target, {
+        identifier: "emoji-picker",
+        groupIdentifier: "emoji-picker",
+        component: EmojiPickerDetached,
+        modalForMobile: true,
+        data: {
+          context: "chat",
+          didSelectEmoji: (emoji) => {
+            this._replaceValue(index, emoji);
+          },
+        },
+      });
     });
-  },
+  }
 
   @action
   removeValue(value) {
     this._removeValue(value);
-  },
+  }
 
   @action
   shift(operation, index) {
@@ -132,26 +129,24 @@ export default Component.extend({
     this.collection.insertAt(futureIndex, shiftedEmoji);
 
     this._saveValues();
-  },
+  }
 
   _validateInput(input) {
-    this.set("validationMessage", null);
-
     if (!emojiUrlFor(input)) {
-      this.set(
-        "validationMessage",
-        I18n.t("admin.site_settings.emoji_list.invalid_input")
+      this.setValidationMessage(
+        i18n("admin.site_settings.emoji_list.invalid_input")
       );
       return false;
     }
 
+    this.setValidationMessage(null);
     return true;
-  },
+  }
 
   _removeValue(value) {
     this.collection.removeObject(value);
     this._saveValues();
-  },
+  }
 
   _replaceValue(index, newValue) {
     const item = this.collection[index];
@@ -160,9 +155,9 @@ export default Component.extend({
     }
     set(item, "value", newValue);
     this._saveValues();
-  },
+  }
 
   _saveValues() {
     this.set("values", this.collection.mapBy("value").join("|"));
-  },
-});
+  }
+}

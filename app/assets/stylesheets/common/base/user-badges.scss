@@ -1,9 +1,13 @@
 /* Default badge styles. */
+.show-badge {
+  background: var(--d-content-background);
+}
+
 .user-badge {
   padding: 3px 8px;
   color: var(--primary);
   border: 1px solid var(--primary-low);
-  line-height: $line-height-large;
+  line-height: var(--line-height-large);
   display: inline-flex;
   align-items: center;
   background-color: var(--secondary);
@@ -70,7 +74,7 @@
 
 .show-badge .badge-user-info {
   .earned {
-    font-size: $font-up-2;
+    font-size: var(--font-up-2);
     margin-bottom: 1em;
   }
 }
@@ -81,7 +85,7 @@
   .load-more {
     padding-top: 30px;
     display: block;
-    font-size: $font-up-2;
+    font-size: var(--font-up-2);
   }
 }
 
@@ -96,11 +100,11 @@
   }
   .date {
     display: inline-block;
-    font-size: $font-up-1;
+    font-size: var(--font-up-1);
     margin-left: 10px;
   }
   .post-link {
-    font-size: $font-up-2;
+    font-size: var(--font-up-2);
     width: 500px;
     margin: 0;
     padding: 0;
@@ -127,50 +131,78 @@
 
   .check-display {
     position: absolute;
-    left: 5px;
+    right: 5px;
     top: 5px;
   }
 
+  .badge-granted {
+    display: block;
+    margin-top: 0.5em;
+    color: var(--primary-medium);
+    font-size: var(--font-down-1);
+  }
+
   .grant-count {
-    position: absolute;
-    right: 5px;
-    top: 5px;
     font-weight: bold;
     color: var(--primary-medium);
-    font-size: $font-up-2;
+    line-height: 1;
+  }
+
+  .grant-text {
+    color: var(--primary-medium);
+    font-size: var(--font-down-1);
   }
 
   .favorite-btn {
     position: absolute;
     right: 0;
     bottom: 0;
+    z-index: 1;
   }
 
   .badge-contents {
     display: flex;
-    min-height: 8em;
-    padding: 0 1.5em;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5em 1.5em;
 
     .badge-link {
       color: var(--primary);
+      display: inline-block;
+      line-height: var(--line-height-medium);
+
+      &:after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+      }
+    }
+
+    .badge-summary:has(a) {
+      // for summary links to be reachable
+      // they must be positioned above .badge-link:after
+      position: relative;
+      z-index: 1;
     }
 
     .badge-icon {
+      --badge-icon-size: 3.5em;
       display: flex;
       flex-shrink: 0;
-      margin-right: 1.5em;
       align-items: center;
       justify-content: center;
-      width: 64px;
 
       svg {
-        font-size: 3.5em;
+        font-size: var(--badge-icon-size);
       }
 
       img {
         width: 100%;
-        max-width: 64px;
-        max-height: 64px;
+        max-width: var(--badge-icon-size);
+        max-height: var(--badge-icon-size);
       }
 
       &.badge-type-gold .fa {
@@ -187,46 +219,42 @@
     }
 
     .badge-info {
-      display: flex;
-      flex: 1 1 auto;
-      align-items: center;
-      padding: 1em 0;
       color: var(--primary);
 
       h3 {
         margin-bottom: 0.25em;
-        font-size: $font-up-1;
+        font-size: var(--font-up-1);
         @media screen and (min-width: 900px) {
-          font-size: $font-up-2;
+          font-size: var(--font-up-2);
         }
       }
     }
   }
 
-  &.large {
+  &.--badge-large {
     width: 100%;
     align-self: flex-start;
 
     @media screen and (min-width: 767px) {
-      max-width: calc(#{$large-width} / 2);
-      margin-right: 1.5em;
+      max-width: calc(var(--d-max-width) / 2);
     }
 
     .badge-contents {
-      padding: 0 5%;
       h3 {
-        font-size: $font-up-3;
+        font-size: var(--font-up-3);
       }
     }
   }
 }
 
 .badges-granted {
-  display: flex;
-  flex-wrap: wrap;
-  @media screen and (max-width: $small-width) {
-    justify-content: space-between;
-  }
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18em, 1fr));
+  gap: 3em 2em;
+}
+
+.container.badges {
+  background: var(--d-content-background);
 }
 
 .badge-groups {
@@ -245,21 +273,13 @@
 
 .badge-group-list {
   display: grid;
-  grid: auto-flow / repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(18em, 1fr));
   grid-gap: 1em;
   width: 100%;
   margin-bottom: 1.5em;
 
-  @include breakpoint(medium) {
-    grid: auto-flow / repeat(2, 1fr);
-  }
-
-  @include breakpoint(mobile-extra-large) {
-    grid: auto-flow / 1fr;
-  }
-
   .title {
-    font-size: $font-up-1;
+    font-size: var(--font-up-1);
   }
 }
 
@@ -269,6 +289,7 @@
   flex-direction: row;
   margin-bottom: 2em;
   margin-top: 1em;
+  gap: 1em;
 
   .badge-grant-info {
     &.hidden {
@@ -285,33 +306,55 @@
   }
 
   .badge-set-title {
+    flex: 0 1 auto;
     padding: 1.5em;
     border: 1px solid var(--primary-low);
 
-    .user-content {
-      padding: 0;
-      .control-group {
-        margin-bottom: 1em;
+    .badge-title {
+      height: 100%;
+      &__saved {
+        color: var(--success);
       }
     }
-  }
 
-  .badge-title .form-horizontal .controls {
-    margin-left: 0;
-  }
+    .control-group:last-child {
+      margin: auto 0 0;
+    }
 
-  .form-horizontal {
-    margin-bottom: 0;
+    .form-horizontal {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      margin: 0;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.5em;
+      margin: 0;
+      button:last-of-type {
+        margin-right: auto;
+      }
+    }
+
+    .combobox {
+      width: 100%;
+    }
   }
 }
 
 .check-display {
-  display: inline-block;
-  padding: 0 0.25em;
-  border-radius: 10px;
-  text-align: center;
-  .fa {
-    font-size: 0.9em;
+  display: flex;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 100%;
+  align-items: center;
+  justify-content: center;
+
+  .d-icon {
+    font-size: var(--font-down-2);
     color: var(--secondary);
   }
 }

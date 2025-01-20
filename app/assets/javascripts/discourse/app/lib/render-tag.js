@@ -1,7 +1,8 @@
-import User from "discourse/models/user";
+import escape from "discourse/lib/escape";
+import getURL from "discourse/lib/get-url";
+import { helperContext } from "discourse/lib/helpers";
 import { escapeExpression } from "discourse/lib/utilities";
-import getURL from "discourse-common/lib/get-url";
-import { helperContext } from "discourse-common/lib/helpers";
+import User from "discourse/models/user";
 
 let _renderer = defaultRenderTag;
 
@@ -34,9 +35,16 @@ export function defaultRenderTag(tag, params) {
   if (siteSettings.tag_style || params.style) {
     classes.push(params.style || siteSettings.tag_style);
   }
+  if (params.extraClass) {
+    classes.push(params.extraClass);
+  }
   if (params.size) {
     classes.push(params.size);
   }
+
+  // remove all html tags from hover text
+  const hoverDescription =
+    params.description && params.description.replace(/<.+?>/g, "");
 
   let val =
     "<" +
@@ -44,10 +52,11 @@ export function defaultRenderTag(tag, params) {
     href +
     " data-tag-name=" +
     tag +
+    (params.description ? ' title="' + escape(hoverDescription) + '" ' : "") +
     " class='" +
     classes.join(" ") +
     "'>" +
-    visibleName +
+    (params.displayName ? escape(params.displayName) : visibleName) +
     "</" +
     tagName +
     ">";

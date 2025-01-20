@@ -3,7 +3,7 @@
 class Wizard
   class Step
     attr_reader :id, :updater
-    attr_accessor :index, :fields, :next, :previous, :banner, :disabled, :description_vars
+    attr_accessor :index, :fields, :next, :previous, :disabled, :description_vars, :emoji
 
     def initialize(id)
       @id = id
@@ -14,6 +14,7 @@ class Wizard
       field = Field.new(attrs)
       field.step = self
       @fields << field
+      yield field if block_given?
       field
     end
 

@@ -1,14 +1,12 @@
 import DiscourseRoute from "discourse/routes/discourse";
-import ViewingActionType from "discourse/mixins/viewing-action-type";
-import { action } from "@ember/object";
-import I18n from "I18n";
+import { i18n } from "discourse-i18n";
 
-export default DiscourseRoute.extend(ViewingActionType, {
-  queryParams: {
+export default class UserActivityStream extends DiscourseRoute {
+  templateName = "user/stream";
+
+  queryParams = {
     acting_username: { refreshModel: true },
-  },
-
-  emptyStateOthers: I18n.t("user_activity.no_activity_others"),
+  };
 
   model() {
     const user = this.modelFor("user");
@@ -16,37 +14,25 @@ export default DiscourseRoute.extend(ViewingActionType, {
 
     return {
       stream,
-      isAnotherUsersPage: this.isAnotherUsersPage(user),
       emptyState: this.emptyState(),
-      emptyStateOthers: this.emptyStateOthers,
     };
-  },
+  }
 
   afterModel(model, transition) {
     return model.stream.filterBy({
       filter: this.userActionType,
       actingUsername: transition.to.queryParams.acting_username,
     });
-  },
+  }
 
-  renderTemplate() {
-    this.render("user_stream");
-  },
-
-  setupController(controller, model) {
-    controller.set("model", model);
-    this.viewingActionType(this.userActionType);
-  },
+  setupController() {
+    super.setupController(...arguments);
+    this.controllerFor("user-activity").userActionType = this.userActionType;
+  }
 
   emptyState() {
-    const title = I18n.t("user_activity.no_activity_title");
+    const title = i18n("user_activity.no_activity_title");
     const body = "";
     return { title, body };
-  },
-
-  @action
-  didTransition() {
-    this.controllerFor("user-activity")._showFooter();
-    return true;
-  },
-});
+  }
+}

@@ -1,7 +1,3 @@
-.wrap {
-  max-width: $large-width;
-}
-
 .full-width {
   margin-left: 0;
 }
@@ -16,22 +12,28 @@
 
 .topic-body {
   padding: 0;
+
   &:first-of-type {
     border-top: none;
   }
+
   .reply-to-tab {
     z-index: z("base") + 1;
     color: var(--primary-med-or-secondary-med);
   }
+
   .actions .fade-out {
     .discourse-no-touch & {
       opacity: 0.7;
       transition: background 0.25s, opacity 0.7s ease-in-out;
+      animation: none; // replaces jsuites animation on .fade-out
     }
+
     .discourse-touch & {
       opacity: 1;
     }
   }
+
   &:hover .actions .fade-out,
   .selected .actions .fade-out {
     opacity: 1;
@@ -40,200 +42,144 @@
 
 section.post-menu-area {
   position: relative;
-  padding-left: 11px;
+  padding-left: var(--topic-body-width-padding);
 }
 
 .post-links-container {
-  margin-left: 11px;
+  margin-left: var(--topic-body-width-padding);
 }
 
 nav.post-controls {
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  // for consistency, try to control spacing by editing these variables
+  --control-margin: 0.33em;
+  --control-icon-space: 0.33em;
 
   .actions {
-    text-align: right;
-    display: inline-block;
-    margin-left: auto;
+    button {
+      margin-left: var(--control-margin);
 
-    .more-actions {
-      display: none;
-      overflow: hidden;
+      &.btn-icon-text,
+      &.create {
+        margin-left: calc(var(--control-margin) * 1.52);
+
+        .d-icon {
+          margin-right: var(--control-icon-space);
+        }
+      }
     }
 
     // Some buttons can be doubled up, like likes or flags
     .double-button {
-      display: inline-flex;
-      color: var(--primary-low-mid);
-      margin-right: 0.15em;
+      margin-left: var(--control-margin);
+
       &:hover {
         button {
           background: var(--primary-low);
           color: var(--primary-medium);
         }
       }
+
       button {
-        // It looks really confusing when one half a double button has an inner shadow on click.
-        &:active {
-          box-shadow: none;
-        }
         margin-left: 0;
         margin-right: 0;
-        &.my-likes,
-        &.read-indicator,
-        &.regular-likes {
-          // Like count on posts
-          .d-icon {
-            color: var(--primary-low-mid);
-            padding-left: 0.45em;
-          }
-        }
+
         &.like {
           // Like button with 0 likes
-          &.d-hover {
+          &.d-hover,
+          &:hover {
             background: var(--love-low);
+
             .d-icon {
               color: var(--love);
             }
           }
         }
+
         &.has-like {
           // Like button after I've liked
-          .d-icon {
-            color: var(--love);
-          }
-          &.d-hover {
+          &.d-hover,
+          &:hover {
             background: var(--primary-low);
+
             .d-icon {
               color: var(--primary-medium);
             }
           }
         }
-        &[disabled] {
-          // Disabled like button
-          cursor: not-allowed;
-        }
+
         &.button-count {
           // Like count button
-          &:not(.my-likes) {
-            padding-right: 0;
-          }
-          &.d-hover {
+          &.d-hover,
+          &:hover {
             color: var(--primary);
           }
+
           + .toggle-like {
             // Like button when like count is present
-            padding-left: 0.45em;
-            &.d-hover {
+            &.d-hover,
+            &:hover {
               background: var(--primary-low);
             }
           }
         }
       }
     }
-    a,
-    button {
-      color: var(--primary-low-mid-or-secondary-high);
-      .d-icon {
-        opacity: 1;
-      }
-      margin-right: 2px;
-      display: inline-block;
-    }
-    a.toggle-likes {
-      padding: 8px 0;
-      margin-right: -3px;
-    }
-    span.badge-posts {
-      margin-right: 5px;
-      transition: all linear 0.15s;
-    }
-
-    button.create {
-      margin-right: 0;
-      color: var(--primary-high-or-secondary-low);
-      margin-left: 10px;
-      .d-icon {
-        color: var(--primary-high-or-secondary-low);
-      }
-    }
-    .create .d-icon {
-      margin-right: 5px;
-    }
-    button {
-      font-size: $font-up-1;
-      padding: 8px 10px;
-      vertical-align: top;
-      background: transparent;
-      border: none;
-      margin-left: 3px;
-      &.d-hover,
-      &:focus,
-      &:active {
-        outline: none;
-        background: var(--primary-low);
-        color: var(--primary);
-      }
-      &.hidden {
-        display: none;
-      }
-      &.admin {
-        position: relative;
-      }
-      &.delete.d-hover,
-      &.delete:hover,
-      &.delete:focus {
-        background: var(--danger);
-        color: var(--secondary);
-        .d-icon {
-          color: var(--secondary);
-        }
-      }
-      &.bookmark {
-        padding: 8px 11px;
-        &.bookmarked .d-icon {
-          color: var(--tertiary);
-        }
-      }
-    }
   }
 
   .show-replies {
-    font-size: $font-up-1;
-    margin-left: -10px;
-    font-size: inherit;
-    padding: 10px;
-    color: var(--primary-medium);
-    &:hover,
-    &:focus {
-      outline: none;
-      color: var(--primary);
-      background: var(--primary-low);
+    display: flex;
+    align-items: center;
+    margin-left: 0;
+    border-radius: var(--d-button-border-radius);
+
+    .topic-post & {
+      margin-right: 0.5em;
     }
+
+    white-space: nowrap;
+
     .d-icon {
-      margin-right: 5px;
-      font-size: $font-down-1;
+      margin-inline: var(--control-icon-space);
+      margin-left: 0;
     }
-    .d-button-label + .d-icon {
-      margin-left: 5px;
-      margin-right: 0;
+
+    &[aria-expanded="true"] {
+      background: var(--primary-low);
+      color: var(--primary-high);
+      box-shadow: 0px 0px 0px 1px var(--primary-300);
+      z-index: 1;
+
+      .d-icon {
+        color: var(--primary-high);
+      }
+
+      &:hover,
+      &:focus {
+        background: var(--primary-300);
+        color: var(--primary);
+      }
     }
   }
 }
 
-pre.copy-codeblocks .copy-cmd:not(.copied) {
-  opacity: 0;
-  transition: 0.2s;
-  visibility: hidden;
+pre.codeblock-buttons {
+  .copy-cmd:not(.action-complete),
+  .fullscreen-cmd:not(.action-complete) {
+    opacity: 0;
+    transition: 0.2s;
+    visibility: hidden;
+  }
 }
 
-pre.copy-codeblocks:hover .copy-cmd {
-  opacity: 0.7;
-  visibility: visible;
-  &:hover {
-    opacity: 1;
+pre.codeblock-buttons:hover {
+  .copy-cmd,
+  .fullscreen-cmd {
+    opacity: 0.7;
+    visibility: visible;
+
+    &:hover {
+      opacity: 1;
+    }
   }
 }
 
@@ -243,22 +189,28 @@ pre.copy-codeblocks:hover .copy-cmd {
   h3 {
     margin: 10px 0;
   }
+
   border: 1px solid var(--primary-low);
+
   .topic-body {
     box-sizing: border-box;
     width: calc(100% - 70px); // [100% - .topic-avatar width]
     // WARNING: overflow hide is required for quoted / embedded images
     // which expect "normal" post width, but expansions are narrower
     overflow: hidden;
-  } // this is covered by .topic-body .regular on a normal post
+  }
+
+  // this is covered by .topic-body .regular on a normal post
   // but no such class structure exists for an embedded, expanded post
   .cooked {
     margin-top: 15px;
   }
+
   .topic-avatar {
     padding-left: 25px;
     padding-top: 15px;
   }
+
   .collapse-down,
   .collapse-up {
     position: absolute;
@@ -270,77 +222,221 @@ pre.copy-codeblocks:hover .copy-cmd {
     .d-icon {
       color: currentColor;
     }
+
     .discourse-no-touch & {
       &:hover {
         background: var(--primary-low);
         color: var(--primary-high);
+
         .d-icon {
           color: currentColor;
         }
       }
     }
-  } // bottom means "reply expansion" below a post
-  &.bottom {
-    border-top: none;
-    margin-bottom: 20px;
-    margin-left: 11px;
-    &.hidden {
-      display: block;
-      opacity: 0;
-    }
   }
+
+  // bottom means "reply expansion" below a post
   &.bottom {
+    position: relative;
+    max-width: calc(100% - 66px);
+    margin-bottom: 30px;
+    border: none;
+
+    > div {
+      position: relative;
+
+      &:last-of-type {
+        margin-bottom: 0;
+
+        .row {
+          // Main reply line
+          &:before {
+            content: "";
+            position: absolute;
+            top: -22px;
+            width: 1px;
+            height: calc(100% + 1.25em);
+            background: var(--primary-300);
+            left: 32px;
+          }
+        }
+      }
+
+      .row {
+        padding-bottom: 0.5em;
+        // Main reply line
+        &:before {
+          content: "";
+          position: absolute;
+          top: -22px;
+          width: 1px;
+          height: calc(100% + 1.5em);
+          background: var(--primary-300);
+          left: 32px;
+        }
+
+        .topic-avatar {
+          border-top: none;
+          padding-left: 9px;
+          position: relative;
+        }
+
+        .topic-body {
+          border-top: none;
+          padding-bottom: 2.5em;
+
+          .topic-meta-data {
+            position: unset;
+
+            .post-link-arrow {
+              position: absolute;
+              bottom: 0.75em;
+
+              .archetype-private_message & {
+                bottom: 0;
+              }
+
+              .post-info.arrow {
+                display: block;
+                margin-right: 0;
+
+                .d-icon {
+                  margin-left: 0;
+                }
+
+                &:hover,
+                &:focus {
+                  color: var(--primary-high);
+                }
+              }
+            }
+          }
+
+          .cooked {
+            margin-top: 0.25em;
+            padding-top: 0.5em;
+          }
+        }
+      }
+
+      &.hidden {
+        display: block;
+        opacity: 0;
+      }
+    }
+
     .collapse-up {
       transform: translate(-50%, -164%);
-    }
-    .row {
-      padding-bottom: 0.5em;
-      .topic-avatar,
-      .topic-body {
-        border-top: 1px solid var(--primary-low);
+      background: var(--primary-low);
+      color: var(--primary-high);
+      border: 1px solid var(--primary-300);
+      padding: 6px;
+      left: 32px;
+      bottom: -3em;
+      z-index: 1;
+
+      .archetype-private_message & {
+        display: flex;
+      }
+
+      .d-icon {
+        transform: scale(0.871);
+      }
+
+      .discourse-no-touch & {
+        &:hover,
+        &:focus {
+          color: var(--primary);
+          background: var(--primary-300);
+        }
       }
     }
-  } // top means "in reply to expansion" above a post
-  &.top {
-    border-bottom: none;
-    .collapse-down {
-      transform: translate(-50%, 55%);
+
+    .load-more-replies {
+      font-size: var(--font-down-1);
+      position: absolute;
+      left: 55%;
+      transform: translate(-50%, 50%);
+      padding: 0.35em 0.5em;
     }
-    margin-left: 56px;
-    width: 699px;
+
+    .topic-avatar {
+      padding-left: 1em;
+    }
+  }
+
+  // top means "in reply to expansion" above a post
+  &.top {
+    margin-left: 0px;
+    border: none;
+
+    .collapse-down {
+      transform: translate(17%, 230%);
+      z-index: 1;
+    }
+
+    width: calc(
+      var(--topic-body-width) + (var(--topic-body-width-padding) * 2) +
+        var(--topic-avatar-width) - (var(--topic-avatar-width) + 2px)
+    ); // 2px accounts for left and right borders
     .row {
-      border-bottom: none;
-      .topic-avatar,
+      .topic-body,
+      .topic-avatar {
+        border-top: none;
+      }
+
+      .topic-avatar {
+        padding-left: 0;
+      }
+
       .topic-body {
-        border-top: 1px solid var(--primary-low);
+        overflow: visible;
+
+        &::before {
+          content: "";
+          position: absolute;
+          top: 16px;
+          width: 1px;
+          height: calc(100% + 1.5em);
+          background: var(--primary-300);
+          left: -22px;
+        }
       }
     }
   }
+
   &.top.topic-body {
     padding: 0;
   }
+
   .post-date {
     color: var(--primary-med-or-secondary-high);
   }
+
   .d-icon-arrow-up,
   .d-icon-arrow-down {
     margin-left: 5px;
   }
+
   .reply:first-of-type .row {
     border-top: none;
   }
+
   .topic-meta-data {
     position: relative;
   }
+
   .topic-meta-data h5 {
     position: absolute;
     z-index: z("base");
-    font-size: $font-down-1;
+    font-size: var(--font-down-1);
+
     a {
       font-weight: bold;
       color: var(--primary-low-mid-or-secondary-high);
     }
   }
+
   .arrow {
     color: var(--primary-med-or-secondary-high);
   }
@@ -350,122 +446,9 @@ pre.copy-codeblocks:hover .copy-cmd {
   .relative-date {
     margin-left: 5px;
   }
+
   .avatar {
     margin-right: 2px;
-  }
-}
-
-.topic-map {
-  margin: 20px 0 20px 11px;
-  .map {
-    .secondary {
-      text-align: center;
-    }
-    li {
-      float: left;
-      padding: 7px 10px;
-      &:last-of-type {
-        border-right: 0;
-      }
-      &:nth-child(3) {
-        text-align: center;
-      }
-    }
-    .number {
-      color: var(--primary-high);
-    }
-    .number,
-    .d-icon {
-      font-size: $font-up-2;
-      line-height: $line-height-medium;
-    }
-    button .d-icon,
-    button:hover .d-icon {
-      color: var(--primary-high);
-    }
-    .avatar a {
-      float: left;
-    }
-    .topic-map-post {
-      margin-top: 6px;
-    }
-  }
-  .avatars,
-  .links,
-  .information {
-    padding: 7px 10px 7px 10px;
-    color: var(--primary);
-  }
-  .buttons {
-    float: right;
-    .btn {
-      border: 0;
-      padding: 0 23px;
-      color: var(--primary-med-or-secondary-high);
-      background: var(--blend-primary-secondary-5);
-      border-left: 1px solid var(--primary-low);
-      border-top: 1px solid transparent;
-      &:hover {
-        color: var(--primary);
-        background: var(--primary-low);
-      }
-      &.collapsed {
-        padding-bottom: 1px;
-      }
-      .fa {
-        margin: 0;
-        font-size: $font-up-2;
-        line-height: 52px;
-      }
-    }
-  }
-  .link-summary .btn {
-    color: var(--primary-med-or-secondary-high);
-    background: var(--blend-primary-secondary-5);
-    width: 100%;
-    &:hover {
-      color: var(--primary);
-      background: var(--primary-low);
-    }
-  }
-}
-
-#topic-footer-buttons {
-  max-width: calc(690px + (11px * 2) + 45px);
-
-  @media screen and (max-width: 924px) {
-    .topic-footer-main-buttons {
-      margin-top: 1em; // some extra space for the docked progress bar
-    }
-  }
-
-  .bookmark {
-    .d-icon-bookmark.bookmarked {
-      color: var(--tertiary);
-    }
-  }
-
-  .bookmark.bookmarked .d-icon-bookmark,
-  .bookmark.bookmarked .d-icon-discourse-bookmark-clock {
-    color: var(--tertiary);
-  }
-  .feature-on-profile.featured-on-profile .d-icon-id-card {
-    color: var(--tertiary);
-  }
-}
-
-.suggested-topics {
-  margin: 4.5em 0 1em;
-
-  table {
-    margin-top: 10px;
-  }
-}
-
-.suggested-topics .topic-statuses .topic-status {
-  padding: 0;
-  .d-icon {
-    font-size: 1em;
   }
 }
 
@@ -477,11 +460,7 @@ span.post-count {
 
 button.expand-post {
   margin-top: 10px;
-  margin-left: $topic-body-width-padding;
-}
-
-iframe {
-  max-width: 100%;
+  margin-left: var(--topic-body-width-padding);
 }
 
 video {
@@ -491,17 +470,9 @@ video {
 .video {
   // Height determined by aspect-ratio
   max-height: 500px;
+
   > video {
     max-height: unset;
-  }
-}
-
-@-webkit-keyframes fadein {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
   }
 }
 
@@ -530,7 +501,7 @@ video {
 }
 
 .deleted-user-avatar {
-  font-size: $font-up-6;
+  font-size: var(--font-up-6);
 }
 
 .info-line {
@@ -555,6 +526,7 @@ blockquote {
       background-color: var(--primary-very-low);
     }
   }
+
   aside {
     .quote,
     .title,
@@ -564,6 +536,7 @@ blockquote {
       background: var(--primary-very-low);
       border-left: 5px solid var(--primary-low);
     }
+
     aside.quote > blockquote,
     aside.quote > .title {
       border-left: 0;
@@ -582,22 +555,30 @@ blockquote {
 
 // variables are used to calculate the width of .gap
 .topic-body {
-  width: calc(#{$topic-body-width} + (#{$topic-body-width-padding} * 2));
+  width: calc(var(--topic-body-width) + (var(--topic-body-width-padding) * 2));
   float: left;
+  min-width: 0; // prevents some elements, like <pre>, from blowing out the width
   position: relative;
   border-top: 1px solid var(--primary-low);
-  padding: 12px 0 0 0;
+  padding: 0.8em 0 0 0;
+
   .topic-meta-data {
-    padding: 0 $topic-body-width-padding 0.25em $topic-body-width-padding;
+    padding: 0 var(--topic-body-width-padding) 0.25em
+      var(--topic-body-width-padding);
   }
+
   .cooked {
-    padding: 1em $topic-body-width-padding 0.25em $topic-body-width-padding;
+    padding: 1em var(--topic-body-width-padding) 0.25em
+      var(--topic-body-width-padding);
   }
+
   .group-request {
-    padding: 0.5em $topic-body-width-padding 0 $topic-body-width-padding;
+    padding: 0.5em var(--topic-body-width-padding) 0
+      var(--topic-body-width-padding);
   }
+
   a.expand-hidden {
-    padding-left: $topic-body-width-padding;
+    padding-left: var(--topic-body-width-padding);
   }
 }
 
@@ -607,6 +588,8 @@ blockquote {
   width: $topic-avatar-width;
   float: left;
   z-index: z("base") + 1;
+  height: 100%;
+  overflow-anchor: none;
 }
 
 .gap {
@@ -616,13 +599,10 @@ blockquote {
 .topic-area > .loading-container {
   // loader needs to be same width as posts
   width: calc(
-    #{$topic-avatar-width} + #{$topic-body-width} +
-      (#{$topic-body-width-padding} * 2)
+    var(--topic-body-width) + var(--topic-avatar-width) +
+      (var(--topic-body-width-padding) * 2)
   );
-  @media all and (max-width: 790px) {
-    // 32px is (left + right padding * 2) from .wrap in common/base/discourse.scss
-    max-width: calc(100vw - 32px);
-  }
+  max-width: 100%;
 }
 
 /* hide the reply border above the time gap notices */
@@ -633,7 +613,7 @@ blockquote {
 }
 
 .time-gap + .topic-post .embedded-posts.top {
-  border-bottom: 1px solid var(--primary-low);
+  border-bottom: none;
 }
 
 .posts-wrapper {
@@ -641,7 +621,8 @@ blockquote {
   -webkit-font-smoothing: subpixel-antialiased;
 }
 
-.dropdown {
+.dropdown,
+.multiselect {
   position: relative;
 }
 
@@ -661,7 +642,7 @@ blockquote {
   width: 200px;
   position: fixed;
   z-index: z("dropdown") + 1; // 1 higher than .select-posts
-  box-shadow: shadow("card");
+  box-shadow: var(--shadow-card);
   padding: 0.714em;
   margin-bottom: 5px;
   right: 10px;
@@ -670,29 +651,36 @@ blockquote {
     margin-left: 330px;
     left: 50%;
   }
+
   button {
     width: 100%;
     margin: 4px auto;
     display: inline-block;
     text-align: left;
   }
+
   &.hidden {
     display: none;
   }
+
   .controls {
     margin-top: 10px;
   }
+
   p {
-    font-size: $font-down-1;
+    font-size: var(--font-down-1);
     margin: 0 0 10px 0;
   }
+
   p.cancel {
     margin: 10px 0 0 0;
   }
+
   h3 {
-    font-size: $font-up-4;
+    font-size: var(--font-up-4);
     color: var(--primary);
     margin-bottom: 5px;
+
     .d-icon {
       margin-right: 7px;
     }
@@ -753,19 +741,12 @@ span.highlighted {
   color: var(--primary-low-mid);
 }
 
-.read-state {
-  position: absolute;
-  // We use absolute positioning here because we want it to display in the padding
-  align-self: center;
-  color: var(--tertiary-medium);
-  right: 0;
-  font-size: 0.571em;
-}
-
-.read-state.read {
-  visibility: hidden;
-  opacity: 0;
-  transition: visibility 1s, opacity ease-out 1s;
+.topic-post.sticky-avatar {
+  > article > .row > .topic-avatar {
+    position: sticky;
+    top: calc(var(--header-offset) - 0.25em);
+    margin-bottom: 25px;
+  }
 }
 
 /* Tablet (portrait) ----------- */

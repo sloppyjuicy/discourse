@@ -1,8 +1,8 @@
-import Service from "@ember/service";
-import { getOwner } from "@ember/application";
+import Service, { service } from "@ember/service";
 import { Promise } from "rsvp";
+import { getAbsoluteURL, getURLWithCDN } from "discourse/lib/get-url";
+import { disableImplicitInjections } from "discourse/lib/implicit-injections";
 import { fileToImageData } from "discourse/lib/media-optimization-utils";
-import { getAbsoluteURL, getURLWithCDN } from "discourse-common/lib/get-url";
 
 /**
  * This worker follows a particular promise/callback flow to ensure
@@ -20,49 +20,54 @@ import { getAbsoluteURL, getURLWithCDN } from "discourse-common/lib/get-url";
  * will wait for the "installed" message to be handled before continuing
  * with any image optimization work.
  */
+@disableImplicitInjections
 export default class MediaOptimizationWorkerService extends Service {
-  appEvents = getOwner(this).lookup("service:app-events");
+  @service appEvents;
+  @service siteSettings;
+
   worker = null;
   workerUrl = getAbsoluteURL("/javascripts/media-optimization-worker.js");
   currentComposerUploadData = null;
   promiseResolvers = null;
+  workerDoneCount = 0;
+  workerPendingCount = 0;
 
   async optimizeImage(data, opts = {}) {
-    this.usingUppy = data.id && data.id.includes("uppy");
     this.promiseResolvers = this.promiseResolvers || {};
     this.stopWorkerOnError = opts.hasOwnProperty("stopWorkerOnError")
       ? opts.stopWorkerOnError
       : true;
 
-    let file = this.usingUppy ? data : data.files[data.index];
-    if (!/(\.|\/)(jpe?g|png|webp)$/i.test(file.type)) {
-      return this.usingUppy ? Promise.resolve() : data;
+    let file = data;
+    if (!/(\.|\/)(jpe?g|png)$/i.test(file.type)) {
+      return Promise.resolve();
     }
     if (
       file.size <
       this.siteSettings
         .composer_media_optimization_image_bytes_optimization_threshold
     ) {
-      return this.usingUppy ? Promise.resolve() : data;
+      this.logIfDebug(
+        `The file ${file.name} was less than the image optimization bytes threshold (${this.siteSettings.composer_media_optimization_image_bytes_optimization_threshold} bytes), skipping.`,
+        file
+      );
+      return Promise.resolve();
     }
-    await this.ensureAvailiableWorker();
+    await this.ensureAvailableWorker();
 
+    // eslint-disable-next-line no-async-promise-executor
     return new Promise(async (resolve) => {
       this.logIfDebug(`Transforming ${file.name}`);
 
       this.currentComposerUploadData = data;
-      this.promiseResolvers[this.usingUppy ? file.id : file.name] = resolve;
+      this.promiseResolvers[file.id] = resolve;
 
       let imageData;
       try {
-        if (this.usingUppy) {
-          imageData = await fileToImageData(file.data);
-        } else {
-          imageData = await fileToImageData(file);
-        }
+        imageData = await fileToImageData(file.data);
       } catch (error) {
         this.logIfDebug(error);
-        return this.usingUppy ? resolve() : resolve(data);
+        return resolve();
       }
 
       this.worker.postMessage(
@@ -74,26 +79,32 @@ export default class MediaOptimizationWorkerService extends Service {
           width: imageData.width,
           height: imageData.height,
           settings: {
-            resize_threshold: this.siteSettings
-              .composer_media_optimization_image_resize_dimensions_threshold,
-            resize_target: this.siteSettings
-              .composer_media_optimization_image_resize_width_target,
-            resize_pre_multiply: this.siteSettings
-              .composer_media_optimization_image_resize_pre_multiply,
-            resize_linear_rgb: this.siteSettings
-              .composer_media_optimization_image_resize_linear_rgb,
-            encode_quality: this.siteSettings
-              .composer_media_optimization_image_encode_quality,
-            debug_mode: this.siteSettings
-              .composer_media_optimization_debug_mode,
+            resize_threshold:
+              this.siteSettings
+                .composer_media_optimization_image_resize_dimensions_threshold,
+            resize_target:
+              this.siteSettings
+                .composer_media_optimization_image_resize_width_target,
+            resize_pre_multiply:
+              this.siteSettings
+                .composer_media_optimization_image_resize_pre_multiply,
+            resize_linear_rgb:
+              this.siteSettings
+                .composer_media_optimization_image_resize_linear_rgb,
+            encode_quality:
+              this.siteSettings
+                .composer_media_optimization_image_encode_quality,
+            debug_mode:
+              this.siteSettings.composer_media_optimization_debug_mode,
           },
         },
         [imageData.data.buffer]
       );
+      this.workerPendingCount++;
     });
   }
 
-  async ensureAvailiableWorker() {
+  async ensureAvailableWorker() {
     if (this.worker && this.workerInstalled) {
       return Promise.resolve();
     }
@@ -104,8 +115,9 @@ export default class MediaOptimizationWorkerService extends Service {
   }
 
   async install() {
-    this.installPromise = new Promise((resolve) => {
+    this.installPromise = new Promise((resolve, reject) => {
       this.afterInstalled = resolve;
+      this.failedInstall = reject;
       this.logIfDebug("Installing worker.");
       this.startWorker();
       this.registerMessageHandler();
@@ -138,7 +150,9 @@ export default class MediaOptimizationWorkerService extends Service {
       this.workerInstalled = false;
       this.worker.terminate();
       this.worker = null;
+      this.workerDoneCount = 0;
     }
+    this.workerPendingCount = 0;
   }
 
   registerMessageHandler() {
@@ -152,12 +166,13 @@ export default class MediaOptimizationWorkerService extends Service {
             `Finished optimization of ${optimizedFile.name} new size: ${optimizedFile.size}.`
           );
 
-          if (this.usingUppy) {
-            this.promiseResolvers[e.data.fileId](optimizedFile);
-          } else {
-            let data = this.currentComposerUploadData;
-            data.files[data.index] = optimizedFile;
-            this.promiseResolvers[optimizedFile.name](data);
+          this.promiseResolvers[e.data.fileId](optimizedFile);
+
+          this.workerDoneCount++;
+          this.workerPendingCount--;
+          if (this.workerDoneCount > 4 && this.workerPendingCount === 0) {
+            this.logIfDebug("Terminating worker to release memory in WASM.");
+            this.stopWorker();
           }
 
           break;
@@ -170,20 +185,19 @@ export default class MediaOptimizationWorkerService extends Service {
             this.stopWorker();
           }
 
-          if (this.usingUppy) {
-            this.promiseResolvers[e.data.fileId]();
-          } else {
-            this.promiseResolvers[e.data.fileName](
-              this.currentComposerUploadData
-            );
-          }
+          this.promiseResolvers[e.data.fileId]();
+          this.workerPendingCount--;
           break;
         case "installed":
           this.logIfDebug("Worker installed.");
           this.workerInstalled = true;
           this.afterInstalled();
-          this.afterInstalled = null;
-          this.installPromise = null;
+          this.cleanupInstallPromises();
+          break;
+        case "installFailed":
+          this.logIfDebug("Worker failed to install.");
+          this.failedInstall(e.data.errorMessage);
+          this.cleanupInstallPromises();
           break;
         default:
           this.logIfDebug(`Sorry, we are out of ${e}.`);
@@ -191,10 +205,16 @@ export default class MediaOptimizationWorkerService extends Service {
     };
   }
 
-  logIfDebug(message) {
+  cleanupInstallPromises() {
+    this.afterInstalled = null;
+    this.failedInstall = null;
+    this.installPromise = null;
+  }
+
+  logIfDebug(...messages) {
     if (this.siteSettings.composer_media_optimization_debug_mode) {
       // eslint-disable-next-line no-console
-      console.log(message);
+      console.log(...messages);
     }
   }
 }

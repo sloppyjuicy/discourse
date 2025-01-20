@@ -10,16 +10,23 @@ he:
       title: "מדריך סגנון"
       welcome: "כדי להתחיל, יש לבחור בסעיף מהתפריט שמימין."
       categories:
+        syntax: תחביר
         atoms: אטומים
         molecules: מולקולות
         organisms: אורגניזמים
       sections:
+        bem:
+          title: "BEM (מחליף רכיב מקטע)"
         typography:
           title: "טיפוגרפיה"
           example: "ברוך בואך ל־Discourse"
           paragraph: "לורם איפסום דולור סיט אמט, קונסקטורר אדיפיסינג אלית קולורס מונפרד אדנדום סילקוף, מרגשי ומרגשח. עמחליף לפרומי בלוף קינץ תתיח לרעח. לת צשחמי צש בליא, מנסוטו צמלח לביקו ננבי, צמוקו בלוקריה שיצמה ברורק. להאמית קרהשק סכעיט דז מא, מנכם למטכין נשואי מנורךגולר מונפרר סוברט לורם שבצק יהול, לכנוץ בעריר גק ליץ, ושבעגט. ושבעגט לבם סולגק. בראיט ולחת צורק מונחף, בגורמי מגמש. תרבנך וסתעד לכנו סתשם השמה - לתכי מורגם בורק? לתיג ישבעס."
         date_time_inputs:
           title: "קלטי תאריך/שעה"
+        menus:
+          title: "תפריטים"
+        toasts:
+          title: "חלוניות מידע"
         font_scale:
           title: "מערכת גופנים"
         colors:
@@ -27,8 +34,8 @@ he:
         icons:
           title: "סמלים"
           full_list: "הצגת רשימת הסמלים המלאה של Font Awesome"
-        input_fields:
-          title: "שדות קלט"
+        forms:
+          title: "טפסים"
         buttons:
           title: "כפתורים"
         dropdowns:
@@ -67,6 +74,10 @@ he:
           title: "התראות על נושאים"
         post:
           title: "פוסט"
+        post_list:
+          title: "רשימת פוסטים"
+          empty_example: "<PostList /> מצב ריק"
+          populated_example: "<PostList /> מצב מאוכלס"
         topic_map:
           title: "מפת נושאים"
         site_header:
@@ -85,3 +96,13 @@ he:
           title: "סמלי כותרת עליונה"
         spinners:
           title: "שבשבות"
+        empty_state:
+          title: "מצב ריק"
+        tooltips:
+          title: "חלוניות תיאור"
+          description: "תיאור"
+          header: "כותרת"
+          hover_to_see: "יש לעבור מעל כדי לראות חלונית תיאור"
+        char_counter:
+          title: "מונה תווים"
+          placeholder: "נא להקליד כאן טקסט…"

@@ -46,8 +46,8 @@ fi:
       invalid: |-
         Pahoittelen, mutta on matemaattinen mahdottomuus heittää noppia pyytämälläsi tavalla. :confounded:
       not_enough_dice:
-        one: "Minulla on vain %{count} noppa. [Häpeällistä](https://www.toplessrobot.com/2009/04/the_10_most_shameful_rpg_dice.php), tiedän!"
-        other: "Minulla on vain %{count} noppaa. [Häpeällistä](https://www.toplessrobot.com/2009/04/the_10_most_shameful_rpg_dice.php), tiedän!"
+        one: "Minulla on vain %{count} noppa. Häpeällistä, tiedän!"
+        other: "Minulla on vain %{count} noppaa. Häpeällistä, tiedän!"
       out_of_range: |-
         Tiesitkö, että [suurin mahdollinen määrä sivuja](https://www.wired.com/2016/05/mathematical-challenge-of-designing-the-worlds-most-complex-120-sided-dice) matemaattisesti tasapuolisessa nopassa on 120?
       results: |-
@@ -84,6 +84,15 @@ fi:
       "10":
         quote: "Joskus pitää laittaa viatonkin vankilaan. Joskus täytyy poliisin laittaa viaton lusimaan. Arvovalta säilyy. Pelote säilyy. Aina siellä muutama viaton istuu, viaton pulmunen istuu siellä."
         author: "Rauno Repomies televisiosarjassa Pasila"
+      "11":
+        quote: "Rauha kotona, rauha maailmassa."
+        author: "Mustafa Kemal Atatürk"
+      "12":
+        quote: "Koulutus ei ole keino paeta köyhyyttä, se on keino taistella sitä vastaan."
+        author: "Julius Nyerere"
+      "13":
+        quote: "Tuhannen mailin matka alkaa yhdestä askeleesta."
+        author: "Laozi"
       results: |-
         > :left_speech_bubble: _%{quote}_ &mdash; %{author}
     magic_8_ball:
@@ -214,7 +223,7 @@ fi:
 
           – tai käytä viestieditorin <kbd><b>B</b></kbd>- tai <kbd><i>I</i></kbd>-painiketta
         reply: |-
-          Hyvin tehty! HTML ja BBCode käyvät myös muotoiluun. Jos on puhtia, [tästä johdannosta](http://commonmark.org/help) opit lisää. :nerd:
+          Hyvin tehty! HTML ja BBCode käyvät myös muotoiluun. Jos on puhtia, [tästä johdannosta](https://commonmark.org/help) opit lisää. :nerd:
         not_found: |-
           Pahus, en näe muotoilua viestissäsi. :pencil2:
 
@@ -241,8 +250,6 @@ fi:
       bookmark:
         instructions: |-
           Jos haluat oppia lisää, valitse <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> tämän viestin alta ja <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-bookmark.png" width="16" height="16"> **lisää tämä yksityisviestiketju kirjanmerkkeihisi**. Jos teet niin, sinua voi odottaa :gift: tulevaisuudessa!
-        reply: |-
-          Erinomaista! Nyt voit helposti palata takaisin yksityiseen keskusteluumme milloin tahansa [profiilisi kirjanmerkit-välilehden](%{bookmark_url}) kautta. Napsauta profiilikuvaasi yläoikealla &#8599;
         not_found: |-
           Tuota noin, et ole mielestäni kirjanmerkinnyt tämän ketjun viestejä. Löysithän kirjanmerkkikuvakkeen kunkin viestin alta? Voi olla, että sinun täytyy klikata <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16">-kuvaketta, jotta näet sen ja muita toimintoja.
       emoji:
@@ -276,21 +283,13 @@ fi:
 
           (Huomaa, että nimessäni on kansainvälisessä hengessä _disco_, ihan kuin siinä 1970-luvun tanssityylissä. [Rakastan yöelämää!](https://www.youtube.com/watch?v=B_wGI3_sGf8) :dancer:)
       flag:
-        instructions: |-
-          Haluamme pitää keskustelumme ystävällisinä ja tarvitsemme apuasi [pitääksemme asiat sivistyneinä](%{guidelines_url}). Jos huomaat ongelman, ilmoita siitä yksityisesti kirjoittajalle tai [avuliaalle henkilökunnallemme](%{about_url}) liputtamalla asia. Viestin liputtamiselle on monia syitä viattomasta ketjun jakavasta ehdotuksesta aina selkeään yhteisön standardien rikkomukseen. Jos valitset **Jotain muuta**, aloitat yksityisviestikeskustelun valvojien kanssa, jossa voit kysyä lisäkysymyksiä.
-
-          > :imp: Kirjoitin tässä jotain ikävää
-
-          **Merkitse tämä viesti** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> ja valitse **Se on sopimaton** syyksi!
-        reply: |-
-          [Henkilökuntamme](%{base_uri}/groups/staff) saa yksityisen ilmoituksen liputuksesta. Jos riittävän moni yhteisön jäsen liputtaa viestin, sekin riittää viestin automaattiseen piilottamiseen varotoimena. (Koska en oikeasti kirjoittanut mitään tuhmaa :angel:, menin ja poistin liputuksesi.)
         not_found: |-
           Oi voi, tuhmaa viestiäni ei ole vielä liputettu sopimattomaksi. :worried: Voitko liputtaa sen sopimattomaksi **flag** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> -painikkeella? Älä unohda, että saat lisää toimintoja näkyviin <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> -painikkeen takaa.
       search:
         instructions: |-
-          _psst_ … Olen piilottanut yllätyksen tähän ketjuun. Jos kaipaat haastetta, etsi sitä **valitsemalla hakukuvake** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> oikeasta yläkulmasta &#8599;.
+          _psst_ … Olen piilottanut yllätyksen tähän ketjuun. Jos kaipaat haastetta, etsi sitä **valitsemalla hakukuvake** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> oikeasta yläkulmasta &#8599;, valitse "tässä ketjussa" ja hae sitä.
 
-          Kokeile etsiä termiä "kapybara" tästä ketjusta
+          Kokeile etsiä termiä "kapy&#8203;bara" tästä ketjusta
         hidden_message: |-
           Miten sinulta jäi tämä kapybara huomaamatta? :wink:
 
@@ -367,9 +366,9 @@ fi:
         instructions: |-
           Tiesitkö, että viesteissä voi viitata alueisiin ja tunnisteisiin? Esimerkiksi, oletko käynyt alueella %{category}?
 
-          Näppäile lauseen keskellä `#` ja valitse mieleinen alue tai tunniste.
+          Kirjoita # mihin tahansa kohtaan lauseessa ja valitse mieleinen alue tai tunniste.
         not_found: |-
-          Höh, en näe viittauksia alueisiin. Huomioi, ettei `#` saa olla rivinsä ensimmäinen merkki. Kopioisitko tämän seuraavaan vastaukseesi?
+          Höh, en näe viittauksia alueisiin. Kopioisitko tämän seuraavaan vastaukseesi?
 
           ```text
           Voin luoda aluelinkin käyttäen risuaitaa #
@@ -377,12 +376,6 @@ fi:
         reply: |-
           Erinomaista! Muista, että tämä toimii alueiden lisäksi myös tunnisteille, jos ne ovat käytössä täällä.
       change_topic_notification_level:
-        instructions: |-
-          Sinulla on jokaiselle ketjulle ilmoitustaso. Aluksi se on 'tavallinen', jolloin saat tavalliseen tapaan ilmoituksen vain, jos joku puhuu nimenomaan sinulle.
-
-          Oletuksena yksityisviestiketjujen ilmoitustaso on kaikkein korkein eli 'tarkkaillaan', jolloin saat ilmoituksen joka ikisestä viestistä. Voit kuitenkin valita _mille tahansa_ ketjulle ilmoitustason 'tarkkaillaan', 'seurataan' tai 'vaimennettu'.
-
-          Kokeillaanpa vaihtaa tämän ketjun ilmoitustasoa. Ketjun alla on painike, joka näyttää sinun tarkkailevan tätä ketjua. Vaihda ilmoitustasoksi **seurataan**.
         not_found: |-
           Näytät yhä tarkkailevan :eyes: tätä ketjua! Jollet meinaa löytää sitä, ilmoitustasopainike sijaitsee ketjun alla.
         reply: |-

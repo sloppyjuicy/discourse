@@ -1,5 +1,5 @@
-import getURL from "discourse-common/lib/get-url";
 import { next } from "@ember/runloop";
+import getURL from "discourse/lib/get-url";
 let _started = false;
 let cache = {};
 let transitionCount = 0;
@@ -23,6 +23,10 @@ export function startPageTracking(router, appEvents, documentTitle) {
     return;
   }
   router.on("routeDidChange", (transition) => {
+    if (transition.isAborted) {
+      return;
+    }
+
     // we occasionally prevent tracking of replaced pages when only query params changed
     // eg: google analytics
     const replacedOnlyQueryParams =

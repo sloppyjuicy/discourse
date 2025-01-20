@@ -1,45 +1,48 @@
 import Component from "@ember/component";
-import I18n from "I18n";
-import { computed } from "@ember/object";
-import { not } from "@ember/object/computed";
-import discourseComputed from "discourse-common/utils/decorators";
+import { action, computed } from "@ember/object";
+import { not, readOnly } from "@ember/object/computed";
+import discourseComputed from "discourse/lib/decorators";
+import AssociatedGroup from "discourse/models/associated-group";
+import { i18n } from "discourse-i18n";
 
-export default Component.extend({
-  tokenSeparator: "|",
+export default class GroupsFormMembershipFields extends Component {
+  tokenSeparator = "|";
+
+  @readOnly("site.can_associate_groups") showAssociatedGroups;
+  @not("model.automatic") canEdit;
+
+  trustLevelOptions = [
+    {
+      name: i18n("admin.groups.manage.membership.trust_levels_none"),
+      value: 0,
+    },
+    { name: 1, value: 1 },
+    { name: 2, value: 2 },
+    { name: 3, value: 3 },
+    { name: 4, value: 4 },
+  ];
 
   init() {
-    this._super(...arguments);
+    super.init(...arguments);
 
-    this.trustLevelOptions = [
-      {
-        name: I18n.t("admin.groups.manage.membership.trust_levels_none"),
-        value: 0,
-      },
-      { name: 1, value: 1 },
-      { name: 2, value: 2 },
-      { name: 3, value: 3 },
-      { name: 4, value: 4 },
-    ];
-  },
-
-  canEdit: not("model.automatic"),
-
-  groupTrustLevel: computed(
-    "model.grant_trust_level",
-    "trustLevelOptions",
-    function () {
-      return (
-        this.model.get("grant_trust_level") ||
-        this.trustLevelOptions.firstObject.value
-      );
+    if (this.showAssociatedGroups) {
+      this.loadAssociatedGroups();
     }
-  ),
+  }
+
+  @computed("model.grant_trust_level", "trustLevelOptions")
+  get groupTrustLevel() {
+    return (
+      this.model.get("grant_trust_level") ||
+      this.trustLevelOptions.firstObject.value
+    );
+  }
 
   @discourseComputed("model.visibility_level", "model.public_admission")
   disableMembershipRequestSetting(visibility_level, publicAdmission) {
     visibility_level = parseInt(visibility_level, 10);
     return publicAdmission || visibility_level > 1;
-  },
+  }
 
   @discourseComputed(
     "model.visibility_level",
@@ -48,18 +51,22 @@ export default Component.extend({
   disablePublicSetting(visibility_level, allowMembershipRequests) {
     visibility_level = parseInt(visibility_level, 10);
     return allowMembershipRequests || visibility_level > 1;
-  },
+  }
 
-  emailDomains: computed("model.emailDomains", function () {
+  @computed("model.emailDomains")
+  get emailDomains() {
     return this.model.emailDomains.split(this.tokenSeparator).filter(Boolean);
-  }),
+  }
 
-  actions: {
-    onChangeEmailDomainsSetting(value) {
-      this.set(
-        "model.automatic_membership_email_domains",
-        value.join(this.tokenSeparator)
-      );
-    },
-  },
-});
+  loadAssociatedGroups() {
+    AssociatedGroup.list().then((ags) => this.set("associatedGroups", ags));
+  }
+
+  @action
+  onChangeEmailDomainsSetting(value) {
+    this.set(
+      "model.automatic_membership_email_domains",
+      value.join(this.tokenSeparator)
+    );
+  }
+}

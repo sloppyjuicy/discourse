@@ -1,14 +1,9 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
-
-describe TopTopic do
-
-  describe '#sorted_periods' do
-    context "verify enum sequence" do
-      before do
-        @sorted_periods = TopTopic.sorted_periods
-      end
+RSpec.describe TopTopic do
+  describe "#sorted_periods" do
+    context "when verifying enum sequence" do
+      before { @sorted_periods = TopTopic.sorted_periods }
 
       it "'daily' should be at 1st position" do
         expect(@sorted_periods[:daily]).to eq(1)
@@ -22,8 +17,7 @@ describe TopTopic do
 
   it { is_expected.to belong_to :topic }
 
-  context "refresh!" do
-
+  describe ".refresh!" do
     fab!(:t1) { Fabricate(:topic) }
     fab!(:t2) { Fabricate(:topic) }
 
@@ -32,10 +26,7 @@ describe TopTopic do
     end
 
     context "after calculating" do
-
-      before do
-        TopTopic.refresh!
-      end
+      before { TopTopic.refresh! }
 
       it "should have top topics" do
         expect(TopTopic.pluck(:topic_id)).to match_array([t1.id, t2.id])
@@ -43,10 +34,39 @@ describe TopTopic do
     end
   end
 
-  describe "#compute_top_score_for" do
+  describe ".validate_period" do
+    context "when passing a valid period" do
+      it do
+        expect { described_class.validate_period(described_class.periods.first) }.not_to raise_error
+      end
+    end
 
-    fab!(:user) { Fabricate(:user) }
-    fab!(:coding_horror) { Fabricate(:coding_horror) }
+    context "when passing a blank value" do
+      it do
+        expect { described_class.validate_period(nil) }.to raise_error(Discourse::InvalidParameters)
+      end
+    end
+
+    context "when passing an invalid period" do
+      it do
+        expect { described_class.validate_period("bi-weekly") }.to raise_error(
+          Discourse::InvalidParameters,
+        )
+      end
+    end
+
+    context "when passing a non-string value" do
+      it do
+        expect { described_class.validate_period(ActionController::Parameters) }.to raise_error(
+          Discourse::InvalidParameters,
+        )
+      end
+    end
+  end
+
+  describe "#compute_top_score_for" do
+    fab!(:user)
+    fab!(:coding_horror)
 
     fab!(:topic_1) { Fabricate(:topic, posts_count: 10, like_count: 28) }
     fab!(:t1_post_1) { Fabricate(:post, topic: topic_1, like_count: 28, post_number: 1) }
@@ -57,8 +77,8 @@ describe TopTopic do
 
     fab!(:topic_3) { Fabricate(:topic, posts_count: 10) }
     fab!(:t3_post_1) { Fabricate(:post, topic_id: topic_3.id) }
-    let!(:t3_view_1) { TopicViewItem.add(topic_3.id, '127.0.0.1', user) }
-    let!(:t3_view_2) { TopicViewItem.add(topic_3.id, '127.0.0.2', coding_horror) }
+    let!(:t3_view_1) { TopicViewItem.add(topic_3.id, "127.0.0.1", user) }
+    let!(:t3_view_2) { TopicViewItem.add(topic_3.id, "127.0.0.2", coding_horror) }
 
     # Note: all topics has 10 posts so we can skip "0 - ((10 - topics.posts_count) / 20) * #{period}_op_likes_count" calculation
 
@@ -72,9 +92,13 @@ describe TopTopic do
       TopTopic.refresh!
       top_topics = TopTopic.all
 
-      expect(top_topics.where(topic_id: topic_1.id).pluck_first(:yearly_score)).to eq(27)
-      expect(top_topics.where(topic_id: topic_2.id).pluck_first(:yearly_score)).to be_within(0.0000000001).of(18.301029995664)
-      expect(top_topics.where(topic_id: topic_3.id).pluck_first(:yearly_score)).to be_within(0.0000000001).of(10.602059991328)
+      expect(top_topics.where(topic_id: topic_1.id).pick(:yearly_score)).to eq(27)
+      expect(top_topics.where(topic_id: topic_2.id).pick(:yearly_score)).to be_within(
+        0.0000000001,
+      ).of(18.301029995664)
+      expect(top_topics.where(topic_id: topic_3.id).pick(:yearly_score)).to be_within(
+        0.0000000001,
+      ).of(10.602059991328)
 
       # when 'top_topics_formula_log_views_multiplier' setting is changed
       SiteSetting.top_topics_formula_log_views_multiplier = 4
@@ -90,9 +114,13 @@ describe TopTopic do
       TopTopic.refresh!
       top_topics = TopTopic.all
 
-      expect(top_topics.where(topic_id: topic_1.id).pluck_first(:yearly_score)).to eq(27)
-      expect(top_topics.where(topic_id: topic_2.id).pluck_first(:yearly_score)).to be_within(0.0000000001).of(18.301029995664)
-      expect(top_topics.where(topic_id: topic_3.id).pluck_first(:yearly_score)).to be_within(0.0000000001).of(11.2041199826559)
+      expect(top_topics.where(topic_id: topic_1.id).pick(:yearly_score)).to eq(27)
+      expect(top_topics.where(topic_id: topic_2.id).pick(:yearly_score)).to be_within(
+        0.0000000001,
+      ).of(18.301029995664)
+      expect(top_topics.where(topic_id: topic_3.id).pick(:yearly_score)).to be_within(
+        0.0000000001,
+      ).of(11.2041199826559)
 
       # when 'top_topics_formula_first_post_likes_multiplier' setting is changed
       SiteSetting.top_topics_formula_log_views_multiplier = 2 # unchanged
@@ -108,9 +136,13 @@ describe TopTopic do
       TopTopic.refresh!
       top_topics = TopTopic.all
 
-      expect(top_topics.where(topic_id: topic_1.id).pluck_first(:yearly_score)).to eq(69)
-      expect(top_topics.where(topic_id: topic_2.id).pluck_first(:yearly_score)).to be_within(0.0000000001).of(33.301029995664)
-      expect(top_topics.where(topic_id: topic_3.id).pluck_first(:yearly_score)).to be_within(0.0000000001).of(10.602059991328)
+      expect(top_topics.where(topic_id: topic_1.id).pick(:yearly_score)).to eq(69)
+      expect(top_topics.where(topic_id: topic_2.id).pick(:yearly_score)).to be_within(
+        0.0000000001,
+      ).of(33.301029995664)
+      expect(top_topics.where(topic_id: topic_3.id).pick(:yearly_score)).to be_within(
+        0.0000000001,
+      ).of(10.602059991328)
 
       # when 'top_topics_formula_least_likes_per_post_multiplier' setting is changed
       SiteSetting.top_topics_formula_log_views_multiplier = 2 # unchanged
@@ -126,9 +158,13 @@ describe TopTopic do
       TopTopic.refresh!
       top_topics = TopTopic.all
 
-      expect(top_topics.where(topic_id: topic_1.id).pluck_first(:yearly_score)).to eq(30)
-      expect(top_topics.where(topic_id: topic_2.id).pluck_first(:yearly_score)).to be_within(0.0000000001).of(21.301029995664)
-      expect(top_topics.where(topic_id: topic_3.id).pluck_first(:yearly_score)).to be_within(0.0000000001).of(10.602059991328)
+      expect(top_topics.where(topic_id: topic_1.id).pick(:yearly_score)).to eq(30)
+      expect(top_topics.where(topic_id: topic_2.id).pick(:yearly_score)).to be_within(
+        0.0000000001,
+      ).of(21.301029995664)
+      expect(top_topics.where(topic_id: topic_3.id).pick(:yearly_score)).to be_within(
+        0.0000000001,
+      ).of(10.602059991328)
 
       # handles invalid string value
       SiteSetting.top_topics_formula_log_views_multiplier = "not good"
@@ -138,10 +174,20 @@ describe TopTopic do
       TopTopic.refresh!
       top_topics = TopTopic.all
 
-      expect(top_topics.where(topic_id: topic_1.id).pluck_first(:yearly_score)).to eq(27)
-      expect(top_topics.where(topic_id: topic_2.id).pluck_first(:yearly_score)).to be_within(0.0000000001).of(18.301029995664)
-      expect(top_topics.where(topic_id: topic_3.id).pluck_first(:yearly_score)).to be_within(0.0000000001).of(10.602059991328)
+      expect(top_topics.where(topic_id: topic_1.id).pick(:yearly_score)).to eq(27)
+      expect(top_topics.where(topic_id: topic_2.id).pick(:yearly_score)).to be_within(
+        0.0000000001,
+      ).of(18.301029995664)
+      expect(top_topics.where(topic_id: topic_3.id).pick(:yearly_score)).to be_within(
+        0.0000000001,
+      ).of(10.602059991328)
+    end
 
+    it "triggers a DiscourseEvent for each refreshed period" do
+      events = DiscourseEvent.track_events(:top_score_computed) { TopTopic.refresh! }
+      periods = events.map { |e| e[:params].first[:period] }
+
+      expect(periods).to match_array(%i[daily weekly monthly quarterly yearly all])
     end
   end
 end

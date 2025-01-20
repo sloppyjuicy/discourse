@@ -1,23 +1,27 @@
 # frozen_string_literal: true
 
 class TopicTrackingStateSerializer < ApplicationSerializer
-  attributes :topic_id,
-             :highest_post_number,
-             :last_read_post_number,
-             :created_at,
-             :category_id,
-             :notification_level,
-             :created_in_new_period,
-             :unread_not_too_old,
-             :treat_as_new_topic_start_date
+  attributes :data, :meta
 
-  def created_in_new_period
-    return true if !scope
-    object.created_at >= treat_as_new_topic_start_date
+  def data
+    serializer = TopicTrackingStateItemSerializer.new(nil, scope: scope, root: false)
+    # note we may have 1000 rows, avoiding serializer instansitation saves significant time
+    # for 1000 rows this takes it down from 10ms to 3ms on a reasonably fast machine
+    object.map do |item|
+      serializer.object = item
+      serializer.as_json
+    end
   end
 
-  def unread_not_too_old
-    return true if object.first_unread_at.blank?
-    object.updated_at >= object.first_unread_at
+  def meta
+    MessageBus.last_ids(
+      TopicTrackingState::LATEST_MESSAGE_BUS_CHANNEL,
+      TopicTrackingState::RECOVER_MESSAGE_BUS_CHANNEL,
+      TopicTrackingState::DELETE_MESSAGE_BUS_CHANNEL,
+      TopicTrackingState::DESTROY_MESSAGE_BUS_CHANNEL,
+      TopicTrackingState::NEW_MESSAGE_BUS_CHANNEL,
+      TopicTrackingState::UNREAD_MESSAGE_BUS_CHANNEL,
+      TopicTrackingState.unread_channel_key(scope.user.id),
+    )
   end
 end

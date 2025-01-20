@@ -1,25 +1,32 @@
+import { classNames } from "@ember-decorators/component";
 import ComboBoxComponent from "select-kit/components/combo-box";
-import { computed } from "@ember/object";
+import {
+  pluginApiIdentifiers,
+  selectKitOptions,
+} from "select-kit/components/select-kit";
 
-export default ComboBoxComponent.extend({
-  pluginApiIdentifiers: ["timezone-input"],
-  classNames: ["timezone-input"],
-  nameProperty: null,
-  valueProperty: null,
+@classNames("timezone-input")
+@selectKitOptions({
+  filterable: true,
+  allowAny: false,
+})
+@pluginApiIdentifiers("timezone-input")
+export default class TimezoneInput extends ComboBoxComponent {
+  get nameProperty() {
+    return this.isLocalized ? "name" : null;
+  }
 
-  selectKitOptions: {
-    filterable: true,
-    allowAny: false,
-  },
+  get valueProperty() {
+    return this.isLocalized ? "value" : null;
+  }
 
-  content: computed(function () {
-    if (
-      moment.locale() !== "en" &&
-      typeof moment.tz.localizedNames === "function"
-    ) {
-      return moment.tz.localizedNames().mapBy("value");
-    } else {
-      return moment.tz.names();
-    }
-  }),
-});
+  get content() {
+    return this.isLocalized ? moment.tz.localizedNames() : moment.tz.names();
+  }
+
+  get isLocalized() {
+    return (
+      moment.locale() !== "en" && typeof moment.tz.localizedNames === "function"
+    );
+  }
+}

@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 class PollSerializer < ApplicationSerializer
-  attributes :name,
+  attributes :id,
+             :name,
              :type,
              :status,
              :public,
@@ -15,7 +16,8 @@ class PollSerializer < ApplicationSerializer
              :preloaded_voters,
              :chart_type,
              :groups,
-             :title
+             :title,
+             :ranked_choice_outcome
 
   def public
     true
@@ -48,13 +50,15 @@ class PollSerializer < ApplicationSerializer
       PollOptionSerializer.new(
         option,
         root: false,
-        scope: { can_see_results: can_see_results }
+        scope: {
+          can_see_results: can_see_results,
+        },
       ).as_json
     end
   end
 
   def voters
-    object.poll_votes.count('DISTINCT user_id') + object.anonymous_voters.to_i
+    object.voters_count + object.anonymous_voters.to_i
   end
 
   def close
@@ -73,4 +77,11 @@ class PollSerializer < ApplicationSerializer
     object.can_see_voters?(scope.user)
   end
 
+  def include_ranked_choice_outcome?
+    object.ranked_choice?
+  end
+
+  def ranked_choice_outcome
+    DiscoursePoll::RankedChoice.outcome(object.id)
+  end
 end

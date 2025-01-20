@@ -1,11 +1,7 @@
 # frozen_string_literal: true
 
-require "rails_helper"
-
 RSpec.describe InlineUploads, type: :multisite do
-  before do
-    set_cdn_url "https://awesome.com"
-  end
+  before { set_cdn_url "https://awesome.com" }
 
   describe ".process" do
     describe "s3 uploads" do
@@ -22,10 +18,10 @@ RSpec.describe InlineUploads, type: :multisite do
       it "should correct image URLs in multisite" do
         md = <<~MD
         https:#{upload2.url} https:#{upload2.url}
-        #{URI.join(SiteSetting.s3_cdn_url, URI.parse(upload2.url).path).to_s}
+        #{URI.join(SiteSetting.s3_cdn_url, URI.parse(upload2.url).path)}
 
         <img src="#{upload.url}" alt="some image">
-        <img src="#{URI.join(SiteSetting.s3_cdn_url, URI.parse(upload2.url).path).to_s}" alt="some image">
+        <img src="#{URI.join(SiteSetting.s3_cdn_url, URI.parse(upload2.url).path)}" alt="some image">
         <img src="#{upload3.url}">
         MD
 
@@ -33,9 +29,9 @@ RSpec.describe InlineUploads, type: :multisite do
         #{Discourse.base_url}#{upload2.short_path} #{Discourse.base_url}#{upload2.short_path}
         #{Discourse.base_url}#{upload2.short_path}
 
-        ![some image](#{upload.short_url})
-        ![some image](#{upload2.short_url})
-        ![](#{upload3.short_url})
+        <img src="#{upload.short_url}" alt="some image">
+        <img src="#{upload2.short_url}" alt="some image">
+        <img src="#{upload3.short_url}">
         MD
       end
     end

@@ -1,9 +1,10 @@
+import { service } from "@ember/service";
 import RestrictedUserRoute from "discourse/routes/restricted-user";
 
-export default RestrictedUserRoute.extend({
-  showFooter: true,
+export default class PreferencesIndex extends RestrictedUserRoute {
+  @service router;
 
   redirect() {
-    this.transitionTo("preferences.account");
-  },
-});
+    this.router.transitionTo("preferences.account");
+  }
+}

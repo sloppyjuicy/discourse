@@ -1,50 +1,57 @@
+import { getOwner } from "@ember/owner";
+import { setupTest } from "ember-qunit";
 import { module, test } from "qunit";
-import ResultSet from "discourse/models/result-set";
-import createStore from "discourse/tests/helpers/create-store";
 
-module("Unit | Model | result-set", function () {
+module("Unit | Model | result-set", function (hooks) {
+  setupTest(hooks);
+
   test("defaults", function (assert) {
-    const resultSet = ResultSet.create({ content: [] });
-    assert.equal(resultSet.get("length"), 0);
-    assert.equal(resultSet.get("totalRows"), 0);
-    assert.ok(!resultSet.get("loadMoreUrl"));
-    assert.ok(!resultSet.get("loading"));
-    assert.ok(!resultSet.get("loadingMore"));
-    assert.ok(!resultSet.get("refreshing"));
+    const store = getOwner(this).lookup("service:store");
+    const resultSet = store.createRecord("result-set", { content: [] });
+    assert.strictEqual(resultSet.length, 0);
+    assert.strictEqual(resultSet.totalRows, 0);
+    assert.strictEqual(resultSet.loadMoreUrl, null);
+    assert.false(resultSet.loading);
+    assert.false(resultSet.loadingMore);
+    assert.false(resultSet.refreshing);
   });
 
   test("pagination support", async function (assert) {
-    const store = createStore();
+    const store = getOwner(this).lookup("service:store");
     const resultSet = await store.findAll("widget");
-    assert.equal(resultSet.get("length"), 2);
-    assert.equal(resultSet.get("totalRows"), 4);
-    assert.ok(resultSet.get("loadMoreUrl"), "has a url to load more");
-    assert.ok(!resultSet.get("loadingMore"), "it is not loading more");
-    assert.ok(resultSet.get("canLoadMore"));
+    assert.strictEqual(resultSet.length, 2);
+    assert.strictEqual(resultSet.totalRows, 4);
+    assert.strictEqual(
+      resultSet.loadMoreUrl,
+      "/load-more-widgets",
+      "has a url to load more"
+    );
+    assert.false(resultSet.loadingMore, "not loading more");
+    assert.true(resultSet.canLoadMore);
 
     const promise = resultSet.loadMore();
-    assert.ok(resultSet.get("loadingMore"), "it is loading more");
+    assert.true(resultSet.loadingMore, "is loading more");
 
     await promise;
-    assert.ok(!resultSet.get("loadingMore"), "it finished loading more");
-    assert.equal(resultSet.get("length"), 4);
-    assert.ok(!resultSet.get("loadMoreUrl"));
-    assert.ok(!resultSet.get("canLoadMore"));
+    assert.false(resultSet.loadingMore, "finished loading more");
+    assert.strictEqual(resultSet.length, 4);
+    assert.strictEqual(resultSet.loadMoreUrl, null);
+    assert.false(resultSet.canLoadMore);
   });
 
   test("refresh support", async function (assert) {
-    const store = createStore();
+    const store = getOwner(this).lookup("service:store");
     const resultSet = await store.findAll("widget");
-    assert.equal(
-      resultSet.get("refreshUrl"),
+    assert.strictEqual(
+      resultSet.refreshUrl,
       "/widgets?refresh=true",
-      "it has the refresh url"
+      "has the refresh url"
     );
 
     const promise = resultSet.refresh();
-    assert.ok(resultSet.get("refreshing"), "it is refreshing");
+    assert.true(resultSet.refreshing, "is refreshing");
 
     await promise;
-    assert.ok(!resultSet.get("refreshing"), "it is finished refreshing");
+    assert.false(resultSet.refreshing, "finished refreshing");
   });
 });

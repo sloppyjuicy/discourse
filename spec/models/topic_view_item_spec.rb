@@ -1,12 +1,36 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
-
-describe TopicViewItem do
-
+RSpec.describe TopicViewItem do
   def add(topic_id, ip, user_id = nil)
     skip_redis = true
     TopicViewItem.add(topic_id, ip, user_id, nil, skip_redis)
+  end
+
+  it "correctly increase topic view stats" do
+    topic = Fabricate(:topic)
+
+    freeze_time "2021-01-01 12:00"
+
+    add(topic.id, "1.1.1.1", nil)
+    add(topic.id, "1.1.1.1", nil)
+
+    stat = TopicViewStat.find_by(topic_id: topic.id, viewed_at: Date.today)
+    expect(stat.anonymous_views).to eq(2)
+    expect(stat.logged_in_views).to eq(0)
+
+    add(topic.id, "1.1.1.1", topic.user.id)
+    stat.reload
+
+    expect(stat.anonymous_views).to eq(2)
+    expect(stat.logged_in_views).to eq(1)
+
+    freeze_time(1.day.from_now)
+
+    add(topic.id, "1.1.1.1", nil)
+    stat = TopicViewStat.find_by(topic_id: topic.id, viewed_at: Date.today)
+
+    expect(stat.anonymous_views).to eq(1)
+    expect(stat.logged_in_views).to eq(0)
   end
 
   it "raises nothing for dupes" do
@@ -22,8 +46,8 @@ describe TopicViewItem do
   it "increases a users view count" do
     user = Fabricate(:user)
 
-    add(1,  "1.1.1.1", user.id)
-    add(1,  "1.1.1.1", user.id)
+    add(1, "1.1.1.1", user.id)
+    add(1, "1.1.1.1", user.id)
 
     user.user_stat.reload
     expect(user.user_stat.topics_entered).to eq(1)
@@ -38,5 +62,4 @@ describe TopicViewItem do
     add(topic.id, "1.2.3.4", nil)
     expect(TopicViewItem.find_by(topic_id: topic.id, user_id: nil).ip_address).to eq("1.2.3.4")
   end
-
 end

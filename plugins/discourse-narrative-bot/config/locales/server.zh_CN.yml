@@ -46,7 +46,7 @@ zh_CN:
       invalid: |-
         抱歉，数学上无法掷出该骰子组合。:confounded:
       not_enough_dice:
-        other: "我只有 %{count} 个骰子。[Shameful](https://www.toplessrobot.com/2009/04/the_10_most_shameful_rpg_dice.php)，我知道！"
+        other: "我的骰子只有 %{count} 点。羞，我知道！"
       out_of_range: |-
         你知道数学上公平的骰子[最多有 120 个面](https://www.wired.com/2016/05/mathematical-challenge-of-designing-the-worlds-most-complex-120-sided-dice)吗？
       results: |-
@@ -83,6 +83,15 @@ zh_CN:
       "10":
         quote: "人只要敢于梦想，并对此坚信不疑，就一定能达成目标。"
         author: "拿破仑·希尔"
+      "11":
+        quote: "家庭和谐，世界和平。"
+        author: "穆斯塔法·凯末尔·阿塔图尔克"
+      "12":
+        quote: "教育不是摆脱贫困的方式，而是与贫困作斗争的方式。"
+        author: "朱利叶斯·尼雷尔"
+      "13":
+        quote: "千里之行，始于足下。"
+        author: "老子"
       results: |-
         > :left_speech_bubble: _%{quote}_ &mdash; %{author}
     magic_8_ball:
@@ -160,7 +169,7 @@ zh_CN:
           - 我们始终相信[文明社区行为](%{base_uri}/guidelines)。
       onebox:
         instructions: |-
-          接下来，你能与我分享其中一个链接吗？以**一行一个链接的形式**回复，然后它会自动展开为包含一个漂亮的摘要。
+          接下来，你能与我分享其中一个链接吗？以**一行一个链接的形式**回复，然后它会自动展开为包含一个漂亮的总结。
 
           要复制链接，在移动端设备上按住链接，或者右键点击你的鼠标：
 
@@ -187,7 +196,7 @@ zh_CN:
         reply: |-
           漂亮的图片 - 我按下了赞 :heart: 按钮，让你知道我有多欣赏它 :heart_eyes:
         like_not_found: |-
-          你忘记赞 :heart: 我的[帖子](%{url})了吗？:crying_cat_face:
+          你是不是忘记赞 :heart: 我的[帖子](%{url})了？:crying_cat_face:
         not_found: |-
           你好像没有上传图片，所以我选择了一张我_确定_你会喜欢的图片。
 
@@ -204,7 +213,7 @@ zh_CN:
         reply: |-
           感谢你赞我的帖子！
         not_found: |-
-          你忘记赞 :heart: 我的[帖子](%{url})了吗？:crying_cat_face:
+          你是不是忘记赞 :heart: 我的[帖子](%{url})了？:crying_cat_face:
       formatting:
         instructions: |-
           你可以在回复中使用**粗体** 或_斜体_吗？
@@ -213,7 +222,7 @@ zh_CN:
 
           - 或者，按编辑器中的 <kbd><b>B</b></kbd> 或 <kbd><i>I</i></kbd> 按钮
         reply: |-
-          做得好！HTML 和 BBCode 也适用于格式化 - 要了解更多信息，请[试试本教程](http://commonmark.org/help) :nerd:
+          真棒！HTML 和 BBCode 也可用于格式化 – 要了解详情，请[试试此教程](https://commonmark.org/help) :nerd:
         not_found: |-
           哇，我在你的回复中没有找到任何格式。:pencil2:
 
@@ -240,8 +249,6 @@ zh_CN:
       bookmark:
         instructions: |-
           如果你想了解更多信息，请选择下面的 <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> 和 <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-bookmark.png" width="16" height="16"> **将此个人消息加入书签**。如果这样做，你未来可能会获得 :gift:！
-        reply: |-
-          太棒了！现在，你可以随时轻松地从[你个人资料上的“书签”标签页](%{bookmark_url})返回我们的不公开对话。只需在右上角 &#8599; 选择你的个人资料照片
         not_found: |-
           哎呀，我没有在此话题中看到任何书签。你看到每个帖子下方的“加入书签”按钮了吗？如果需要，使用“显示更多”<img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> 来显示更多操作。
       emoji:
@@ -275,21 +282,13 @@ zh_CN:
 
           （是的，我的用户名是 _disco_，和 1970 年流行的舞蹈同名。我[喜欢夜生活](https://www.youtube.com/watch?v=B_wGI3_sGf8)！:dancer:）
       flag:
-        instructions: |-
-          我们都喜欢友善的讨论，我们也需要您的帮助来[一起保持文明](%{guidelines_url})。如果您发现问题，请通过举报来私下告诉作者，或者通知[我们乐于助人的管理人员](%{about_url})。您可能想要举报帖子的原因有很多，从无害的话题拆分建议到明确的社区标准违规。如果您选择 **其他内容**，您将开始与版主的私信讨论，您可以在其中提出更多问题。
-
-          > :imp: 我在这写了些脏话
-
-          **举报此帖子** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> 并选择 **不当言论** 作为原因！
-        reply: |-
-          [我们的管理人员](%{base_uri}/groups/staff)将单独收到你的举报通知。如果有足够的社区成员举报帖子，作为预防措施，它也会被自动隐藏。（因为我实际上并没有写一篇讨厌的帖子:angel:，我现在已经移除了举报。）
         not_found: |-
           哦不，我讨厌的帖子还没有被举报为不当言论。:worried: 你可以使用**举报** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> 将其举报为不当言论吗？不要忘记使用“显示更多”按钮 <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> 来显示每个帖子的更多操作。
       search:
         instructions: |-
-          呼…我已经在这个话题中隐藏了一个惊喜。如果你想挑战的话，点击右上角 &#8599; 的**搜索图标** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> 来找到它。
+          _psst_ … 我在这个话题中隐藏了一个惊喜。如果您愿意接受挑战，**选择右上角 &#8599; 的搜索图标** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16">，选择“在此话题中”，然后进行搜索。
 
-          试试在这个话题中搜索关键字“capy&#8203;bara”
+          尝试在此话题中搜索术语“capy&#8203;bara”
         hidden_message: |-
           你怎么错过了这只水豚？:wink:
 
@@ -364,24 +363,24 @@ zh_CN:
           注意，你只有 %{deletion_after} 小时的时间可以取消删除帖子。
       category_hashtag:
         instructions: |-
-          你知道你可以在你的帖子中引用类别和标签吗？例如，你看到过%{category}类别吗？
+          您知道您可以在帖子中引用类别和标签吗？例如，您有没有看到%{category}类别？
 
-          在句子中输入`#`，然后选择任意类别或标签。
+          在句子中的任何地方输入 `#`，然后选择任何类别或标签。
         not_found: |-
-          哈，我没有在任何地方看到类别。注意，`#` 不能是第一个字符。你能在下一个回复中复制它吗？
+          嗯，我在那里没有看到类别。你能在下一条回复中复制吗？
 
           ```text
-          我可以通过 # 创建一个类别链接
+          我可以通过输入 # 创建一个类别链接
           ```
         reply: |-
           漂亮！记住，这对类别_和_标签（如果已启用）都适用。
       change_topic_notification_level:
         instructions: |-
-          每个话题都有一个通知级别。默认为“常规”，表示只有别人直接回复你时才会通知你。
+          每个话题都有一个通知级别。通知级别从 "正常 "开始，这意味着通常只有在有人直接与你交谈时才会通知你。
 
-          默认情况下，私信中的通知级别被设为最高级别“关注”，即你将收到每个新回复的通知。但是，你可以将任意一个话题的通知级别更改为“关注”、“跟踪”或“已设为免打扰”。
+          默认情况下，个人消息的通知级别设置为最高级别的 "观看"，这意味着每条新回复都会通知你。但你可以将 _any_ 话题的通知级别设置为 "观看"、"跟踪 "或 "静音"。
 
-          让我们尝试更改这个话题的通知级别。在话题底部，你可以看到一个表示你正在**关注**此话题的按钮。你可以将通知级别改成**跟踪**吗？
+          让我们试试更改这个话题的通知级别。在话题的底部，你会发现一个按钮，显示你正在**观看**这个主题。你能将通知级别更改为**跟踪**吗？
         not_found: |-
           看起来你仍在关注 :eyes: 这个话题！如果你找不到，通知级别按钮位于话题底部。
         reply: |-
@@ -390,7 +389,7 @@ zh_CN:
           请注意，当你回复话题或阅读话题超过几分钟时，它会被自动设置为“跟踪”通知级别。你可以在[你的用户偏好设置](%{base_uri}/my/preferences)中更改此设置。
       poll:
         instructions: |-
-          你知道你可以在任何帖子中添加投票吗？尝试使用编辑器中的 <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-gear.png" width="16" height="16"> 齿轮图标来**构建投票**。
+          你知道你可以在任何帖子中添加投票吗？尝试使用编辑器中的 <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-gear.png" width="16" height="16"> 齿轮图标来**插入投票**。
         not_found: |-
           哎呀！你的回复中还没有任何投票。
 
@@ -420,7 +419,7 @@ zh_CN:
           [details=点这里查看运作方式！]
           1. 点击编辑器中的 <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-gear.png" width="16" height="16"> 齿轮图标。
           2. 选择“隐藏详细信息”。
-          3. 编辑详细信息摘要并添加内容。
+          3. 编辑详细信息总结并添加内容。
           [/details]
 
           你可以使用编辑器中的 <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-gear.png" width="16" height="16"> 齿轮图标在你的下一个回复中添加详细信息部分吗？

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-require_dependency 'content_security_policy'
+require "content_security_policy"
 
 class ContentSecurityPolicy
   class Middleware
@@ -11,6 +11,7 @@ class ContentSecurityPolicy
       request = Rack::Request.new(env)
       _, headers, _ = response = @app.call(env)
 
+      return response if headers["Content-Security-Policy"].present?
       return response unless html_response?(headers)
 
       # The EnforceHostname middleware ensures request.host_with_port can be trusted
@@ -19,8 +20,16 @@ class ContentSecurityPolicy
 
       theme_id = env[:resolved_theme_id]
 
-      headers['Content-Security-Policy'] = policy(theme_id, base_url: base_url, path_info: env["PATH_INFO"]) if SiteSetting.content_security_policy
-      headers['Content-Security-Policy-Report-Only'] = policy(theme_id, base_url: base_url, path_info: env["PATH_INFO"]) if SiteSetting.content_security_policy_report_only
+      headers["Content-Security-Policy"] = policy(
+        theme_id,
+        base_url: base_url,
+        path_info: env["PATH_INFO"],
+      ) if SiteSetting.content_security_policy
+      headers["Content-Security-Policy-Report-Only"] = policy(
+        theme_id,
+        base_url: base_url,
+        path_info: env["PATH_INFO"],
+      ) if SiteSetting.content_security_policy_report_only
 
       response
     end
@@ -30,7 +39,7 @@ class ContentSecurityPolicy
     delegate :policy, to: :ContentSecurityPolicy
 
     def html_response?(headers)
-      headers['Content-Type'] && headers['Content-Type'] =~ /html/
+      headers["Content-Type"] && headers["Content-Type"] =~ /html/
     end
   end
 end

@@ -1,27 +1,20 @@
 # frozen_string_literal: true
 
 class DiscourseDiff
-
   MAX_DIFFERENCE = 200
 
   def initialize(before, after)
     @before = before
     @after = after
-    before_html = tokenize_html_blocks(@before)
-    after_html = tokenize_html_blocks(@after)
-    before_markdown = tokenize_line(CGI::escapeHTML(@before))
-    after_markdown = tokenize_line(CGI::escapeHTML(@after))
-
-    @block_by_block_diff = ONPDiff.new(before_html, after_html).paragraph_diff
-    @line_by_line_diff = ONPDiff.new(before_markdown, after_markdown).short_diff
   end
 
   def inline_html
     i = 0
     inline = []
-    while i < @block_by_block_diff.size
-      op_code = @block_by_block_diff[i][1]
-      if op_code == :common then inline << @block_by_block_diff[i][0]
+    while i < block_by_block_diff.size
+      op_code = block_by_block_diff[i][1]
+      if op_code == :common
+        inline << block_by_block_diff[i][0]
       else
         if op_code == :delete
           opposite_op_code = :add
@@ -35,12 +28,16 @@ class DiscourseDiff
           second = i
         end
 
-        if i + 1 < @block_by_block_diff.size && @block_by_block_diff[i + 1][1] == opposite_op_code
-          diff = ONPDiff.new(tokenize_html(@block_by_block_diff[first][0]), tokenize_html(@block_by_block_diff[second][0])).diff
+        if i + 1 < block_by_block_diff.size && block_by_block_diff[i + 1][1] == opposite_op_code
+          diff =
+            ONPDiff.new(
+              tokenize_html(block_by_block_diff[first][0]),
+              tokenize_html(block_by_block_diff[second][0]),
+            ).diff
           inline << generate_inline_html(diff)
           i += 1
         else
-          inline << add_class_or_wrap_in_tags(@block_by_block_diff[i][0], klass)
+          inline << add_class_or_wrap_in_tags(block_by_block_diff[i][0], klass)
         end
       end
       i += 1
@@ -52,11 +49,11 @@ class DiscourseDiff
   def side_by_side_html
     i = 0
     left, right = [], []
-    while i < @block_by_block_diff.size
-      op_code = @block_by_block_diff[i][1]
+    while i < block_by_block_diff.size
+      op_code = block_by_block_diff[i][1]
       if op_code == :common
-        left << @block_by_block_diff[i][0]
-        right << @block_by_block_diff[i][0]
+        left << block_by_block_diff[i][0]
+        right << block_by_block_diff[i][0]
       else
         if op_code == :delete
           opposite_op_code = :add
@@ -72,14 +69,18 @@ class DiscourseDiff
           second = i
         end
 
-        if i + 1 < @block_by_block_diff.size && @block_by_block_diff[i + 1][1] == opposite_op_code
-          diff = ONPDiff.new(tokenize_html(@block_by_block_diff[first][0]), tokenize_html(@block_by_block_diff[second][0])).diff
+        if i + 1 < block_by_block_diff.size && block_by_block_diff[i + 1][1] == opposite_op_code
+          diff =
+            ONPDiff.new(
+              tokenize_html(block_by_block_diff[first][0]),
+              tokenize_html(block_by_block_diff[second][0]),
+            ).diff
           deleted, inserted = generate_side_by_side_html(diff)
           left << deleted
           right << inserted
           i += 1
         else
-          side << add_class_or_wrap_in_tags(@block_by_block_diff[i][0], klass)
+          side << add_class_or_wrap_in_tags(block_by_block_diff[i][0], klass)
         end
       end
       i += 1
@@ -91,12 +92,12 @@ class DiscourseDiff
   def side_by_side_markdown
     i = 0
     table = ["<table class=\"markdown\">"]
-    while i < @line_by_line_diff.size
+    while i < line_by_line_diff.size
       table << "<tr>"
-      op_code = @line_by_line_diff[i][1]
+      op_code = line_by_line_diff[i][1]
       if op_code == :common
-        table << "<td>#{@line_by_line_diff[i][0]}</td>"
-        table << "<td>#{@line_by_line_diff[i][0]}</td>"
+        table << "<td>#{line_by_line_diff[i][0]}</td>"
+        table << "<td>#{line_by_line_diff[i][0]}</td>"
       else
         if op_code == :delete
           opposite_op_code = :add
@@ -108,10 +109,14 @@ class DiscourseDiff
           second = i
         end
 
-        if i + 1 < @line_by_line_diff.size && @line_by_line_diff[i + 1][1] == opposite_op_code
-          before_tokens, after_tokens = tokenize_markdown(@line_by_line_diff[first][0]), tokenize_markdown(@line_by_line_diff[second][0])
+        if i + 1 < line_by_line_diff.size && line_by_line_diff[i + 1][1] == opposite_op_code
+          before_tokens, after_tokens =
+            tokenize_markdown(line_by_line_diff[first][0]),
+            tokenize_markdown(line_by_line_diff[second][0])
           if (before_tokens.size - after_tokens.size).abs > MAX_DIFFERENCE
-            before_tokens, after_tokens = tokenize_line(@line_by_line_diff[first][0]), tokenize_line(@line_by_line_diff[second][0])
+            before_tokens, after_tokens =
+              tokenize_line(line_by_line_diff[first][0]),
+              tokenize_line(line_by_line_diff[second][0])
           end
           diff = ONPDiff.new(before_tokens, after_tokens).short_diff
           deleted, inserted = generate_side_by_side_markdown(diff)
@@ -120,11 +125,11 @@ class DiscourseDiff
           i += 1
         else
           if op_code == :delete
-            table << "<td class=\"diff-del\">#{@line_by_line_diff[i][0]}</td>"
+            table << "<td class=\"diff-del\">#{line_by_line_diff[i][0]}</td>"
             table << "<td></td>"
           else
             table << "<td></td>"
-            table << "<td class=\"diff-ins\">#{@line_by_line_diff[i][0]}</td>"
+            table << "<td class=\"diff-ins\">#{line_by_line_diff[i][0]}</td>"
           end
         end
       end
@@ -138,6 +143,24 @@ class DiscourseDiff
 
   private
 
+  def block_by_block_diff
+    @block_by_block_diff ||=
+      begin
+        before_html = tokenize_html_blocks(@before)
+        after_html = tokenize_html_blocks(@after)
+        ONPDiff.new(before_html, after_html).paragraph_diff
+      end
+  end
+
+  def line_by_line_diff
+    @line_by_line_diff ||=
+      begin
+        before_markdown = tokenize_line(CGI.escapeHTML(@before))
+        after_markdown = tokenize_line(CGI.escapeHTML(@after))
+        ONPDiff.new(before_markdown, after_markdown).short_diff
+      end
+  end
+
   def tokenize_line(text)
     text.scan(/[^\r\n]+[\r\n]*/)
   end
@@ -148,7 +171,7 @@ class DiscourseDiff
     while i < text.size
       if text[i] =~ /\w/
         t << text[i]
-      elsif text[i] =~ /[ \t]/ && t.join =~ /^\w+$/
+      elsif text[i] =~ /[ \t]/ && t.join =~ /\A\w+\z/
         begin
           t << text[i]
           i += 1
@@ -178,7 +201,7 @@ class DiscourseDiff
   def add_class_or_wrap_in_tags(html_or_text, klass)
     result = html_or_text.dup
     index_of_next_chevron = result.index(">")
-    if result.size > 0 && result[0] == '<' && index_of_next_chevron
+    if result.size > 0 && result[0] == "<" && index_of_next_chevron
       index_of_class = result.index("class=")
       if index_of_class.nil? || index_of_class > index_of_next_chevron
         # we do not have a class for the current tag
@@ -202,9 +225,12 @@ class DiscourseDiff
     inline = []
     diff.each do |d|
       case d[1]
-      when :common then inline << d[0]
-      when :delete then inline << add_class_or_wrap_in_tags(d[0], "del")
-      when :add then inline << add_class_or_wrap_in_tags(d[0], "ins")
+      when :common
+        inline << d[0]
+      when :delete
+        inline << add_class_or_wrap_in_tags(d[0], "del")
+      when :add
+        inline << add_class_or_wrap_in_tags(d[0], "ins")
       end
     end
     inline
@@ -217,8 +243,10 @@ class DiscourseDiff
       when :common
         deleted << d[0]
         inserted << d[0]
-      when :delete then deleted << add_class_or_wrap_in_tags(d[0], "del")
-      when :add then inserted << add_class_or_wrap_in_tags(d[0], "ins")
+      when :delete
+        deleted << add_class_or_wrap_in_tags(d[0], "del")
+      when :add
+        inserted << add_class_or_wrap_in_tags(d[0], "ins")
       end
     end
     [deleted, inserted]
@@ -231,15 +259,16 @@ class DiscourseDiff
       when :common
         deleted << d[0]
         inserted << d[0]
-      when :delete then deleted << "<del>#{d[0]}</del>"
-      when :add then inserted << "<ins>#{d[0]}</ins>"
+      when :delete
+        deleted << "<del>#{d[0]}</del>"
+      when :add
+        inserted << "<ins>#{d[0]}</ins>"
       end
     end
     [deleted, inserted]
   end
 
   class HtmlTokenizer < Nokogiri::XML::SAX::Document
-
     attr_accessor :tokens
 
     def initialize
@@ -248,28 +277,26 @@ class DiscourseDiff
 
     def self.tokenize(html)
       me = new
-      parser = Nokogiri::HTML::SAX::Parser.new(me)
+      parser = Nokogiri::HTML4::SAX::Parser.new(me, Encoding::UTF_8)
       parser.parse("<html><body>#{html}</body></html>")
       me.tokens
     end
 
-    USELESS_TAGS = %w{html body}
+    USELESS_TAGS = %w[html body]
     def start_element(name, attributes = [])
       return if USELESS_TAGS.include?(name)
-      attrs = attributes.map { |a| " #{a[0]}=\"#{CGI::escapeHTML(a[1])}\"" }.join
+      attrs = attributes.map { |a| " #{a[0]}=\"#{CGI.escapeHTML(a[1])}\"" }.join
       @tokens << "<#{name}#{attrs}>"
     end
 
-    AUTOCLOSING_TAGS = %w{area base br col embed hr img input meta}
+    AUTOCLOSING_TAGS = %w[area base br col embed hr img input meta]
     def end_element(name)
       return if USELESS_TAGS.include?(name) || AUTOCLOSING_TAGS.include?(name)
       @tokens << "</#{name}>"
     end
 
     def characters(string)
-      @tokens.concat string.scan(/\W|\w+[ \t]*/).map { |x| CGI::escapeHTML(x) }
+      @tokens.concat string.scan(/\W|\w+[ \t]*/).map { |x| CGI.escapeHTML(x) }
     end
-
   end
-
 end

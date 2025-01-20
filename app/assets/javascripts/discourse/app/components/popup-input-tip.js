@@ -1,76 +1,62 @@
-import { alias, not } from "@ember/object/computed";
-import discourseComputed, { observes } from "discourse-common/utils/decorators";
 import Component from "@ember/component";
-import { iconHTML } from "discourse-common/lib/icon-library";
+import { not, or, reads } from "@ember/object/computed";
+import { service } from "@ember/service";
+import { htmlSafe } from "@ember/template";
+import {
+  attributeBindings,
+  classNameBindings,
+  tagName,
+} from "@ember-decorators/component";
+import discourseComputed from "discourse/lib/decorators";
 
-export default Component.extend({
-  classNameBindings: [":popup-tip", "good", "bad", "lastShownAt::hide"],
-  attributeBindings: ["role"],
-  animateAttribute: null,
-  bouncePixels: 6,
-  bounceDelay: 100,
-  rerenderTriggers: ["validation.reason"],
-  closeIcon: `${iconHTML("times-circle")}`.htmlSafe(),
-  tipReason: null,
+@tagName("a")
+@classNameBindings(":popup-tip", "good", "bad", "lastShownAt::hide")
+@attributeBindings("role", "ariaLabel", "tabindex")
+export default class PopupInputTip extends Component {
+  @service composer;
+
+  tipReason = null;
+  tabindex = "0";
+
+  @or("shownAt", "validation.lastShownAt") lastShownAt;
+  @reads("validation.failed") bad;
+  @not("bad") good;
 
   @discourseComputed("bad")
   role(bad) {
     if (bad) {
       return "alert";
     }
-  },
+  }
+
+  @discourseComputed("validation.reason")
+  ariaLabel(reason) {
+    return reason?.replace(/(<([^>]+)>)/gi, "");
+  }
+
+  dismiss() {
+    this.set("shownAt", null);
+    this.composer.clearLastValidatedAt();
+    this.element.previousElementSibling?.focus();
+  }
 
   click() {
-    this.set("shownAt", null);
-    this.set("validation.lastShownAt", null);
-  },
+    this.dismiss();
+  }
 
-  bad: alias("validation.failed"),
-  good: not("bad"),
-
-  @discourseComputed("shownAt", "validation.lastShownAt")
-  lastShownAt(shownAt, lastShownAt) {
-    return shownAt || lastShownAt;
-  },
-
-  @observes("lastShownAt")
-  bounce() {
-    if (this.lastShownAt) {
-      let $elem = $(this.element);
-      if (!this.animateAttribute) {
-        this.animateAttribute = $elem.css("left") === "auto" ? "right" : "left";
-      }
-      if (this.animateAttribute === "left") {
-        this.bounceLeft($elem);
-      } else {
-        this.bounceRight($elem);
-      }
+  keyDown(event) {
+    if (event.key === "Enter") {
+      this.dismiss();
     }
-  },
+  }
 
   didReceiveAttrs() {
-    this._super(...arguments);
+    super.didReceiveAttrs(...arguments);
     let reason = this.get("validation.reason");
     if (reason) {
-      this.set("tipReason", `${reason}`.htmlSafe());
+      this.set("tipReason", htmlSafe(`${reason}`));
     } else {
       this.set("tipReason", null);
     }
-  },
-
-  bounceLeft($elem) {
-    for (let i = 0; i < 5; i++) {
-      $elem
-        .animate({ left: "+=" + this.bouncePixels }, this.bounceDelay)
-        .animate({ left: "-=" + this.bouncePixels }, this.bounceDelay);
-    }
-  },
-
-  bounceRight($elem) {
-    for (let i = 0; i < 5; i++) {
-      $elem
-        .animate({ right: "-=" + this.bouncePixels }, this.bounceDelay)
-        .animate({ right: "+=" + this.bouncePixels }, this.bounceDelay);
-    }
-  },
-});
+  }
+}

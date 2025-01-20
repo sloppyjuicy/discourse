@@ -1,56 +1,76 @@
-import { gt, not, or } from "@ember/object/computed";
-import { propertyNotEqual, setting } from "discourse/lib/computed";
-import CanCheckEmails from "discourse/mixins/can-check-emails";
-import Controller from "@ember/controller";
-import EmberObject from "@ember/object";
-import I18n from "I18n";
-import bootbox from "bootbox";
-import discourseComputed from "discourse-common/utils/decorators";
-import { findAll } from "discourse/models/login-method";
-import getURL from "discourse-common/lib/get-url";
-import { iconHTML } from "discourse-common/lib/icon-library";
+import Controller, { inject as controller } from "@ember/controller";
+import EmberObject, { action, computed } from "@ember/object";
+import { alias, gt, not, or } from "@ember/object/computed";
+import { next } from "@ember/runloop";
+import { service } from "@ember/service";
+import UserStatusModal from "discourse/components/modal/user-status";
 import { popupAjaxError } from "discourse/lib/ajax-error";
+import CanCheckEmailsHelper from "discourse/lib/can-check-emails-helper";
+import { propertyNotEqual, setting } from "discourse/lib/computed";
+import discourseComputed from "discourse/lib/decorators";
+import { exportUserArchive } from "discourse/lib/export-csv";
+import getURL from "discourse/lib/get-url";
+import DiscourseURL from "discourse/lib/url";
+import { findAll } from "discourse/models/login-method";
+import { i18n } from "discourse-i18n";
 
-export default Controller.extend(CanCheckEmails, {
+export default class AccountController extends Controller {
+  @service dialog;
+  @service modal;
+  @controller user;
+
+  @setting("enable_names") canEditName;
+  @setting("enable_user_status") canSelectUserStatus;
+  @setting("moderators_view_emails") canModeratorsViewEmails;
+
+  @alias("user.viewingSelf") canDownloadPosts;
+  @not("currentUser.can_delete_account") cannotDeleteAccount;
+  @or("model.isSaving", "deleting", "cannotDeleteAccount") deleteDisabled;
+  @gt("model.availableTitles.length", 0) canSelectTitle;
+  @gt("model.availableFlairs.length", 0) canSelectFlair;
+  @propertyNotEqual("model.id", "currentUser.id") disableConnectButtons;
+
+  canSaveUser = true;
+  newNameInput = null;
+  newTitleInput = null;
+  newPrimaryGroupInput = null;
+  newStatus = null;
+  revoking = null;
+
   init() {
-    this._super(...arguments);
+    super.init(...arguments);
 
     this.saveAttrNames = [
       "name",
       "title",
       "primary_group_id",
       "flair_group_id",
+      "status",
     ];
     this.set("revoking", {});
-  },
-
-  canEditName: setting("enable_names"),
-  canSaveUser: true,
-
-  newNameInput: null,
-  newTitleInput: null,
-  newPrimaryGroupInput: null,
-
-  revoking: null,
-
-  cannotDeleteAccount: not("currentUser.can_delete_account"),
-  deleteDisabled: or("model.isSaving", "deleting", "cannotDeleteAccount"),
+  }
 
   reset() {
     this.set("passwordProgress", null);
-  },
+  }
+
+  @computed("model.id", "currentUser.id")
+  get canCheckEmails() {
+    return new CanCheckEmailsHelper(
+      this.model,
+      this.canModeratorsViewEmails,
+      this.currentUser
+    ).canCheckEmails;
+  }
 
   @discourseComputed()
   nameInstructions() {
-    return I18n.t(
-      this.siteSettings.full_name_required
+    return i18n(
+      this.site.full_name_required_for_signup
         ? "user.name.instructions_required"
         : "user.name.instructions"
     );
-  },
-
-  canSelectTitle: gt("model.availableTitles.length", 0),
-  canSelectFlair: gt("model.availableFlairs.length", 0),
+  }
 
   @discourseComputed("model.filteredGroups")
   canSelectPrimaryGroup(primaryGroupOptions) {
@@ -58,12 +78,12 @@ export default Controller.extend(CanCheckEmails, {
       primaryGroupOptions.length > 0 &&
       this.siteSettings.user_selected_primary_groups
     );
-  },
+  }
 
   @discourseComputed("model.associated_accounts")
   associatedAccountsLoaded(associatedAccounts) {
     return typeof associatedAccounts !== "undefined";
-  },
+  }
 
   @discourseComputed("model.associated_accounts.[]")
   authProviders(accounts) {
@@ -77,9 +97,7 @@ export default Controller.extend(CanCheckEmails, {
     });
 
     return result.filter((value) => value.account || value.method.can_connect);
-  },
-
-  disableConnectButtons: propertyNotEqual("model.id", "currentUser.id"),
+  }
 
   @discourseComputed(
     "model.email",
@@ -112,7 +130,7 @@ export default Controller.extend(CanCheckEmails, {
     }
 
     return emails.sort((a, b) => a.email.localeCompare(b.email));
-  },
+  }
 
   @discourseComputed(
     "model.second_factor_enabled",
@@ -128,99 +146,134 @@ export default Controller.extend(CanCheckEmails, {
       return false;
     }
     return findAll().length > 0;
-  },
+  }
 
-  actions: {
-    save() {
-      this.set("saved", false);
+  @discourseComputed(
+    "siteSettings.max_allowed_secondary_emails",
+    "model.can_edit_email"
+  )
+  canAddEmail(maxAllowedSecondaryEmails, canEditEmail) {
+    return maxAllowedSecondaryEmails > 0 && canEditEmail;
+  }
 
-      this.model.setProperties({
-        name: this.newNameInput,
-        title: this.newTitleInput,
-        primary_group_id: this.newPrimaryGroupInput,
-        flair_group_id: this.newFlairGroupId,
+  @action
+  resendConfirmationEmail(email, event) {
+    event?.preventDefault();
+    email.set("resending", true);
+    this.model
+      .addEmail(email.email)
+      .then(() => {
+        email.set("resent", true);
+      })
+      .finally(() => {
+        email.set("resending", false);
       });
+  }
 
-      return this.model
-        .save(this.saveAttrNames)
-        .then(() => this.set("saved", true))
-        .catch(popupAjaxError);
-    },
+  @action
+  showUserStatusModal(status) {
+    this.modal.show(UserStatusModal, {
+      model: {
+        status,
+        hidePauseNotifications: true,
+        saveAction: (s) => this.set("newStatus", s),
+        deleteAction: () => this.set("newStatus", null),
+      },
+    });
+  }
 
-    setPrimaryEmail(email) {
-      this.model.setPrimaryEmail(email).catch(popupAjaxError);
-    },
+  @action
+  save() {
+    this.set("saved", false);
 
-    destroyEmail(email) {
-      this.model.destroyEmail(email);
-    },
+    this.model.setProperties({
+      name: this.newNameInput,
+      title: this.newTitleInput,
+      primary_group_id: this.newPrimaryGroupInput,
+      flair_group_id: this.newFlairGroupId,
+      status: this.newStatus,
+    });
 
-    resendConfirmationEmail(email) {
-      email.set("resending", true);
-      this.model
-        .addEmail(email.email)
-        .then(() => {
-          email.set("resent", true);
-        })
-        .finally(() => {
-          email.set("resending", false);
-        });
-    },
+    return this.model
+      .save(this.saveAttrNames)
+      .then(() => this.set("saved", true))
+      .catch(popupAjaxError);
+  }
 
-    delete() {
-      this.set("deleting", true);
-      const message = I18n.t("user.delete_account_confirm"),
-        model = this.model,
-        buttons = [
-          {
-            label: I18n.t("cancel"),
-            class: "d-modal-cancel",
-            link: true,
-            callback: () => {
-              this.set("deleting", false);
-            },
+  @action
+  setPrimaryEmail(email) {
+    this.model.setPrimaryEmail(email).catch(popupAjaxError);
+  }
+
+  @action
+  destroyEmail(email) {
+    this.model.destroyEmail(email);
+  }
+
+  @action
+  delete() {
+    this.dialog.alert({
+      message: i18n("user.delete_account_confirm"),
+      buttons: [
+        {
+          icon: "triangle-exclamation",
+          label: i18n("user.delete_account"),
+          class: "btn-danger",
+          action: () => {
+            return this.model.delete().then(
+              () => {
+                next(() => {
+                  this.dialog.alert({
+                    message: i18n("user.deleted_yourself"),
+                    didConfirm: () =>
+                      DiscourseURL.redirectAbsolute(getURL("/")),
+                    didCancel: () => DiscourseURL.redirectAbsolute(getURL("/")),
+                  });
+                });
+              },
+              () => {
+                next(() =>
+                  this.dialog.alert(i18n("user.delete_yourself_not_allowed"))
+                );
+                this.set("deleting", false);
+              }
+            );
           },
-          {
-            label:
-              iconHTML("exclamation-triangle") + I18n.t("user.delete_account"),
-            class: "btn btn-danger",
-            callback() {
-              model.delete().then(
-                () => {
-                  bootbox.alert(
-                    I18n.t("user.deleted_yourself"),
-                    () => (window.location = getURL("/"))
-                  );
-                },
-                () => {
-                  bootbox.alert(I18n.t("user.delete_yourself_not_allowed"));
-                  this.set("deleting", false);
-                }
-              );
-            },
-          },
-        ];
-      bootbox.dialog(message, buttons, { classes: "delete-account" });
-    },
+        },
+        {
+          label: i18n("composer.cancel"),
+        },
+      ],
+    });
+  }
 
-    revokeAccount(account) {
-      this.set(`revoking.${account.name}`, true);
+  @action
+  revokeAccount(account) {
+    this.set(`revoking.${account.name}`, true);
 
-      this.model
-        .revokeAssociatedAccount(account.name)
-        .then((result) => {
-          if (result.success) {
-            this.model.associated_accounts.removeObject(account);
-          } else {
-            bootbox.alert(result.message);
-          }
-        })
-        .catch(popupAjaxError)
-        .finally(() => this.set(`revoking.${account.name}`, false));
-    },
+    this.model
+      .revokeAssociatedAccount(account.name)
+      .then((result) => {
+        if (result.success) {
+          this.model.associated_accounts.removeObject(account);
+        } else {
+          this.dialog.alert(result.message);
+        }
+      })
+      .catch(popupAjaxError)
+      .finally(() => this.set(`revoking.${account.name}`, false));
+  }
 
-    connectAccount(method) {
-      method.doLogin({ reconnect: true });
-    },
-  },
-});
+  @action
+  connectAccount(method) {
+    method.doLogin({ reconnect: true });
+  }
+
+  @action
+  exportUserArchive() {
+    this.dialog.yesNoConfirm({
+      message: i18n("user.download_archive.confirm"),
+      didConfirm: () => exportUserArchive(),
+    });
+  }
+}

@@ -11,6 +11,8 @@ ja:
         other: "投票者数"
       total_votes:
         other: "合計得票数"
+      votes:
+        other: "%{count} 票"
       average_rating: "平均評価: <strong>%{average}</strong>。"
       public:
         title: "投票は<strong>公開</strong>されています。"
@@ -23,24 +25,36 @@ ja:
           title: "結果は投票が<strong>クローズ</strong>になると表示されます。"
         staff:
           title: "結果は<strong>スタッフ</strong>メンバーにのみ表示されます。"
+        tabs:
+          votes: "投票"
+          outcome: "結果"
       multiple:
         help:
           at_least_min_options:
-            other: "少なくともオプションを <strong>%{count}</strong> 個を選択してください。"
+            other: "少なくとも <strong>%{count} 個のオプション</strong>を選択してください。"
           up_to_max_options:
-            other: "オプションを <strong>%{count}</strong> 個まで選択してください。"
+            other: "最大 <strong>%{count} 個のオプション</strong>を選択してください。"
           x_options:
-            other: "オプションを <strong>%{count}</strong> 個選択してください。"
-          between_min_and_max_options: "<strong>%{min}</strong>～<strong>%{max}</strong> 個のオプションを選択してください。"
+            other: "<strong>%{count} 個のオプション</strong>を選択してください。"
+          between_min_and_max_options: "<strong>%{min} 個から %{max} 個までのオプション</strong>を選択してください。"
       cast-votes:
         title: "投票する"
         label: "今すぐ投票！"
       show-results:
         title: "投票結果を表示する"
-        label: "結果を表示する"
+        label: "結果"
+      show-tally:
+        title: "投票数で投票結果を表示する"
+        label: "集計を表示"
+      show-percentage:
+        title: "投票結果をパーセント率で表示する"
+        label: "パーセント率で表示"
+      remove-vote:
+        title: "投票の削除"
+        label: "投票を取り消す"
       hide-results:
         title: "自分の投票に戻る"
-        label: "投票を表示する"
+        label: "投票"
       group-results:
         title: "ユーザーフィールド別に投票をグループ化"
         label: "内訳を表示する"
@@ -64,6 +78,25 @@ ja:
         breakdown: "内訳"
         percentage: "割合"
         count: "票数"
+      ranked_choice:
+        title:
+          rounds: "ラウンド"
+          outcome: "結果"
+        none: "なし"
+        majority: "過半数"
+        eliminated: "排除"
+        round: "ラウンド"
+        winner:
+          other: "%{count} ラウンドの末、%{winner} が勝者となりました。"
+        tied:
+          other: "%{count} ラウンドの末、次の候補者が引き分けとなりました:"
+      options:
+        label: "オプション"
+        ranked_choice:
+          abstain: "棄権"
+          highest_priority: "(最優先)"
+          lowest_priority: "(最低優先)"
+          login: "ログインして投票！"
       error_while_toggling_status: "この投票のステータスを切り替える際にエラーが発生しました。"
       error_while_casting_votes: "投票の際にエラーが発生しました。"
       error_while_fetching_voters: "投票者を表示する際にエラーが発生しました。"
@@ -82,6 +115,7 @@ ja:
           label: タイプ
           regular: 単一選択
           multiple: 複数選択
+          ranked_choice: ランク付けされた選択肢
           number: 数字評価
         poll_result:
           label: 結果を表示する...

@@ -1,20 +1,22 @@
 .body-page {
   /* covers /about, /faq, /guidelines, /tos, /privacy, and login-required */
-  width: 100%;
   max-width: 700px;
+  background: var(--d-content-background);
   .about-page & {
     max-width: unset;
-    section:not(.admins):not(.moderators):not(.category-moderators) {
+    section:not(.admins):not(.moderators):not(.category-moderators):not(
+        .about__admins
+      ):not(.about__moderators):not(.about__header) {
       max-width: 700px;
     }
     .about.category-moderators {
-      .badge-wrapper.bullet .badge-category {
+      .badge-category__wrapper .badge-category {
         color: var(--primary);
       }
     }
   }
   .mobile-view & {
-    font-size: $font-0;
+    font-size: var(--font-0);
   }
   li {
     margin-bottom: 8px;

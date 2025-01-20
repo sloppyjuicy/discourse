@@ -1,5 +1,6 @@
-import { UploadPreProcessorPlugin } from "discourse/lib/uppy-plugin-base";
 import { Promise } from "rsvp";
+import { bind } from "discourse/lib/decorators";
+import { UploadPreProcessorPlugin } from "discourse/lib/uppy-plugin-base";
 import { HUGE_FILE_THRESHOLD_BYTES } from "discourse/mixins/uppy-upload";
 
 export default class UppyChecksum extends UploadPreProcessorPlugin {
@@ -23,6 +24,12 @@ export default class UppyChecksum extends UploadPreProcessorPlugin {
       );
       return false;
     }
+    if (!Blob.prototype.arrayBuffer) {
+      this._consoleWarn(
+        "The required File API is unavailable in this browser."
+      );
+      return false;
+    }
     if (!this._hasCryptoCipher()) {
       this._consoleWarn(
         "The required cipher suite is unavailable in this browser."
@@ -33,6 +40,7 @@ export default class UppyChecksum extends UploadPreProcessorPlugin {
     return true;
   }
 
+  @bind
   _generateChecksum(fileIds) {
     if (!this._canUseSubtleCrypto()) {
       return this._skipAll(fileIds, true);
@@ -85,14 +93,14 @@ export default class UppyChecksum extends UploadPreProcessorPlugin {
   }
 
   _hasCryptoCipher() {
-    return window.crypto && window.crypto.subtle && window.crypto.subtle.digest;
+    return window.crypto?.subtle?.digest;
   }
 
   install() {
-    this._install(this._generateChecksum.bind(this));
+    this._install(this._generateChecksum);
   }
 
   uninstall() {
-    this._uninstall(this._generateChecksum.bind(this));
+    this._uninstall(this._generateChecksum);
   }
 }

@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
 class ReviewableSerializer < ApplicationSerializer
-
   class_attribute :_payload_for_serialization
 
   attributes(
     :id,
-    :status,
     :type,
     :topic_id,
     :topic_url,
@@ -17,16 +15,19 @@ class ReviewableSerializer < ApplicationSerializer
     :can_edit,
     :score,
     :version,
-    :target_created_by_trust_level
+    :target_created_by_trust_level,
+    :created_from_flag?,
   )
 
-  has_one :created_by, serializer: UserWithCustomFieldsSerializer, root: 'users'
-  has_one :target_created_by, serializer: UserWithCustomFieldsSerializer, root: 'users'
+  attribute :status_for_database, key: :status
+
+  has_one :created_by, serializer: UserWithCustomFieldsSerializer, root: "users"
+  has_one :target_created_by, serializer: UserWithCustomFieldsSerializer, root: "users"
   has_one :topic, serializer: ListableTopicSerializer
   has_many :editable_fields, serializer: ReviewableEditableFieldSerializer, embed: :objects
   has_many :reviewable_scores, serializer: ReviewableScoreSerializer
   has_many :bundled_actions, serializer: ReviewableBundledActionSerializer
-  has_one :claimed_by, serializer: UserWithCustomFieldsSerializer, root: 'users'
+  has_one :claimed_by, serializer: UserWithCustomFieldsSerializer, root: "users"
 
   # Used to keep track of our payload attributes
   class_attribute :_payload_for_serialization
@@ -48,7 +49,7 @@ class ReviewableSerializer < ApplicationSerializer
   end
 
   def claimed_by
-    return nil unless @options[:claimed_topics].present?
+    return nil if @options[:claimed_topics].blank?
     @options[:claimed_topics][object.topic_id]
   end
 
@@ -59,7 +60,7 @@ class ReviewableSerializer < ApplicationSerializer
   def self.create_attribute(name, field)
     attribute(name)
 
-    class_eval <<~GETTER
+    class_eval <<~RUBY
       def #{name}
         #{field}
       end
@@ -67,14 +68,12 @@ class ReviewableSerializer < ApplicationSerializer
       def include_#{name}?
         #{name}.present?
       end
-    GETTER
+    RUBY
   end
 
   # This is easier than creating an AMS method for each attribute
   def self.target_attributes(*attributes)
-    attributes.each do |a|
-      create_attribute(a, "object.target&.#{a}")
-    end
+    attributes.each { |a| create_attribute(a, "object.target&.#{a}") }
   end
 
   def self.payload_attributes(*attributes)
@@ -98,6 +97,10 @@ class ReviewableSerializer < ApplicationSerializer
     end
   end
 
+  def created_from_flag?
+    false
+  end
+
   def topic_tags
     object.topic.tags.map(&:name)
   end
@@ -107,7 +110,9 @@ class ReviewableSerializer < ApplicationSerializer
   end
 
   def target_url
-    return Discourse.base_url + object.target.url if object.target.is_a?(Post) && object.target.present?
+    if object.target.is_a?(Post) && object.target.present?
+      return Discourse.base_url + object.target.url
+    end
     topic_url
   end
 
@@ -134,5 +139,4 @@ class ReviewableSerializer < ApplicationSerializer
   def target_created_by_trust_level
     object&.target_created_by&.trust_level
   end
-
 end

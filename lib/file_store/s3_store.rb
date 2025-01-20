@@ -2,59 +2,70 @@
 
 require "uri"
 require "mini_mime"
-require_dependency "file_store/base_store"
-require_dependency "s3_helper"
-require_dependency "file_helper"
+require "file_store/base_store"
+require "s3_helper"
+require "file_helper"
 
 module FileStore
-
   class S3Store < BaseStore
-    TOMBSTONE_PREFIX ||= "tombstone/"
+    TOMBSTONE_PREFIX = "tombstone/"
+
+    delegate :abort_multipart,
+             :presign_multipart_part,
+             :list_multipart_parts,
+             :complete_multipart,
+             to: :s3_helper
 
     def initialize(s3_helper = nil)
       @s3_helper = s3_helper
     end
 
     def s3_helper
-      @s3_helper ||= S3Helper.new(s3_bucket,
-        Rails.configuration.multisite ? multisite_tombstone_prefix : TOMBSTONE_PREFIX
-      )
+      @s3_helper ||=
+        S3Helper.new(
+          s3_bucket,
+          Rails.configuration.multisite ? multisite_tombstone_prefix : TOMBSTONE_PREFIX,
+          use_accelerate_endpoint: SiteSetting.Upload.enable_s3_transfer_acceleration,
+        )
     end
 
     def store_upload(file, upload, content_type = nil)
       upload.url = nil
       path = get_path_for_upload(upload)
-      url, upload.etag = store_file(
-        file,
-        path,
-        filename: upload.original_filename,
-        content_type: content_type,
-        cache_locally: true,
-        private_acl: upload.secure?
-      )
+      url, upload.etag =
+        store_file(
+          file,
+          path,
+          filename: upload.original_filename,
+          content_type: content_type,
+          cache_locally: true,
+          private_acl: upload.secure?,
+        )
       url
     end
 
-    def move_existing_stored_upload(existing_external_upload_key, upload, content_type = nil)
+    def move_existing_stored_upload(existing_external_upload_key:, upload: nil, content_type: nil)
       upload.url = nil
       path = get_path_for_upload(upload)
-      url, upload.etag = store_file(
-        nil,
-        path,
-        filename: upload.original_filename,
-        content_type: content_type,
-        cache_locally: false,
-        private_acl: upload.secure?,
-        move_existing: true,
-        existing_external_upload_key: existing_external_upload_key
-      )
+      url, upload.etag =
+        store_file(
+          nil,
+          path,
+          filename: upload.original_filename,
+          content_type: content_type,
+          cache_locally: false,
+          private_acl: upload.secure?,
+          move_existing: true,
+          existing_external_upload_key: existing_external_upload_key,
+        )
       url
     end
 
     def store_optimized_image(file, optimized_image, content_type = nil, secure: false)
       optimized_image.url = nil
       path = get_path_for_optimized_image(optimized_image)
-      url, optimized_image.etag = store_file(file, path, content_type: content_type, private_acl: secure)
+      url, optimized_image.etag =
+        store_file(file, path, content_type: content_type, private_acl: secure)
       url
     end
 
@@ -77,21 +88,19 @@ module FileStore
       # cache file locally when needed
       cache_file(file, File.basename(path)) if opts[:cache_locally]
       options = {
-        acl: opts[:private_acl] ? "private" : "public-read",
-        cache_control: 'max-age=31556952, public, immutable',
-        content_type: opts[:content_type].presence || MiniMime.lookup_by_filename(filename)&.content_type
+        acl: SiteSetting.s3_use_acls ? (opts[:private_acl] ? "private" : "public-read") : nil,
+        cache_control: "max-age=31556952, public, immutable",
+        content_type:
+          opts[:content_type].presence || MiniMime.lookup_by_filename(filename)&.content_type,
       }
 
-      # add a "content disposition: attachment" header with the original
-      # filename for everything but safe images (not SVG). audio and video will
-      # still stream correctly in HTML players, and when a direct link is
-      # provided to any file but an image it will download correctly in the
-      # browser.
-      if !FileHelper.is_inline_image?(filename)
-        options[:content_disposition] = ActionDispatch::Http::ContentDisposition.format(
-          disposition: "attachment", filename: filename
-        )
-      end
+      # Only add a "content disposition: attachment" header for svgs
+      # see https://github.com/discourse/discourse/commit/31e31ef44973dc4daaee2f010d71588ea5873b53.
+      # Adding this header for all files would break the ability to view attachments in the browser
+      options[:content_disposition] = ActionDispatch::Http::ContentDisposition.format(
+        disposition: FileHelper.is_svg?(filename) ? "attachment" : "inline",
+        filename: filename,
+      )
 
       path.prepend(File.join(upload_path, "/")) if Rails.configuration.multisite
 
@@ -99,11 +108,7 @@ module FileStore
       if opts[:move_existing] && opts[:existing_external_upload_key]
         original_path = opts[:existing_external_upload_key]
         options[:apply_metadata_to_destination] = true
-        path, etag = s3_helper.copy(
-          original_path,
-          path,
-          options: options
-        )
+        path, etag = s3_helper.copy(original_path, path, options: options)
         delete_file(original_path)
       else
         path, etag = s3_helper.upload(file, path, options)
@@ -135,7 +140,7 @@ module FileStore
 
       begin
         parsed_url = URI.parse(UrlHelper.encode(url))
-      rescue
+      rescue StandardError
         # There are many exceptions possible here including Addressable::URI:: exceptions
         # and URI:: exceptions, catch all may seem wide, but it makes no sense to raise ever
         # on an invalid url here
@@ -154,7 +159,6 @@ module FileStore
         else
           return true
         end
-        return false
       end
 
       return false if SiteSetting.Upload.s3_cdn_url.blank?
@@ -162,7 +166,10 @@ module FileStore
       s3_cdn_url = URI.parse(SiteSetting.Upload.s3_cdn_url || "")
       cdn_hostname = s3_cdn_url.hostname
 
-      return true if cdn_hostname.presence && url[cdn_hostname] && (s3_cdn_url.path.blank? || parsed_url.path.starts_with?(s3_cdn_url.path))
+      if cdn_hostname.presence && url[cdn_hostname] &&
+           (s3_cdn_url.path.blank? || parsed_url.path.starts_with?(s3_cdn_url.path))
+        return true
+      end
       false
     end
 
@@ -179,7 +186,11 @@ module FileStore
     end
 
     def s3_upload_host
-      SiteSetting.Upload.s3_cdn_url.present? ? SiteSetting.Upload.s3_cdn_url : "https:#{absolute_base_url}"
+      if SiteSetting.Upload.s3_cdn_url.present?
+        SiteSetting.Upload.s3_cdn_url
+      else
+        "https:#{absolute_base_url}"
+      end
     end
 
     def external?
@@ -201,46 +212,63 @@ module FileStore
 
     def path_for(upload)
       url = upload&.url
-      FileStore::LocalStore.new.path_for(upload) if url && url[/^\/[^\/]/]
+      FileStore::LocalStore.new.path_for(upload) if url && url[%r{\A/[^/]}]
     end
 
     def url_for(upload, force_download: false)
-      upload.secure? || force_download ?
-        presigned_get_url(get_upload_key(upload), force_download: force_download, filename: upload.original_filename) :
+      if upload.secure? || force_download
+        presigned_get_url(
+          get_upload_key(upload),
+          force_download: force_download,
+          filename: upload.original_filename,
+        )
+      elsif SiteSetting.s3_use_cdn_url_for_all_uploads
+        cdn_url(upload.url)
+      else
         upload.url
-    end
-
-    def path_from_url(url)
-      URI.parse(url).path.delete_prefix("/")
+      end
     end
 
     def cdn_url(url)
       return url if SiteSetting.Upload.s3_cdn_url.blank?
-      schema = url[/^(https?:)?\/\//, 1]
+      schema = url[%r{\A(https?:)?//}, 1]
       folder = s3_bucket_folder_path.nil? ? "" : "#{s3_bucket_folder_path}/"
-      url.sub(File.join("#{schema}#{absolute_base_url}", folder), File.join(SiteSetting.Upload.s3_cdn_url, "/"))
+      url.sub(
+        File.join("#{schema}#{absolute_base_url}", folder),
+        File.join(SiteSetting.Upload.s3_cdn_url, "/"),
+      )
     end
 
-    def signed_url_for_path(path, expires_in: S3Helper::DOWNLOAD_URL_EXPIRES_AFTER_SECONDS, force_download: false)
+    def signed_url_for_path(
+      path,
+      expires_in: SiteSetting.s3_presigned_get_url_expires_after_seconds,
+      force_download: false
+    )
       key = path.sub(absolute_base_url + "/", "")
       presigned_get_url(key, expires_in: expires_in, force_download: force_download)
     end
 
-    def signed_url_for_temporary_upload(file_name, expires_in: S3Helper::UPLOAD_URL_EXPIRES_AFTER_SECONDS, metadata: {})
+    def signed_request_for_temporary_upload(
+      file_name,
+      expires_in: S3Helper::UPLOAD_URL_EXPIRES_AFTER_SECONDS,
+      metadata: {}
+    )
       key = temporary_upload_path(file_name)
-      presigned_url(
+      s3_helper.presigned_request(
         key,
         method: :put_object,
         expires_in: expires_in,
         opts: {
           metadata: metadata,
-          acl: "private"
-        }
+          acl: SiteSetting.s3_use_acls ? "private" : nil,
+        },
       )
     end
 
     def temporary_upload_path(file_name)
-      s3_bucket_folder_path.nil? ? super(file_name) : super(file_name, folder_prefix: s3_bucket_folder_path)
+      folder_prefix =
+        s3_bucket_folder_path.nil? ? upload_path : File.join(s3_bucket_folder_path, upload_path)
+      FileStore::BaseStore.temporary_upload_path(file_name, folder_prefix: folder_prefix)
     end
 
     def object_from_path(path)
@@ -258,31 +286,56 @@ module FileStore
     end
 
     def s3_bucket
-      raise Discourse::SiteSettingMissing.new("s3_upload_bucket") if SiteSetting.Upload.s3_upload_bucket.blank?
+      if SiteSetting.Upload.s3_upload_bucket.blank?
+        raise Discourse::SiteSettingMissing.new("s3_upload_bucket")
+      end
       SiteSetting.Upload.s3_upload_bucket.downcase
     end
 
     def list_missing_uploads(skip_optimized: false)
-      if SiteSetting.enable_s3_inventory
-        require 's3_inventory'
-        S3Inventory.new(s3_helper, :upload).backfill_etags_and_list_missing
-        S3Inventory.new(s3_helper, :optimized).backfill_etags_and_list_missing unless skip_optimized
+      if s3_inventory_bucket = SiteSetting.s3_inventory_bucket
+        s3_options = {}
+
+        if (s3_inventory_bucket_region = SiteSetting.s3_inventory_bucket_region).present?
+          s3_options[:region] = s3_inventory_bucket_region
+        end
+
+        S3Inventory.new(:upload, s3_inventory_bucket:, s3_options:).backfill_etags_and_list_missing
+
+        unless skip_optimized
+          S3Inventory.new(:optimized, s3_inventory_bucket:).backfill_etags_and_list_missing
+        end
       else
         list_missing(Upload.by_users, "original/")
         list_missing(OptimizedImage, "optimized/") unless skip_optimized
       end
     end
 
-    def update_upload_ACL(upload)
+    def update_upload_ACL(upload, optimized_images_preloaded: false)
       key = get_upload_key(upload)
       update_ACL(key, upload.secure?)
 
-      upload.optimized_images.find_each do |optimized_image|
-        optimized_image_key = get_path_for_optimized_image(optimized_image)
-        update_ACL(optimized_image_key, upload.secure?)
+      # If we do find_each when the images have already been preloaded with
+      # includes(:optimized_images), then the optimized_images are fetched
+      # from the database again, negating the preloading if this operation
+      # is done on a large amount of uploads at once (see Jobs::SyncAclsForUploads)
+      if optimized_images_preloaded
+        upload.optimized_images.each do |optimized_image|
+          update_optimized_image_acl(optimized_image, secure: upload.secure)
+        end
+      else
+        upload.optimized_images.find_each do |optimized_image|
+          update_optimized_image_acl(optimized_image, secure: upload.secure)
+        end
       end
 
       true
+    end
+
+    def update_optimized_image_acl(optimized_image, secure: false)
+      optimized_image_key = get_path_for_optimized_image(optimized_image)
+      optimized_image_key.prepend(File.join(upload_path, "/")) if Rails.configuration.multisite
+      update_ACL(optimized_image_key, secure)
     end
 
     def download_file(upload, destination_path)
@@ -309,93 +362,30 @@ module FileStore
         s3_options: FileStore::ToS3Migration.s3_options_from_site_settings,
         migrate_to_multisite: Rails.configuration.multisite,
       ).migrate
-
     ensure
       FileUtils.rm(public_upload_path) if File.symlink?(public_upload_path)
       FileUtils.mv(old_upload_path, public_upload_path) if old_upload_path
     end
 
-    def abort_multipart(key:, upload_id:)
-      s3_helper.s3_client.abort_multipart_upload(
-        bucket: s3_bucket_name,
-        key: key,
-        upload_id: upload_id
-      )
-    end
-
     def create_multipart(file_name, content_type, metadata: {})
       key = temporary_upload_path(file_name)
-      response = s3_helper.s3_client.create_multipart_upload(
-        acl: "private",
-        bucket: s3_bucket_name,
-        key: key,
-        content_type: content_type,
-        metadata: metadata
-      )
-      { upload_id: response.upload_id, key: key }
-    end
-
-    def presign_multipart_part(upload_id:, key:, part_number:)
-      presigned_url(
-        key,
-        method: :upload_part,
-        expires_in: S3Helper::UPLOAD_URL_EXPIRES_AFTER_SECONDS,
-        opts: {
-          part_number: part_number,
-          upload_id: upload_id
-        }
-      )
-    end
-
-    def list_multipart_parts(upload_id:, key:)
-      s3_helper.s3_client.list_parts(
-        bucket: s3_bucket_name,
-        key: key,
-        upload_id: upload_id
-      )
-    end
-
-    def complete_multipart(upload_id:, key:, parts:)
-      s3_helper.s3_client.complete_multipart_upload(
-        bucket: s3_bucket_name,
-        key: key,
-        upload_id: upload_id,
-        multipart_upload: {
-          parts: parts
-        }
-      )
+      s3_helper.create_multipart(key, content_type, metadata: metadata)
     end
 
     private
-
-    def presigned_url(
-      key,
-      method:,
-      expires_in: S3Helper::UPLOAD_URL_EXPIRES_AFTER_SECONDS,
-      opts: {}
-    )
-      signer = Aws::S3::Presigner.new(client: s3_helper.s3_client)
-      signer.presigned_url(
-        method,
-        {
-          bucket: s3_bucket_name,
-          key: key,
-          expires_in: expires_in,
-        }.merge(opts)
-      )
-    end
 
     def presigned_get_url(
       url,
       force_download: false,
       filename: false,
-      expires_in: S3Helper::DOWNLOAD_URL_EXPIRES_AFTER_SECONDS
+      expires_in: SiteSetting.s3_presigned_get_url_expires_after_seconds
     )
       opts = { expires_in: expires_in }
 
       if force_download && filename
         opts[:response_content_disposition] = ActionDispatch::Http::ContentDisposition.format(
-          disposition: "attachment", filename: filename
+          disposition: "attachment",
+          filename: filename,
         )
       end
 
@@ -413,7 +403,9 @@ module FileStore
 
     def update_ACL(key, secure)
       begin
-        object_from_path(key).acl.put(acl: secure ? "private" : "public-read")
+        object_from_path(key).acl.put(
+          acl: SiteSetting.s3_use_acls ? (secure ? "private" : "public-read") : nil,
+        )
       rescue Aws::S3::Errors::NoSuchKey
         Rails.logger.warn("Could not update ACL on upload with key: '#{key}'. Upload is missing.")
       end
@@ -421,36 +413,38 @@ module FileStore
 
     def list_missing(model, prefix)
       connection = ActiveRecord::Base.connection.raw_connection
-      connection.exec('CREATE TEMP TABLE verified_ids(val integer PRIMARY KEY)')
+      connection.exec("CREATE TEMP TABLE verified_ids(val integer PRIMARY KEY)")
       marker = nil
       files = s3_helper.list(prefix, marker)
 
-      while files.count > 0 do
+      while files.count > 0
         verified_ids = []
 
         files.each do |f|
-          id = model.where("url LIKE '%#{f.key}' AND etag = '#{f.etag}'").pluck_first(:id)
+          id = model.where("url LIKE '%#{f.key}' AND etag = '#{f.etag}'").pick(:id)
           verified_ids << id if id.present?
           marker = f.key
         end
 
-        verified_id_clause = verified_ids.map { |id| "('#{PG::Connection.escape_string(id.to_s)}')" }.join(",")
+        verified_id_clause =
+          verified_ids.map { |id| "('#{PG::Connection.escape_string(id.to_s)}')" }.join(",")
         connection.exec("INSERT INTO verified_ids VALUES #{verified_id_clause}")
         files = s3_helper.list(prefix, marker)
       end
 
-      missing_uploads = model.joins('LEFT JOIN verified_ids ON verified_ids.val = id').where("verified_ids.val IS NULL")
+      missing_uploads =
+        model.joins("LEFT JOIN verified_ids ON verified_ids.val = id").where(
+          "verified_ids.val IS NULL",
+        )
       missing_count = missing_uploads.count
 
       if missing_count > 0
-        missing_uploads.find_each do |upload|
-          puts upload.url
-        end
+        missing_uploads.find_each { |upload| puts upload.url }
 
         puts "#{missing_count} of #{model.count} #{model.name.underscore.pluralize} are missing"
       end
     ensure
-      connection.exec('DROP TABLE verified_ids') unless connection.nil?
+      connection.exec("DROP TABLE verified_ids") unless connection.nil?
     end
   end
 end

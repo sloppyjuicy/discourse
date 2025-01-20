@@ -1,11 +1,7 @@
-import {
-  acceptance,
-  exists,
-  queryAll,
-} from "discourse/tests/helpers/qunit-helpers";
 import { click, currentRouteName, fillIn, visit } from "@ember/test-helpers";
-import PreloadStore from "discourse/lib/preload-store";
 import { test } from "qunit";
+import PreloadStore from "discourse/lib/preload-store";
+import { acceptance } from "discourse/tests/helpers/qunit-helpers";
 
 acceptance("Account Created", function () {
   test("account created - message", async function (assert) {
@@ -14,13 +10,11 @@ acceptance("Account Created", function () {
     });
     await visit("/u/account-created");
 
-    assert.ok(exists(".account-created"));
-    assert.equal(
-      queryAll(".account-created .ac-message").text().trim(),
-      "Hello World",
-      "it displays the message"
-    );
-    assert.notOk(exists(".activation-controls"));
+    assert.dom(".account-created").exists();
+    assert
+      .dom(".account-created .success-info")
+      .hasText("Hello World", "it displays the message");
+    assert.dom(".activation-controls").doesNotExist();
   });
 
   test("account created - resend email", async function (assert) {
@@ -33,18 +27,15 @@ acceptance("Account Created", function () {
 
     await visit("/u/account-created");
 
-    assert.ok(exists(".account-created"));
-    assert.equal(
-      queryAll(".account-created .ac-message").text().trim(),
-      "Hello World",
-      "it displays the message"
-    );
+    assert.dom(".account-created").exists();
+    assert
+      .dom(".account-created .success-info")
+      .hasText("Hello World", "it displays the message");
 
     await click(".activation-controls .resend");
 
-    assert.equal(currentRouteName(), "account-created.resent");
-    const email = queryAll(".account-created .ac-message b").text();
-    assert.equal(email, "eviltrout@example.com");
+    assert.strictEqual(currentRouteName(), "account-created.resent");
+    assert.dom(".account-created b").hasText("eviltrout@example.com");
   });
 
   test("account created - update email - cancel", async function (assert) {
@@ -59,12 +50,12 @@ acceptance("Account Created", function () {
 
     await click(".activation-controls .edit-email");
 
-    assert.equal(currentRouteName(), "account-created.edit-email");
-    assert.ok(exists(".activation-controls .btn-primary:disabled"));
+    assert.strictEqual(currentRouteName(), "account-created.edit-email");
+    assert.dom(".activation-controls .btn-primary").isDisabled();
 
     await click(".activation-controls .edit-cancel");
 
-    assert.equal(currentRouteName(), "account-created.index");
+    assert.strictEqual(currentRouteName(), "account-created.index");
   });
 
   test("account created - update email - submit", async function (assert) {
@@ -76,19 +67,14 @@ acceptance("Account Created", function () {
     });
 
     await visit("/u/account-created");
-
     await click(".activation-controls .edit-email");
-
-    assert.ok(exists(".activation-controls .btn-primary:disabled"));
+    assert.dom(".activation-controls .btn-primary").isDisabled();
 
     await fillIn(".activate-new-email", "newemail@example.com");
-
-    assert.notOk(exists(".activation-controls .btn-primary:disabled"));
+    assert.dom(".activation-controls .btn-primary").isNotDisabled();
 
     await click(".activation-controls .btn-primary");
-
-    assert.equal(currentRouteName(), "account-created.resent");
-    const email = queryAll(".account-created .ac-message b").text();
-    assert.equal(email, "newemail@example.com");
+    assert.strictEqual(currentRouteName(), "account-created.resent");
+    assert.dom(".account-created b").hasText("newemail@example.com");
   });
 });

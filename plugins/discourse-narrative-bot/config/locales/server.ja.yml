@@ -46,7 +46,7 @@ ja:
       invalid: |-
         ごめんなさい。このサイコロの組み合わせを出すのは数学的に無理です。:confounded:
       not_enough_dice:
-        other: "サイコロは %{count} 個しかありません。[Shameful](https://www.toplessrobot.com/2009/04/the_10_most_shameful_rpg_dice.php)"
+        other: "サイコロが %{count} 個しかありません。残念です！"
       out_of_range: |-
         数学的に公正なサイコロの[目の最大数](https://www.wired.com/2016/05/mathematical-challenge-of-designing-the-worlds-most-complex-120-sided-dice)は 120 であることを知っていますか？
       results: |-
@@ -83,6 +83,15 @@ ja:
       "10":
         quote: "人の心が思い描き信じたものは何でも、実現可能である。"
         author: "ナポレオン・ヒル"
+      "11":
+        quote: "家庭に平和を、世界に平和を。"
+        author: "ムスタファ・ケマル・アタテュルク"
+      "12":
+        quote: "教育は貧困から逃れるための手段ではなく、貧困に立ち向かうための手段である。"
+        author: "ジュリアス・ニエレレ"
+      "13":
+        quote: "千里の道も一歩から。"
+        author: "老子"
       results: |-
         > :left_speech_bubble: _%{quote}_ &mdash; %{author}
     magic_8_ball:
@@ -157,7 +166,7 @@ ja:
 
           - セキュリティの都合上、新規ユーザーはできることには限られています。使用回数が増えれば、新しい機能 (https://blog.discourse.org/2018/06/understanding-discourse-trust-levels/) (とバッジ (%{base_uri}/badges)) を得られます。
 
-          - コミュニティでは常に礼節ある行動 (%{base_uri}/guidelines) を取ってもらえると信じています。
+          - コミュニティーでは常に礼節ある行動 (%{base_uri}/guidelines) を取ってもらえると信じています。
       onebox:
         instructions: |-
           次に、下のいずれかのリンクを私にシェアしてください。**リンクだけを 1 行で**返信すると、気の利いた要約を含めて自動的に展開表示されます。
@@ -213,7 +222,7 @@ ja:
 
           - または、エディタの <kbd><b>B</b></kbd> または <kbd><i>I</i></kbd> ボタンを押すこともできます。
         reply: |-
-          よくできました！HTML と BBCode はフォーマットにも使用できます。さらに詳しくは、[こちらのチュートリアルを試してみましょう](http://commonmark.org/help) :nerd:
+          よくできました！HTML と BBCode はフォーマットにも使用できます。さらに詳しくは、[こちらのチュートリアルを試してみましょう](https://commonmark.org/help) :nerd:
         not_found: |-
           あれれ？返信にフォーマットが付けられていないようです。:pencil2:
 
@@ -240,8 +249,6 @@ ja:
       bookmark:
         instructions: |-
           もっと詳しく知るには、下の <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> を選択して<img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-bookmark.png" width="16" height="16"> **この個人メッセージをブックマーク**してください。ブックマークすると、後で :gift: がもらえるかも！
-        reply: |-
-          お見事！これで、[プロフィールのブックマークタブ](%{bookmark_url})からこの非公開の会話にいつでも簡単に戻れるようになりました。右上のプロフィール写真を選択するだけです &#8599;
         not_found: |-
           あれ？このトピックにはブックマークがありませんね。投稿の下にあるブックマークを見つけられましたか？必要であれば、もっと表示 <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> を使うと、ほかの操作を表示できます。
       emoji:
@@ -276,19 +283,11 @@ ja:
           (そうです。私のユーザー名は 70年代ダンスブームの _disco_ と綴ります。[ナイトライフ万歳!
           ](https://www.youtube.com/watch?v=B_wGI3_sGf8) :dancer:)
       flag:
-        instructions: |-
-          ディスカッションを友好的に保ちたいと思っています。そこで、[マナーを維持](%{guidelines_url})するにはあなたの力が必要です。問題に遭遇したら、非公開で作成者に知らせるか、[スタッフ](%{about_url})に通報してください。投稿を通報する理由は、無害なトピックの分割から明確なコミュニティ規則の違反までさまざまです。**その他**を選択すると、モデレーターと非公開メッセージでのディスカッションを始められます。さらに詳しく質問できます。
-
-          > :imp: 不愉快なことを書き込みました
-
-          早速**この投稿を通報** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> して、理由に「**不適切**」を選択しましょう！
-        reply: |-
-          この通報は[スタッフ](%{base_uri}/groups/staff)に非公開で通知されます。十分な数のコミュニティメンバーからこの投稿への通報が寄せられた場合は、予防措置として自動的に非表示になります。(実際には、不愉快な内容は書き込まなかった :angel: ので、この通報は取り消しておきました。)
         not_found: |-
           おや？私の不愉快な投稿はまだ不適切の通報を受けていないようです。:worried: **通報** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> を使って投稿を不適切だと通報してみてください。投稿の操作をさらに表示するには、もっと表示ボタン <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> を使用してくださいね。
       search:
         instructions: |-
-          _ちょっと_ … このトピックにサプライズを仕掛けましたよ。受けて立つなら、右上&#8599; にある**検索アイコンを選択** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16">して、サプライズを検索してみましょう。
+          _トントン_ … このトピックにサプライズを仕掛けましたよ。受けて立つなら、右上&#8599; にある**検索アイコンを選択** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16">し、'このトピック' を選択してからサプライズを検索してみましょう。
 
           このトピックから "カピ&#8203;バラ" という言葉を探してみましょう
         hidden_message: |-
@@ -331,7 +330,7 @@ ja:
         instructions: |-
           誰でもミスは起こします。でも心配する必要はありません。投稿はいつでも編集して修正することができます！
 
-          まずは、あなたの代わりに作成した投稿を**削除**することから始めましょう。
+          まずは、あなたの代わりに作成した投稿を**編集**することから始めましょう。
         not_found: |-
           あなたのために私が作成した[post](%{url})をまだ編集していないようです。もう一度やってみましょう。
 
@@ -365,11 +364,11 @@ ja:
           投稿の削除を取り消せるのは %{deletion_after} 時間以内ですので、注意しましょう。
       category_hashtag:
         instructions: |-
-          投稿内でカテゴリとタグを言及できることを知っていますか？たとえば、%{category} カテゴリというのを見たことがありませんか？
+          投稿内でカテゴリとタグを参照できることをご存知ですか？たとえば %{category} カテゴリというのを見たことがありませんか？
 
           文中で `#` を入力すると、カテゴリまたはタグを選択できます。
         not_found: |-
-          あれ？どこにもカテゴリが見当たりません。`#` を最初の文字として使用することはできません。次の返信に、これをコピーしてみてください。
+          あれ？カテゴリがどこにも見当たりません。次の返信に、これをコピーしてみてください。
 
           ```text
           # を使ってカテゴリリンクを作成できます
@@ -377,12 +376,6 @@ ja:
         reply: |-
           お見事！これはカテゴリだけでなく、_さらに_タグが有効になっている場合にはタグでも動作します。
       change_topic_notification_level:
-        instructions: |-
-          すべてのトピックに通知レベルがあります。誰かがあなたに直接話しかけている場合にのみ通知される '通常' で始まります。
-
-          デフォルトでは、非公開メッセージの通知レベルは最高レベルの 'ウォッチ中' に設定されています。この設定では、新しい返信があるたびに通知が届きます。ただし、トピックの通知レベルを 'ウォッチ'、'追跡'、または 'ミュート' にオーバーライドすることができます。
-
-          このトピックの通知レベルを変更してみましょう。トピックの一番下に、このトピックを**ウォッチ中**と示されています。この通知レベルを**追跡**に変更できますか？
         not_found: |-
           まだこのトピックをウォッチ中 :eyes: のようです！設定の場所がわかりませんか？通知レベルボタンは、トピックの一番下にあります。
         reply: |-

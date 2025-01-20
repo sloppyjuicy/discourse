@@ -1,13 +1,11 @@
-import I18n from "I18n";
 import { computed } from "@ember/object";
-import error from "@ember/error";
+import { i18n } from "discourse-i18n";
 
 let _topicFooterButtons = {};
 
 export function registerTopicFooterButton(button) {
   if (!button.id) {
-    error(`Attempted to register a topic button: ${button} with no id.`);
-    return;
+    throw new Error(`Attempted to register a topic button with no id.`);
   }
 
   if (_topicFooterButtons[button.id]) {
@@ -15,6 +13,8 @@ export function registerTopicFooterButton(button) {
   }
 
   const defaultButton = {
+    type: "inline-button",
+
     // id of the button, required
     id: null,
 
@@ -51,6 +51,9 @@ export function registerTopicFooterButton(button) {
 
     // display order, higher comes first
     priority: 0,
+
+    // is this button displayed for anonymous users ?
+    anonymousOnly: false,
   };
 
   const normalizedButton = Object.assign(defaultButton, button);
@@ -60,10 +63,9 @@ export function registerTopicFooterButton(button) {
     !normalizedButton.title &&
     !normalizedButton.translatedTitle
   ) {
-    error(
+    throw new Error(
       `Attempted to register a topic button: ${button.id} with no icon or title.`
     );
-    return;
   }
 
   _topicFooterButtons[normalizedButton.id] = normalizedButton;
@@ -94,49 +96,53 @@ export function getTopicFooterButtons() {
       return Object.values(_topicFooterButtons)
         .filter((button) => _compute(button, "displayed"))
         .map((button) => {
-          const discourseComputedButon = {};
+          const discourseComputedButton = {};
 
-          discourseComputedButon.id = button.id;
+          discourseComputedButton.id = button.id;
+          discourseComputedButton.type = button.type;
 
           const label = _compute(button, "label");
-          discourseComputedButon.label = label
-            ? I18n.t(label)
+          discourseComputedButton.label = label
+            ? i18n(label)
             : _compute(button, "translatedLabel");
 
           const ariaLabel = _compute(button, "ariaLabel");
           if (ariaLabel) {
-            discourseComputedButon.ariaLabel = I18n.t(ariaLabel);
+            discourseComputedButton.ariaLabel = i18n(ariaLabel);
           } else {
             const translatedAriaLabel = _compute(button, "translatedAriaLabel");
-            discourseComputedButon.ariaLabel =
-              translatedAriaLabel || discourseComputedButon.label;
+            discourseComputedButton.ariaLabel =
+              translatedAriaLabel || discourseComputedButton.label;
           }
 
           const title = _compute(button, "title");
-          discourseComputedButon.title = title
-            ? I18n.t(title)
+          discourseComputedButton.title = title
+            ? i18n(title)
             : _compute(button, "translatedTitle");
 
-          discourseComputedButon.classNames = (
+          discourseComputedButton.classNames = (
             _compute(button, "classNames") || []
           ).join(" ");
 
-          discourseComputedButon.icon = _compute(button, "icon");
-          discourseComputedButon.disabled = _compute(button, "disabled");
-          discourseComputedButon.dropdown = _compute(button, "dropdown");
-          discourseComputedButon.priority = _compute(button, "priority");
+          discourseComputedButton.icon = _compute(button, "icon");
+          discourseComputedButton.disabled = _compute(button, "disabled");
+          discourseComputedButton.dropdown = _compute(button, "dropdown");
+          discourseComputedButton.priority = _compute(button, "priority");
+
+          discourseComputedButton.anonymousOnly = _compute(
+            button,
+            "anonymousOnly"
+          );
 
           if (_isFunction(button.action)) {
-            discourseComputedButon.action = () => button.action.apply(this);
+            discourseComputedButton.action = () => button.action.apply(this);
           } else {
             const actionName = button.action;
-            discourseComputedButon.action = () => this[actionName]();
+            discourseComputedButton.action = () => this[actionName]();
           }
 
-          return discourseComputedButon;
-        })
-        .sortBy("priority")
-        .reverse();
+          return discourseComputedButton;
+        });
     },
   });
 }

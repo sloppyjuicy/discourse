@@ -1,6 +1,20 @@
-$card_width: 580px;
-$avatar_width: 120px;
-$avatar_margin: -50px; // negative margin makes avatars extend above cards
+@use "sass:math";
+
+.fk-d-menu[data-identifier="usercard"] {
+  max-width: calc(100vw - 2em);
+  width: auto;
+  .fk-d-menu__inner-content {
+    min-width: 0;
+    overflow: visible;
+  }
+}
+
+.user-card,
+.group-card {
+  --card-width: 39em;
+  --avatar-width: 8em;
+  --avatar-margin: -3.3em; // extends the avatar above the card
+}
 
 .animated-placeholder {
   height: 20px;
@@ -8,13 +22,15 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
 }
 
 .card-avatar-placeholder {
-  width: $avatar_width;
-  height: $avatar_width;
+  width: var(--avatar-width);
+  height: var(--avatar-width);
   border-radius: 100%;
   position: relative;
   overflow: hidden;
   &:before {
-    animation: placeHolderShimmer 4s linear infinite forwards;
+    @media (prefers-reduced-motion: no-preference) {
+      animation: placeHolderShimmer 4s linear infinite forwards;
+    }
     position: absolute;
     left: 0;
     content: "";
@@ -24,27 +40,25 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
       var(--primary-low) 18%,
       var(--primary-very-low) 33%
     );
-    height: $avatar_width;
-    width: $card_width;
+    height: var(--avatar-width);
+    width: var(--card-width);
   }
 }
 
 // shared styles for user and group cards
 .user-card,
 .group-card {
-  width: $card_width;
-  box-shadow: shadow("card");
+  min-width: 0;
+  width: var(--card-width);
   color: var(--primary);
   background: var(--secondary) center center;
   background-size: cover;
-  transition: opacity 0.2s, transform 0.2s;
-  -webkit-transition: opacity 0.2s, -webkit-transform 0.2s;
-  opacity: 0;
-  @include transform(scale(0.9));
-  &.show {
-    opacity: 1;
-    @include transform(scale(1));
-  }
+  position: unset !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: unset !important;
+  z-index: unset !important;
+
   .card-content {
     padding: 10px;
     background: rgba(var(--secondary-rgb), 0.85);
@@ -54,7 +68,7 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
       clear: both;
     }
     a.card-huge-avatar {
-      outline: none;
+      display: block;
     }
     .bio {
       @include line-clamp(2);
@@ -71,6 +85,7 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
       .user-profile-link {
         display: flex;
         align-items: center;
+        outline: none;
       }
 
       .d-icon {
@@ -80,6 +95,7 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
       .name-username-wrapper {
         margin-right: 0;
         flex: 0 1 auto;
+        @include ellipsis;
       }
       span {
         display: block;
@@ -96,15 +112,21 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
   .btn {
     margin-bottom: 5px;
   }
-  h1 {
-    line-height: $line-height-medium;
+  .names__primary {
+    line-height: var(--line-height-medium);
+    font-size: var(--font-up-5);
+    font-weight: bold;
     .d-icon {
       color: var(--primary);
     }
   }
-  h3 {
-    display: inline;
-    margin-right: 0.5em;
+  .names__secondary {
+    font-size: var(--font-up-1);
+  }
+  .metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15em 0.5em;
     color: var(--primary);
     &.email,
     .desc,
@@ -112,21 +134,17 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
       color: var(--primary-high);
     }
   }
-  h1,
-  h2,
-  h3 {
+
+  .names__secondary,
+  [class*="metadata__"] {
     margin: 0;
     @include ellipsis;
   }
-  h1,
-  h2 {
+  .names__primary,
+  .names__secondary {
     a {
       color: var(--primary);
     }
-  }
-  h2,
-  h3 {
-    font-weight: normal;
   }
   p {
     margin: 0 0 5px 0;
@@ -139,11 +157,16 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
   .first-row {
     display: flex;
     .avatar-placeholder {
-      width: $avatar_width;
-      height: $avatar_width;
+      width: var(--avatar-width);
+      height: var(--avatar-width);
     }
     .user-card-avatar {
-      margin-top: $avatar_margin;
+      margin-top: var(--avatar-margin);
+      max-height: var(--avatar-width);
+    }
+    .avatar {
+      width: var(--avatar-width);
+      height: var(--avatar-width);
     }
     .new-user a {
       color: var(--primary-low-mid);
@@ -154,12 +177,8 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
     max-height: 150px;
     overflow: auto;
     .bio {
-      a {
-        color: var(--primary);
-        text-decoration: underline;
-      }
-      a.mention {
-        text-decoration: none;
+      a:not(.mention) {
+        color: var(--tertiary);
       }
       .overflow {
         max-height: 60px;
@@ -173,8 +192,9 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
         font-weight: bold;
       }
     }
-    .profile-hidden {
-      font-size: $font-up-1;
+    .profile-hidden,
+    .inactive-user {
+      font-size: var(--font-up-1);
       margin-top: 0.5em;
     }
   }
@@ -250,6 +270,28 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
       @extend .user-badge;
     }
   }
+
+  .user-status {
+    display: flex;
+
+    img.emoji {
+      margin-bottom: 1px;
+      margin-right: 0.3em;
+    }
+
+    .relative-date {
+      flex: 1 0 auto;
+      text-align: left;
+      font-size: var(--font-down-3);
+      padding-top: 0.5em;
+      margin-left: 0.6em;
+      color: var(--primary-medium);
+    }
+
+    &__description {
+      @include ellipsis;
+    }
+  }
 }
 
 // styles for group cards only
@@ -258,18 +300,18 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
   .first-row {
     display: flex;
     .group-card-avatar {
-      margin-top: $avatar_margin;
+      margin-top: var(--avatar-margin);
     }
     .avatar-flair {
       display: flex;
       background-size: contain;
       background-repeat: no-repeat;
-      width: $avatar_width;
-      height: $avatar_width;
+      width: var(--avatar-width);
+      height: var(--avatar-width);
       color: var(--primary);
       .d-icon {
         margin: auto;
-        font-size: $avatar_width / 1.5;
+        font-size: calc(var(--avatar-width) / 1.5);
       }
       &.rounded {
         border-radius: 50%;
@@ -281,16 +323,12 @@ $avatar_margin: -50px; // negative margin makes avatars extend above cards
     max-height: 150px;
     overflow: auto;
     .bio {
-      a {
-        color: var(--primary);
-        text-decoration: underline;
+      a:not(.mention) {
+        color: var(--tertiary);
       }
       img {
         max-width: 100%;
         height: auto;
-      }
-      a.mention {
-        text-decoration: none;
       }
       .overflow {
         max-height: 60px;

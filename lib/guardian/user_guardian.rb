@@ -2,9 +2,8 @@
 
 # mixin for all Guardian methods dealing with user permissions
 module UserGuardian
-
   def can_claim_reviewable_topic?(topic)
-    SiteSetting.reviewable_claiming != 'disabled' && can_review_topic?(topic)
+    SiteSetting.reviewable_claiming != "disabled" && can_review_topic?(topic)
   end
 
   def can_pick_avatar?(user_avatar, upload)
@@ -27,7 +26,7 @@ module UserGuardian
     return true if is_staff?
     return false if SiteSetting.username_change_period <= 0
     return false if is_anonymous?
-    is_me?(user) && ((user.post_count + user.topic_count) == 0 || user.created_at > SiteSetting.username_change_period.days.ago)
+    is_me?(user) && user.created_at > SiteSetting.username_change_period.days.ago
   end
 
   def can_edit_email?(user)
@@ -60,20 +59,22 @@ module UserGuardian
 
   def can_delete_user?(user)
     return false if user.nil? || user.admin?
+
     if is_me?(user)
       !SiteSetting.enable_discourse_connect &&
-      !user.has_more_posts_than?(SiteSetting.delete_user_self_max_post_count)
+        !user.has_more_posts_than?(SiteSetting.delete_user_self_max_post_count)
     else
-      is_staff? && (
-        user.first_post_created_at.nil? ||
-          !user.has_more_posts_than?(User::MAX_STAFF_DELETE_POST_COUNT) ||
-          user.first_post_created_at > SiteSetting.delete_user_max_post_age.to_i.days.ago
-      )
+      is_staff? &&
+        (
+          user.first_post_created_at.nil? ||
+            !user.has_more_posts_than?(User::MAX_STAFF_DELETE_POST_COUNT) ||
+            user.first_post_created_at > SiteSetting.delete_user_max_post_age.to_i.days.ago
+        )
     end
   end
 
   def can_anonymize_user?(user)
-    is_staff? && !user.nil? && !user.staff?
+    is_staff? && !user.nil? && !user.staff? && !user.email&.ends_with?(UserAnonymizer::EMAIL_SUFFIX)
   end
 
   def can_merge_user?(user)
@@ -101,7 +102,7 @@ module UserGuardian
   end
 
   def restrict_user_fields?(user)
-    user.trust_level == TrustLevel[0] && anonymous?
+    (user.trust_level == TrustLevel[0] && anonymous?) || !can_see_profile?(user)
   end
 
   def can_see_staff_info?(user)
@@ -117,20 +118,39 @@ module UserGuardian
     user && can_administer_user?(user)
   end
 
+  def can_see_user?(_user)
+    true
+  end
+
+  def public_can_see_profiles?
+    !SiteSetting.hide_user_profiles_from_public || !anonymous?
+  end
+
   def can_see_profile?(user)
     return false if user.blank?
-    return true if !SiteSetting.allow_users_to_hide_profile?
+    return true if is_me?(user) || is_staff?
 
-    # If a user has hidden their profile, restrict it to them and staff
-    if user.user_option.try(:hide_profile_and_presence?)
-      return is_me?(user) || is_staff?
+    profile_hidden = SiteSetting.allow_users_to_hide_profile && user.user_option&.hide_profile?
+
+    return true if user.staff? && !profile_hidden
+
+    if SiteSetting.hide_new_user_profiles && !SiteSetting.invite_only &&
+         !SiteSetting.must_approve_users
+      if user.user_stat.blank? || user.user_stat.post_count == 0
+        return false if anonymous? || !@user.has_trust_level?(TrustLevel[2])
+      end
+
+      if anonymous? || !@user.has_trust_level?(TrustLevel[1])
+        return user.has_trust_level?(TrustLevel[1]) && !profile_hidden
+      end
     end
 
-    true
+    !profile_hidden
   end
 
   def can_see_user_actions?(user, action_types)
     return true if !@user.anonymous? && (@user.id == user.id || is_admin?)
+    return false if SiteSetting.hide_user_activity_tab?
     (action_types & UserAction.private_types).empty?
   end
 
@@ -140,14 +160,13 @@ module UserGuardian
     is_staff_or_is_me = is_staff? || is_me?(user)
     cache_key = is_staff_or_is_me ? :staff_or_me : :other
 
-    @allowed_user_field_ids[cache_key] ||=
-      begin
-        if is_staff_or_is_me
-          UserField.pluck(:id)
-        else
-          UserField.where("show_on_profile OR show_on_user_card").pluck(:id)
-        end
+    @allowed_user_field_ids[cache_key] ||= begin
+      if is_staff_or_is_me
+        UserField.pluck(:id)
+      else
+        UserField.where("show_on_profile OR show_on_user_card").pluck(:id)
       end
+    end
   end
 
   def can_feature_topic?(user, topic)
@@ -160,13 +179,19 @@ module UserGuardian
   end
 
   def can_see_review_queue?
-    is_staff? || (
-      SiteSetting.enable_category_group_moderation &&
-      Reviewable
-        .where(reviewable_by_group_id: @user.group_users.pluck(:group_id))
-        .where('category_id IS NULL or category_id IN (?)', allowed_category_ids)
-        .exists?
-    )
+    is_staff? ||
+      (
+        SiteSetting.enable_category_group_moderation &&
+          Reviewable
+            .joins(
+              "INNER JOIN category_moderation_groups ON category_moderation_groups.category_id = reviewables.category_id",
+            )
+            .where(
+              category_id: allowed_category_ids,
+              "category_moderation_groups.group_id": @user.group_users.pluck(:group_id),
+            )
+            .exists?
+      )
   end
 
   def can_see_summary_stats?(target_user)
@@ -174,11 +199,13 @@ module UserGuardian
   end
 
   def can_upload_profile_header?(user)
-    (is_me?(user) && user.has_trust_level?(SiteSetting.min_trust_level_to_allow_profile_background.to_i)) || is_staff?
+    (is_me?(user) && user.in_any_groups?(SiteSetting.profile_background_allowed_groups_map)) ||
+      is_staff?
   end
 
   def can_upload_user_card_background?(user)
-    (is_me?(user) && user.has_trust_level?(SiteSetting.min_trust_level_to_allow_user_card_background.to_i)) || is_staff?
+    (is_me?(user) && user.in_any_groups?(SiteSetting.user_card_background_allowed_groups_map)) ||
+      is_staff?
   end
 
   def can_upload_external?
@@ -187,6 +214,10 @@ module UserGuardian
 
   def can_delete_sso_record?(user)
     SiteSetting.enable_discourse_connect && user && is_admin?
+  end
+
+  def can_delete_user_associated_accounts?(user)
+    user && is_admin?
   end
 
   def can_change_tracking_preferences?(user)

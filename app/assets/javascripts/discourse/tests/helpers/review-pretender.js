@@ -60,7 +60,7 @@ export default function (helpers) {
         },
         {
           id: "reject_user",
-          icon: "user-times",
+          icon: "user-xmark",
           label: "Delete User...",
           action_ids: ["reject_user_delete", "reject_user_block"],
         },
@@ -78,7 +78,7 @@ export default function (helpers) {
         },
         {
           id: "reject_user_delete",
-          icon: "user-times",
+          icon: "user-xmark",
           button_class: null,
           label: "Delete User",
           description: "The user will be deleted from the forum.",
@@ -141,6 +141,83 @@ export default function (helpers) {
   });
 
   this.put("/review/settings", () => response(200, {}));
+
+  this.get("/review/user-menu-list", () => {
+    return response({
+      reviewables: [
+        {
+          flagger_username: "osama",
+          id: 17,
+          type: "ReviewableFlaggedPost",
+          pending: true,
+          post_number: 3,
+          topic_fancy_title:
+            "Emotion clustering crisis struggling sallyport eagled ask",
+        },
+        {
+          flagger_username: "osama",
+          id: 15,
+          type: "ReviewableFlaggedPost",
+          pending: true,
+          post_number: 5,
+          topic_fancy_title:
+            "Emotion clustering crisis struggling sallyport eagled ask",
+        },
+        {
+          flagger_username: "system",
+          id: 4,
+          type: "ReviewableUser",
+          pending: false,
+          username: "trustlevel003",
+        },
+        {
+          flagger_username: "osama",
+          id: 18,
+          type: "ReviewableFlaggedPost",
+          pending: false,
+          post_number: 2,
+          topic_fancy_title:
+            "Emotion clustering crisis struggling sallyport eagled ask",
+        },
+        {
+          flagger_username: "osama",
+          id: 16,
+          type: "ReviewableFlaggedPost",
+          pending: false,
+          post_number: 4,
+          topic_fancy_title:
+            "Emotion clustering crisis struggling sallyport eagled ask",
+        },
+        {
+          flagger_username: "osama",
+          id: 12,
+          type: "ReviewableFlaggedPost",
+          pending: false,
+          post_number: 9,
+          topic_fancy_title:
+            "Emotion clustering crisis struggling sallyport eagled ask",
+        },
+        {
+          flagger_username: "tony",
+          id: 1,
+          type: "ReviewableQueuedPost",
+          pending: false,
+          payload_title: "Hello this is a test topic",
+          is_new_topic: true,
+        },
+        {
+          flagger_username: "tony",
+          id: 100,
+          type: "ReviewableQueuedPost",
+          pending: false,
+          topic_fancy_title: "Hello this is a test topic",
+          is_new_topic: false,
+        },
+      ],
+      reviewable_count: 8,
+      __rest_serializer: "1",
+    });
+  });
 
   this.get("/review/:id", () => {
     return response(200, {

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require_relative '../mixins/github_body'
+require_relative "../mixins/github_body"
+require_relative "../mixins/github_auth_header"
 
 module Onebox
   module Engine
@@ -8,8 +9,11 @@ module Onebox
       include Engine
       include LayoutSupport
       include JSON
+      include Onebox::Mixins::GithubAuthHeader
 
-      matches_regexp(/^https?:\/\/(?:www\.)?(?:(?:\w)+\.)?github\.com\/(?<org>.+)\/(?<repo>.+)\/(actions\/runs\/[[:digit:]]+|pull\/[[:digit:]]*\/checks\?check_run_id=[[:digit:]]+)/)
+      matches_regexp(
+        %r{^https?://(?:www\.)?(?:(?:\w)+\.)?github\.com/(?<org>.+)/(?<repo>.+)/(actions/runs/[[:digit:]]+|pull/[[:digit:]]*/checks\?check_run_id=[[:digit:]]+)},
+      )
       always_https
 
       def url
@@ -29,12 +33,18 @@ module Onebox
       def match_url
         return if defined?(@match) && defined?(@type)
 
-        if match = @url.match(/^https?:\/\/(?:www\.)?(?:(?:\w)+\.)?github\.com\/(?<org>.+)\/(?<repo>.+)\/actions\/runs\/(?<run_id>[[:digit:]]+)/)
+        if match =
+             @url.match(
+               %r{^https?://(?:www\.)?(?:(?:\w)+\.)?github\.com/(?<org>.+)/(?<repo>.+)/actions/runs/(?<run_id>[[:digit:]]+)},
+             )
           @match = match
           @type = :actions_run
         end
 
-        if match = @url.match(/^https?:\/\/(?:www\.)?(?:(?:\w)+\.)?github\.com\/(?<org>.+)\/(?<repo>.+)\/pull\/(?<pr_id>[[:digit:]]*)\/checks\?check_run_id=(?<check_run_id>[[:digit:]]+)/)
+        if match =
+             @url.match(
+               %r{^https?://(?:www\.)?(?:(?:\w)+\.)?github\.com/(?<org>.+)/(?<repo>.+)/pull/(?<pr_id>[[:digit:]]*)/checks\?check_run_id=(?<check_run_id>[[:digit:]]+)},
+             )
           @match = match
           @type = :pr_run
         end
@@ -55,30 +65,33 @@ module Onebox
       end
 
       def data
+        result = raw(github_auth_header(match[:org])).clone
+
         status = "unknown"
-        if raw["status"] == "completed"
-          if raw["conclusion"] == "success"
+        if result["status"] == "completed"
+          if result["conclusion"] == "success"
             status = "success"
-          elsif raw["conclusion"] == "failure"
+          elsif result["conclusion"] == "failure"
             status = "failure"
-          elsif raw["conclusion"] == "cancelled"
           end
-        elsif raw["status"] == "in_progress"
+        elsif result["status"] == "in_progress"
           status = "pending"
         end
 
-        title = if type == :actions_run
-          raw["head_commit"]["message"].lines.first
-        elsif type == :pr_run
-          pr_url = "https://api.github.com/repos/#{match[:org]}/#{match[:repo]}/pulls/#{match[:pr_id]}"
-          ::MultiJson.load(URI.parse(pr_url).open(read_timeout: timeout))["title"]
-        end
+        title =
+          if type == :actions_run
+            result["head_commit"]["message"].lines.first
+          elsif type == :pr_run
+            pr_url =
+              "https://api.github.com/repos/#{match[:org]}/#{match[:repo]}/pulls/#{match[:pr_id]}"
+            ::MultiJson.load(URI.parse(pr_url).open(read_timeout: timeout))["title"]
+          end
 
         {
-          link: @url,
-          title: title,
-          name: raw["name"],
-          run_number: raw["run_number"],
+          :link => @url,
+          :title => title,
+          :name => result["name"],
+          :run_number => result["run_number"],
           status => true,
         }
       end

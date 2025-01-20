@@ -1,28 +1,23 @@
-import DiscourseRoute from "discourse/routes/discourse";
 import UserBadge from "discourse/models/user-badge";
-import ViewingActionType from "discourse/mixins/viewing-action-type";
+import DiscourseRoute from "discourse/routes/discourse";
+import { i18n } from "discourse-i18n";
 
-export default DiscourseRoute.extend(ViewingActionType, {
+export default class UserBadges extends DiscourseRoute {
+  templateName = "user/badges";
+
   model() {
     return UserBadge.findByUsername(
       this.modelFor("user").get("username_lower"),
       { grouped: true }
     );
-  },
+  }
 
-  setupController(controller, model) {
-    this.viewingActionType(-1);
-    controller.set("model", model);
-  },
+  setupController() {
+    super.setupController(...arguments);
+    this.controllerFor("user-activity").userActionType = -1;
+  }
 
-  renderTemplate() {
-    this.render("user/badges", { into: "user" });
-  },
-
-  actions: {
-    didTransition() {
-      this.controllerFor("application").set("showFooter", true);
-      return true;
-    },
-  },
-});
+  titleToken() {
+    return i18n("badges.title");
+  }
+}

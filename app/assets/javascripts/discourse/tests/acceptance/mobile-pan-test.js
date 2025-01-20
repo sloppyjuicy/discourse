@@ -1,20 +1,10 @@
-import {
-  acceptance,
-  chromeTest,
-  count,
-  exists,
-} from "discourse/tests/helpers/qunit-helpers";
 import { click, triggerEvent, visit } from "@ember/test-helpers";
+import { acceptance, chromeTest } from "discourse/tests/helpers/qunit-helpers";
 
 async function triggerSwipeStart(touchTarget) {
-  // some tests are shown in a zoom viewport.
-  // boundingClientRect is affected by the zoom and need to be multiplied by the zoom effect.
-  // EG: if the element has a zoom of 50%, this DOUBLES the x and y positions and offsets.
-  // The numbers you get from getBoundingClientRect are seen as twice as large... however, the
-  // touch input still deals with the base inputs, not doubled. This allows us to convert for those environments.
-  let zoom = parseFloat(
-    window.getComputedStyle(document.querySelector("#ember-testing")).zoom || 1
-  );
+  const emberTesting = document.querySelector("#ember-testing-container");
+  emberTesting.scrollTop = 0;
+  emberTesting.scrollLeft = 0;
 
   // Other tests are shown in a transformed viewport, and this is a multiple for the offsets
   let scale = parseFloat(
@@ -24,15 +14,13 @@ async function triggerSwipeStart(touchTarget) {
   );
 
   const touchStart = {
-    touchTarget: touchTarget,
+    touchTarget,
     x:
-      zoom *
-      (touchTarget.getBoundingClientRect().x +
-        (scale * touchTarget.offsetWidth) / 2),
+      touchTarget.getBoundingClientRect().x +
+      (scale * touchTarget.offsetWidth) / 2,
     y:
-      zoom *
-      (touchTarget.getBoundingClientRect().y +
-        (scale * touchTarget.offsetHeight) / 2),
+      touchTarget.getBoundingClientRect().y +
+      (scale * touchTarget.offsetHeight) / 2,
   };
   const touch = new Touch({
     identifier: "test",
@@ -73,14 +61,16 @@ async function triggerSwipeEnd({ x, y, touchTarget }) {
   });
 }
 
-// new Touch() isn't availiable in Firefox, so this is skipped there
+// new Touch() isn't available in Firefox, so this is skipped there
 acceptance("Mobile - menu swipes", function (needs) {
   needs.mobileView();
   needs.user();
 
   chromeTest("swipe to close hamburger", async function (assert) {
     await visit("/");
-    await click(".hamburger-dropdown");
+    await click(".hamburger-dropdown button");
+
+    assert.dom(document.documentElement).hasClass(/scroll-lock/);
 
     const touchTarget = document.querySelector(".panel-body");
     let swipe = await triggerSwipeStart(touchTarget);
@@ -88,17 +78,17 @@ acceptance("Mobile - menu swipes", function (needs) {
     await triggerSwipeMove(swipe);
     await triggerSwipeEnd(swipe);
 
-    assert.ok(
-      !exists(".panel-body"),
-      "it should close hamburger on a left swipe"
-    );
+    assert
+      .dom(".panel-body")
+      .doesNotExist("it closes hamburger on a left swipe");
+    assert.dom(document.documentElement).doesNotHaveClass(/scroll-lock/);
   });
 
   chromeTest(
     "swipe back and flick to re-open hamburger",
     async function (assert) {
       await visit("/");
-      await click(".hamburger-dropdown");
+      await click(".hamburger-dropdown button");
 
       const touchTarget = document.querySelector(".panel-body");
       let swipe = await triggerSwipeStart(touchTarget);
@@ -108,17 +98,17 @@ acceptance("Mobile - menu swipes", function (needs) {
       await triggerSwipeMove(swipe);
       await triggerSwipeEnd(swipe);
 
-      assert.equal(
-        count(".panel-body"),
-        1,
-        "it should re-open hamburger on a right swipe"
-      );
+      assert
+        .dom(".panel-body")
+        .exists({ count: 1 }, "it re-opens hamburger on a right swipe");
     }
   );
 
   chromeTest("swipe to user menu", async function (assert) {
     await visit("/");
-    await click("#current-user");
+    await click("#current-user button");
+
+    assert.dom(document.documentElement).hasClass(/scroll-lock/);
 
     const touchTarget = document.querySelector(".panel-body");
     let swipe = await triggerSwipeStart(touchTarget);
@@ -126,9 +116,10 @@ acceptance("Mobile - menu swipes", function (needs) {
     await triggerSwipeMove(swipe);
     await triggerSwipeEnd(swipe);
 
-    assert.ok(
-      !exists(".panel-body"),
-      "it should close user menu on a left swipe"
-    );
+    assert
+      .dom(".panel-body")
+      .doesNotExist("it closes user menu on a left swipe");
+
+    assert.dom(document.documentElement).doesNotHaveClass(/scroll-lock/);
   });
 });

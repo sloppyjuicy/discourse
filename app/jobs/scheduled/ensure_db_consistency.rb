@@ -8,22 +8,26 @@ module Jobs
     def execute(args)
       start_measure
 
+      # we don't want to have a situation where Jobs::Badge or stuff like that is attempted to be run
+      # so we always prefix with :: to ensure we are running models
+
       [
-        UserVisit,
-        Group,
-        Notification,
-        TopicFeaturedUsers,
-        PostRevision,
-        Topic,
-        Badge,
-        CategoryUser,
-        UserOption,
-        Tag,
-        CategoryTagStat,
-        User,
-        UserAvatar,
-        Category,
-        TopicThumbnail
+        ::UserVisit,
+        ::Group,
+        ::Notification,
+        ::TopicFeaturedUsers,
+        ::PostRevision,
+        ::Topic,
+        ::Badge,
+        ::CategoryUser,
+        ::UserOption,
+        ::Tag,
+        ::CategoryTagStat,
+        ::User,
+        ::UserAvatar,
+        ::UserEmail,
+        ::Category,
+        ::TopicThumbnail,
       ].each do |klass|
         klass.ensure_consistency!
         measure(klass)
@@ -46,9 +50,7 @@ module Jobs
 
     def format_measure
       result = +"EnsureDbConsistency Times\n"
-      result << @measure_times.map do |name, duration|
-        "  #{name}: #{duration}"
-      end.join("\n")
+      result << @measure_times.map { |name, duration| "  #{name}: #{duration}" }.join("\n")
       result
     end
 
@@ -59,11 +61,8 @@ module Jobs
 
     def measure(step = nil)
       @measure_now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      if @measure_start
-        @measure_times << [step, @measure_now - @measure_start]
-      end
+      @measure_times << [step, @measure_now - @measure_start] if @measure_start
       @measure_start = @measure_now
     end
-
   end
 end

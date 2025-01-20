@@ -2,130 +2,24 @@
 // Topic lists
 // --------------------------------------------------
 
-// List controls
-// --------------------------------------------------
-
-.list-controls {
-  .container {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    #create-topic {
-      box-sizing: border-box;
-      display: flex;
-      align-self: stretch;
-      align-items: center;
-    }
-  }
-
-  .dropdown-select-box-header {
-    display: flex;
-    height: 100%;
-  }
-
-  .navigation-container {
-    display: flex;
-    flex-wrap: wrap;
-    width: 100%;
-    margin: 0;
-
-    button {
-      &.select-kit-header {
-        display: flex;
-        height: 100%;
-        flex: 1 1 auto;
-      }
-    }
-  }
-
-  .nav-pills {
-    display: flex;
-    flex: 1 1 auto;
-    margin: 0 3px 5px 3px;
-    position: relative;
-    .navigation-toggle {
-      flex: 0 1 auto;
-    }
-    > li {
-      margin-right: 0;
-      font-size: $font-down-1;
-      border: 1px solid var(--primary-medium);
-    }
-    > li > a {
-      line-height: $line-height-large;
-      display: flex;
-      align-items: center;
-      .d-icon {
-        margin-left: 5px;
-        margin-right: 0;
-      }
-    }
-    .drop {
-      border: 1px solid var(--primary-low);
-      position: absolute;
-      z-index: z("dropdown") - 1;
-      background-color: var(--secondary);
-      padding: 0 10px 10px 10px;
-      width: 150px;
-      top: 100%;
-      margin: 0;
-      left: 0; // iOS6 alignment
-      li {
-        list-style-type: none;
-        margin-left: 0;
-        margin-top: 5px;
-        padding-top: 10px;
-        a {
-          width: 100%;
-          display: inline-block;
-        }
-      }
-    }
-  }
-}
-
-.list-container .full-width {
-  margin-left: 0;
-}
-
-ol.category-breadcrumb {
-  margin: 0 -3px 5px -3px;
-  display: flex;
-  flex-wrap: wrap;
-  flex: 1 1 100%;
-  li.select-kit {
-    flex: 1 1 33%;
-    margin: 0 3px 5px 3px;
-    .select-kit-header .selected-name {
-      max-width: 80vw;
-      .badge-wrapper {
-        max-width: 100%;
-      }
-    }
-  }
-}
-
-// Base list
-// --------------------------------------------------
-
 .topic-list {
   .right {
     margin-left: 55px;
   }
 
-  th,
-  td {
+  .topic-list-data {
     padding: 7px 0;
     max-width: 300px;
   }
 
   .main-link {
-    line-height: $line-height-medium;
+    line-height: var(--line-height-medium);
     position: relative;
     z-index: z("base") + 1; // Intentionally overlapping category to create bigger tap target
+    font-size: var(--font-up-1);
     a.title {
       color: var(--primary);
-      padding: 0.5em 0 1.2em 0;
+      padding: 0;
     }
     .topic-statuses {
       a {
@@ -140,8 +34,8 @@ ol.category-breadcrumb {
     position: relative;
     display: inline-block;
     top: -1px;
-    font-size: $font-0;
-    line-height: $line-height-small;
+    font-size: var(--font-0);
+    line-height: var(--line-height-small);
     padding: 0.15em 0.4em 0.2em 0.4em;
     .d-icon {
       color: var(--secondary);
@@ -163,29 +57,64 @@ ol.category-breadcrumb {
 
   .topic-item-stats {
     position: relative;
-    margin-top: 0.25em;
+    display: flex;
+    align-items: baseline;
+    margin-top: 0.5em;
     z-index: z("base");
-    .category,
-    .num,
-    .last-poster {
-      float: left;
+    .num.activity {
+      margin-left: auto;
+      font-size: var(--font-down-1);
     }
     .category a {
       max-width: 160px;
     }
-    .num .fa,
+    .num .d-icon,
     a,
     a:visited {
       color: var(--primary-med-or-secondary-med);
     }
   }
 
+  .topic-item-stats {
+    span.relative-date {
+      vertical-align: text-top;
+    }
+  }
+
+  .topic-item-stats__category-tags {
+    margin-right: 0.5em;
+    max-width: 90%;
+    line-height: var(--line-height-medium);
+
+    .discourse-tags {
+      display: inline;
+    }
+
+    .badge-category__wrapper {
+      vertical-align: bottom;
+      margin-right: 0.5em;
+    }
+
+    .badge-wrapper,
+    .discourse-tag {
+      // disabling clicks because these targets are too small on mobile
+      pointer-events: none;
+    }
+
+    .discourse-tags .discourse-tag {
+      margin: 0;
+    }
+
+    .badge-wrapper {
+      max-width: 100%;
+      vertical-align: bottom;
+    }
+  }
+
   .age {
     white-space: nowrap;
     a {
-      // let's make all ages dim on mobile so we're not
-      // overwhelming people with info about each topic
-      color: var(--primary-low-mid-or-secondary-high) !important;
+      color: var(--primary-medium);
     }
   }
 }
@@ -230,7 +159,6 @@ ol.category-breadcrumb {
   }
 
   .posts {
-    width: 10%;
     vertical-align: top;
   }
 
@@ -301,11 +229,11 @@ tr.category-topic-link {
   }
 
   h3 {
-    font-size: $font-up-2;
+    font-size: var(--font-up-2);
   }
 
   h4 {
-    font-size: $font-up-1;
+    font-size: var(--font-up-1);
   }
 
   .category-name {
@@ -319,7 +247,7 @@ tr.category-topic-link {
   }
 
   .category-topic-link .main-link .age {
-    font-size: $font-down-1;
+    font-size: var(--font-down-1);
   }
 
   .category-description td {
@@ -332,10 +260,6 @@ tr.category-topic-link {
     td {
       padding-top: 15px;
     }
-  }
-
-  th .badge-category {
-    margin: 0;
   }
 
   .category-topic-link {
@@ -357,7 +281,7 @@ tr.category-topic-link {
       float: left;
       margin: 3px 1em 0 0;
       font-weight: normal;
-      font-size: $font-down-1;
+      font-size: var(--font-down-1);
       .value {
         font-weight: bold;
       }
@@ -393,7 +317,8 @@ tr.category-topic-link {
 // Misc. stuff
 // --------------------------------------------------
 
-.dropdown {
+.dropdown,
+.multiselect {
   position: relative;
 }
 .dropdown-toggle:active,
@@ -407,7 +332,7 @@ tr.category-topic-link {
 
 .category-heading {
   p {
-    font-size: $font-up-1;
+    font-size: var(--font-up-1);
     margin-bottom: 0.75em;
   }
 }
@@ -415,13 +340,6 @@ tr.category-topic-link {
 .category-logo.aspect-image {
   display: block;
   margin: 1.5em 0 1em;
-  img {
-    max-width: 100%;
-  }
-}
-
-button.dismiss-read {
-  margin-bottom: 10px;
 }
 
 // base defines extra padding for easier click/top of title field
@@ -430,14 +348,21 @@ td .main-link {
   width: 78%;
   display: inline-block;
   a.title {
-    padding: 5px 10px 5px 0;
+    padding: 0.33em 0.67em 0.33em 0;
     word-wrap: break-word;
   }
 }
 .topic-list {
-  .num.posts-map button {
-    font-size: $font-up-2;
+  &-body {
+    border-width: 1px;
+  }
+  .num.posts-map {
+    font-size: var(--font-up-2);
     padding: 0;
+    > button,
+    > a {
+      padding: 0;
+    }
   }
   .num.activity a {
     padding: 0;
@@ -461,9 +386,99 @@ td .main-link {
 
 .category-list .category.muted a.category-title-link {
   color: var(--primary-medium);
-  font-size: $font-down-1;
+  font-size: var(--font-down-1);
 }
 
 .muted-categories-link {
   margin-left: 0;
+}
+
+// Bulk select
+
+.topic-list-header {
+  display: none;
+}
+
+.topic-list.sticky-header {
+  .topic-list-header {
+    display: table-header-group;
+    position: sticky;
+    z-index: z("base") + 2;
+    top: var(--header-offset);
+    background: var(--secondary);
+    tr {
+      display: flex;
+      align-items: center;
+      border: none;
+    }
+
+    .topic-list-data {
+      display: none;
+      &.bulk-select {
+        display: inline-block;
+      }
+      &.default {
+        display: flex;
+        .bulk-select-topic-dropdown__count {
+          display: none;
+        }
+      }
+    }
+
+    button.bulk-select {
+      padding-left: 0.85em; // visual alignment
+    }
+  }
+}
+
+.bulk-select-topics {
+  display: flex;
+  flex-wrap: wrap;
+  padding-left: 0.85em;
+  gap: 0.5em;
+  font-size: var(--font-down-1);
+  .select-kit-collection {
+    font-size: var(--font-up-1);
+  }
+}
+
+.topic-list-data .pull-left {
+  label {
+    // bulk select checkbox
+    display: flex;
+    width: 45px;
+    height: 45px;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
+.topic-replies-toggle-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+
+  .topics-replies-toggle {
+    flex-grow: 1;
+    background: none;
+    border: none;
+    padding: 0.75em;
+    position: relative;
+
+    &.active {
+      @include nav-active;
+      &:after {
+        height: 0.15em;
+        bottom: -0.15em;
+      }
+    }
+  }
+}
+
+#list-area .show-more .alert {
+  align-items: center;
+  gap: 0.5em;
+  &.loading {
+    color: var(--primary-medium);
+  }
 }

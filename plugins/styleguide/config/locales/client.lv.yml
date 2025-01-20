@@ -27,8 +27,6 @@ lv:
         icons:
           title: "Ikonas"
           full_list: "Skatiet pilnu Font Awesome ikonas sarakstu"
-        input_fields:
-          title: "Ievades lauki"
         buttons:
           title: "Pogas"
         dropdowns:
@@ -85,3 +83,5 @@ lv:
           title: "Galvenes ikonas"
         spinners:
           title: "Ciparu vērtības iestatīšana"
+        tooltips:
+          description: "Apraksts"

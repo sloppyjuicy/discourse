@@ -1,7 +1,8 @@
+import { setupTest } from "ember-qunit";
+import { load } from "pretty-text/oneboxer";
 import { failedCache, localCache } from "pretty-text/oneboxer-cache";
 import { module, test } from "qunit";
 import { ajax } from "discourse/lib/ajax";
-import { load } from "pretty-text/oneboxer";
 
 function loadOnebox(element) {
   return load({
@@ -14,22 +15,23 @@ function loadOnebox(element) {
   });
 }
 
-module("Unit | Utility | oneboxer", function () {
+module("Unit | Utility | oneboxer", function (hooks) {
+  setupTest(hooks);
+
   test("load - failed onebox", async function (assert) {
     let element = document.createElement("A");
     element.setAttribute("href", "http://somebadurl.com");
 
     await loadOnebox(element);
 
-    assert.equal(
+    assert.true(
       failedCache["http://somebadurl.com"],
-      true,
       "stores the url as failed in a cache"
     );
-    assert.equal(
+    assert.strictEqual(
       loadOnebox(element),
       undefined,
-      "it returns early for a failed cache"
+      "returns early for a failed cache"
     );
   });
 
@@ -39,15 +41,15 @@ module("Unit | Utility | oneboxer", function () {
 
     await loadOnebox(element);
 
-    assert.ok(
-      localCache["http://somegoodurl.com"].outerHTML.indexOf(
+    assert.true(
+      localCache["http://somegoodurl.com"].outerHTML.includes(
         "Yet another collaboration tool"
-      ) !== -1,
+      ),
       "stores the html of the onebox in a local cache"
     );
-    assert.ok(
-      loadOnebox(element).indexOf("Yet another collaboration tool") !== -1,
-      "it returns the html from the cache"
+    assert.true(
+      loadOnebox(element).includes("Yet another collaboration tool"),
+      "returns the html from the cache"
     );
   });
 });

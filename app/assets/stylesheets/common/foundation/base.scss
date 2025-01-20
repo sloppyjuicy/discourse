@@ -1,30 +1,49 @@
+// These CSS custom properties are added here instead of in variables.scss
+// because variables.scss is injected into every theme CSS file
+// which causes problems when overriding custom properties in themes
+
+:root {
+  --topic-body-width: #{$topic-body-width};
+  --topic-body-width-padding: #{$topic-body-width-padding};
+  --topic-avatar-width: #{$topic-avatar-width};
+  --d-border-radius: 2px;
+  --d-border-radius-large: 2px;
+  --d-nav-pill-border-radius: var(--d-border-radius);
+  --d-button-border-radius: 2px;
+  --d-input-border-radius: 2px;
+  --d-content-background: initial;
+  --d-font-family--monospace: ui-monospace, "Cascadia Mono", "Segoe UI Mono",
+    "Liberation Mono", Menlo, Monaco, Consolas, monospace;
+  --d-button-transition: none;
+}
+
 // --------------------------------------------------
 // Base styles for HTML elements
 // --------------------------------------------------
 
 html {
   color: var(--primary);
-  font-family: $base-font-family;
-  font-size: $base-font-size;
-  line-height: $line-height-large;
+  font-family: var(--font-family);
+  font-size: var(--base-font-size);
+  line-height: var(--line-height-large);
   background-color: var(--secondary);
   overflow-y: scroll;
   direction: ltr;
 
   &.text-size-smallest {
-    font-size: $base-font-size-smallest;
+    font-size: var(--base-font-size-smallest);
   }
 
   &.text-size-smaller {
-    font-size: $base-font-size-smaller;
+    font-size: var(--base-font-size-smaller);
   }
 
   &.text-size-larger {
-    font-size: $base-font-size-larger;
+    font-size: var(--base-font-size-larger);
   }
 
   &.text-size-largest {
-    font-size: $base-font-size-largest;
+    font-size: var(--base-font-size-largest);
   }
 }
 
@@ -62,6 +81,7 @@ hr {
 // --------------------------------------------------
 
 ul,
+ol,
 dd {
   margin: 1em 0 1em 1.25em;
   padding: 0;
@@ -73,9 +93,12 @@ dd {
   clear: both;
 }
 
-.cooked ul,
-.d-editor-preview ul {
-  padding-left: 1.25em;
+.cooked,
+.d-editor-preview {
+  ul,
+  ol {
+    padding-left: 1.25em;
+  }
 }
 
 li,
@@ -92,6 +115,10 @@ li,
 
 img {
   vertical-align: middle;
+}
+
+.svg-icon {
+  color: inherit;
 }
 
 // Forms
@@ -112,16 +139,6 @@ pre code {
   }
 }
 
-// TODO figure out a clean place to put stuff like this
-.row:before,
-.row:after {
-  display: table;
-  content: "";
-}
-.row:after {
-  clear: both;
-}
-
 // Tables
 // --------------------------------------------------
 
@@ -133,10 +150,13 @@ tbody {
   border-top: 3px solid var(--primary-low);
 }
 
+.topic-list-item,
 tr {
   border-bottom: 1px solid var(--primary-low);
-  &.highlighted {
-    animation: background-fade-highlight 2.5s ease-out;
+  @media (prefers-reduced-motion: no-preference) {
+    &.highlighted {
+      animation: background-fade-highlight 2.5s ease-out;
+    }
   }
 }
 
@@ -166,13 +186,17 @@ input[type="submit"] {
     display: flex;
   }
 
-  > input[type="text"] {
+  > input[type="text"],
+  > input[type="search"],
+  > input[type="password"] {
     display: inline-flex;
     flex: 1;
   }
 
   > .select-kit,
   > input[type="text"],
+  > input[type="search"],
+  > input[type="password"],
   > label,
   > .btn,
   > .d-date-input {
@@ -182,4 +206,11 @@ input[type="submit"] {
       margin-right: 0;
     }
   }
+}
+
+// Inputs
+// --------------------------------------------------
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--tertiary);
 }

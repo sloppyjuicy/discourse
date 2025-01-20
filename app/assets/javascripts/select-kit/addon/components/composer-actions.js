@@ -1,3 +1,11 @@
+import { action } from "@ember/object";
+import { equal, gt } from "@ember/object/computed";
+import { service } from "@ember/service";
+import { camelize } from "@ember/string";
+import { isEmpty } from "@ember/utils";
+import { classNames } from "@ember-decorators/component";
+import discourseComputed from "discourse/lib/decorators";
+import { escapeExpression } from "discourse/lib/utilities";
 import {
   CREATE_SHARED_DRAFT,
   CREATE_TOPIC,
@@ -5,14 +13,10 @@ import {
   PRIVATE_MESSAGE,
   REPLY,
 } from "discourse/models/composer";
-import discourseComputed from "discourse-common/utils/decorators";
 import Draft from "discourse/models/draft";
+import { i18n } from "discourse-i18n";
 import DropdownSelectBoxComponent from "select-kit/components/dropdown-select-box";
-import I18n from "I18n";
-import bootbox from "bootbox";
-import { camelize } from "@ember/string";
-import { equal, gt } from "@ember/object/computed";
-import { isEmpty } from "@ember/utils";
+import { pluginApiIdentifiers, selectKitOptions } from "./select-kit";
 
 // Component can get destroyed and lose state
 let _topicSnapshot = null;
@@ -25,28 +29,37 @@ export function _clearSnapshots() {
   _actionSnapshot = null;
 }
 
-export default DropdownSelectBoxComponent.extend({
-  seq: 0,
-  pluginApiIdentifiers: ["composer-actions"],
-  classNames: ["composer-actions"],
-  isEditing: equal("action", EDIT),
-  isInSlowMode: gt("topic.slow_mode_seconds", 0),
+@classNames("composer-actions")
+@pluginApiIdentifiers(["composer-actions"])
+@selectKitOptions({
+  icon: "iconForComposerAction",
+  filterable: false,
+  showFullTitle: false,
+  preventHeaderFocus: true,
+  customStyle: true,
+})
+export default class ComposerActions extends DropdownSelectBoxComponent {
+  @service dialog;
+  @service composer;
 
-  selectKitOptions: {
-    icon: "iconForComposerAction",
-    filterable: false,
-    showFullTitle: false,
-    preventHeaderFocus: true,
-    customStyle: true,
-  },
+  seq = 0;
+
+  @equal("action", EDIT) isEditing;
+  @gt("topic.slow_mode_seconds", 0) isInSlowMode;
 
   @discourseComputed("isEditing", "action", "whisper", "noBump", "isInSlowMode")
-  iconForComposerAction(isEditing, action, whisper, noBump, isInSlowMode) {
-    if (action === CREATE_TOPIC) {
+  iconForComposerAction(
+    isEditing,
+    composerAction,
+    whisper,
+    noBump,
+    isInSlowMode
+  ) {
+    if (composerAction === CREATE_TOPIC) {
       return "plus";
-    } else if (action === PRIVATE_MESSAGE) {
+    } else if (composerAction === PRIVATE_MESSAGE) {
       return "envelope";
-    } else if (action === CREATE_SHARED_DRAFT) {
+    } else if (composerAction === CREATE_SHARED_DRAFT) {
       return "far-clipboard";
     } else if (whisper) {
       return "far-eye-slash";
@@ -55,18 +68,18 @@ export default DropdownSelectBoxComponent.extend({
     } else if (isInSlowMode) {
       return "hourglass-start";
     } else if (isEditing) {
-      return "pencil-alt";
+      return "pencil";
     } else {
       return "share";
     }
-  },
+  }
 
   contentChanged() {
     this.set("seq", this.seq + 1);
-  },
+  }
 
   didReceiveAttrs() {
-    this._super(...arguments);
+    super.didReceiveAttrs(...arguments);
     let changeContent = false;
 
     // if we change topic we want to change both snapshots
@@ -95,11 +108,11 @@ export default DropdownSelectBoxComponent.extend({
     }
 
     this.set("selectKit.isHidden", isEmpty(this.content));
-  },
+  }
 
   modifySelection() {
     return {};
-  },
+  }
 
   @discourseComputed("seq")
   content() {
@@ -116,10 +129,10 @@ export default DropdownSelectBoxComponent.extend({
       _topicSnapshot
     ) {
       items.push({
-        name: I18n.t(
+        name: i18n(
           "composer.composer_actions.reply_as_new_group_message.label"
         ),
-        description: I18n.t(
+        description: i18n(
           "composer.composer_actions.reply_as_new_group_message.desc"
         ),
         icon: "plus",
@@ -130,15 +143,16 @@ export default DropdownSelectBoxComponent.extend({
     if (
       this.action !== CREATE_TOPIC &&
       this.action !== CREATE_SHARED_DRAFT &&
-      !(this.action === REPLY && this.topic && this.topic.isPrivateMessage) &&
+      this.action === REPLY &&
+      this.topic &&
+      !this.topic.isPrivateMessage &&
       !this.isEditing &&
+      this.currentUser.can_create_topic &&
       _topicSnapshot
     ) {
       items.push({
-        name: I18n.t("composer.composer_actions.reply_as_new_topic.label"),
-        description: I18n.t(
-          "composer.composer_actions.reply_as_new_topic.desc"
-        ),
+        name: i18n("composer.composer_actions.reply_as_new_topic.label"),
+        description: i18n("composer.composer_actions.reply_as_new_topic.desc"),
         icon: "plus",
         id: "reply_as_new_topic",
       });
@@ -151,29 +165,12 @@ export default DropdownSelectBoxComponent.extend({
         !(this.replyOptions.userAvatar && this.replyOptions.userLink))
     ) {
       items.push({
-        name: I18n.t("composer.composer_actions.reply_to_post.label", {
+        name: i18n("composer.composer_actions.reply_to_post.label", {
           postUsername: _postSnapshot.username,
         }),
-        description: I18n.t("composer.composer_actions.reply_to_post.desc"),
+        description: i18n("composer.composer_actions.reply_to_post.desc"),
         icon: "share",
         id: "reply_to_post",
-      });
-    }
-
-    if (
-      this.siteSettings.enable_personal_messages &&
-      this.action !== PRIVATE_MESSAGE &&
-      !this.isEditing
-    ) {
-      items.push({
-        name: I18n.t(
-          "composer.composer_actions.reply_as_private_message.label"
-        ),
-        description: I18n.t(
-          "composer.composer_actions.reply_as_private_message.desc"
-        ),
-        icon: "envelope",
-        id: "reply_as_private_message",
       });
     }
 
@@ -187,8 +184,8 @@ export default DropdownSelectBoxComponent.extend({
           this.replyOptions.topicLink))
     ) {
       items.push({
-        name: I18n.t("composer.composer_actions.reply_to_topic.label"),
-        description: I18n.t("composer.composer_actions.reply_to_topic.desc"),
+        name: i18n("composer.composer_actions.reply_to_topic.label"),
+        description: i18n("composer.composer_actions.reply_to_topic.desc"),
         icon: "share",
         id: "reply_to_topic",
       });
@@ -197,50 +194,28 @@ export default DropdownSelectBoxComponent.extend({
     // if answered post is a whisper, we can only answer with a whisper so no need for toggle
     if (
       this.canWhisper &&
-      (!_postSnapshot ||
+      (!this.replyOptions.postLink ||
+        !_postSnapshot ||
         _postSnapshot.post_type !== this.site.post_types.whisper)
     ) {
       items.push({
-        name: I18n.t("composer.composer_actions.toggle_whisper.label"),
-        description: I18n.t("composer.composer_actions.toggle_whisper.desc"),
+        name: i18n("composer.composer_actions.toggle_whisper.label"),
+        description: i18n("composer.composer_actions.toggle_whisper.desc"),
         icon: "far-eye-slash",
         id: "toggle_whisper",
       });
-    }
-
-    let showCreateTopic = false;
-    if (this.action === CREATE_SHARED_DRAFT) {
-      showCreateTopic = true;
     }
 
     if (this.action === CREATE_TOPIC) {
       if (this.site.shared_drafts_category_id) {
         // Shared Drafts Choice
         items.push({
-          name: I18n.t("composer.composer_actions.shared_draft.label"),
-          description: I18n.t("composer.composer_actions.shared_draft.desc"),
+          name: i18n("composer.composer_actions.shared_draft.label"),
+          description: i18n("composer.composer_actions.shared_draft.desc"),
           icon: "far-clipboard",
           id: "shared_draft",
         });
       }
-
-      // Edge case: If personal messages are disabled, it is possible to have
-      // no items which still renders a button that pops up nothing. In this
-      // case, add an option for what you're currently doing.
-      if (items.length === 0) {
-        showCreateTopic = true;
-      }
-    }
-
-    if (showCreateTopic) {
-      items.push({
-        name: I18n.t("composer.composer_actions.create_topic.label"),
-        description: I18n.t(
-          "composer.composer_actions.reply_as_new_topic.desc"
-        ),
-        icon: "share",
-        id: "create_topic",
-      });
     }
 
     const showToggleTopicBump =
@@ -249,33 +224,60 @@ export default DropdownSelectBoxComponent.extend({
 
     if (this.action === REPLY && showToggleTopicBump) {
       items.push({
-        name: I18n.t("composer.composer_actions.toggle_topic_bump.label"),
-        description: I18n.t("composer.composer_actions.toggle_topic_bump.desc"),
+        name: i18n("composer.composer_actions.toggle_topic_bump.label"),
+        description: i18n("composer.composer_actions.toggle_topic_bump.desc"),
         icon: "anchor",
         id: "toggle_topic_bump",
       });
     }
 
+    if (items.length === 0 && this.currentUser.can_create_topic) {
+      items.push({
+        name: i18n("composer.composer_actions.create_topic.label"),
+        description: i18n("composer.composer_actions.create_topic.desc"),
+        icon: "share",
+        id: "create_topic",
+      });
+    }
+
     return items;
-  },
+  }
+
+  _continuedFromText(post, topic) {
+    let url = post?.url || topic?.url;
+    const topicTitle = topic?.title;
+
+    if (!url || !topicTitle) {
+      return;
+    }
+
+    url = `${location.protocol}//${location.host}${url}`;
+    const link = `[${escapeExpression(topicTitle)}](${url})`;
+    return i18n("post.continue_discussion", {
+      postLink: link,
+    });
+  }
 
   _replyFromExisting(options, post, topic) {
-    this.closeComposer();
-    this.openComposer(options, post, topic);
-  },
+    this.composer.closeComposer();
+    this.composer.open({
+      ...options,
+      prependText: this._continuedFromText(post, topic),
+    });
+  }
 
   _openComposer(options) {
-    this.closeComposer();
-    this.openComposer(options);
-  },
+    this.composer.closeComposer();
+    this.composer.open(options);
+  }
 
   toggleWhisperSelected(options, model) {
     model.toggleProperty("whisper");
-  },
+  }
 
   toggleTopicBumpSelected(options, model) {
     model.toggleProperty("noBump");
-  },
+  }
 
   replyAsNewGroupMessageSelected(options) {
     const recipients = [];
@@ -290,38 +292,35 @@ export default DropdownSelectBoxComponent.extend({
     options.skipDraftCheck = true;
 
     this._replyFromExisting(options, _postSnapshot, _topicSnapshot);
-  },
+  }
 
   replyToTopicSelected(options) {
     options.action = REPLY;
     options.topic = _topicSnapshot;
     options.skipDraftCheck = true;
     this._openComposer(options);
-  },
+  }
 
   replyToPostSelected(options) {
     options.action = REPLY;
     options.post = _postSnapshot;
     options.skipDraftCheck = true;
     this._openComposer(options);
-  },
+  }
 
   replyAsNewTopicSelected(options) {
     Draft.get("new_topic").then((response) => {
       if (response.draft) {
-        bootbox.confirm(
-          I18n.t("composer.composer_actions.reply_as_new_topic.confirm"),
-          (result) => {
-            if (result) {
-              this._replyAsNewTopicSelect(options);
-            }
-          }
-        );
+        this.dialog.confirm({
+          message: i18n("composer.composer_actions.reply_as_new_topic.confirm"),
+          confirmButtonLabel: "composer.ok_proceed",
+          didConfirm: () => this._replyAsNewTopicSelect(options),
+        });
       } else {
         this._replyAsNewTopicSelect(options);
       }
     });
-  },
+  }
 
   _replyAsNewTopicSelect(options) {
     options.action = CREATE_TOPIC;
@@ -329,7 +328,7 @@ export default DropdownSelectBoxComponent.extend({
     options.disableScopedCategory = true;
     options.skipDraftCheck = true;
     this._replyFromExisting(options, _postSnapshot, _topicSnapshot);
-  },
+  }
 
   replyAsPrivateMessageSelected(options) {
     let usernames;
@@ -356,44 +355,43 @@ export default DropdownSelectBoxComponent.extend({
     options.skipDraftCheck = true;
 
     this._replyFromExisting(options, _postSnapshot, _topicSnapshot);
-  },
+  }
 
-  _switchCreate(options, action) {
-    options.action = action;
+  _switchCreate(options, composerAction) {
+    options.action = composerAction;
     options.categoryId = this.get("composerModel.categoryId");
     options.topicTitle = this.get("composerModel.title");
     options.tags = this.get("composerModel.tags");
     options.skipDraftCheck = true;
     this._openComposer(options);
-  },
+  }
 
   createTopicSelected(options) {
     this._switchCreate(options, CREATE_TOPIC);
-  },
+  }
 
   sharedDraftSelected(options) {
     this._switchCreate(options, CREATE_SHARED_DRAFT);
-  },
+  }
 
-  actions: {
-    onChange(value) {
-      const action = `${camelize(value)}Selected`;
-      if (this[action]) {
-        this[action](
-          this.composerModel.getProperties(
-            "draftKey",
-            "draftSequence",
-            "title",
-            "reply",
-            "disableScopedCategory"
-          ),
-          this.composerModel
-        );
-        this.contentChanged();
-      } else {
-        // eslint-disable-next-line no-console
-        console.error(`No method '${action}' found`);
-      }
-    },
-  },
-});
+  @action
+  onChange(value) {
+    const composerAction = `${camelize(value)}Selected`;
+    if (this[composerAction]) {
+      this[composerAction](
+        this.composerModel.getProperties(
+          "draftKey",
+          "draftSequence",
+          "title",
+          "reply",
+          "disableScopedCategory"
+        ),
+        this.composerModel
+      );
+      this.contentChanged();
+    } else {
+      // eslint-disable-next-line no-console
+      console.error(`No method '${composerAction}' found`);
+    }
+  }
+}

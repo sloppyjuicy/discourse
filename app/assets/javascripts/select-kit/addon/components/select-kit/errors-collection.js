@@ -1,7 +1,5 @@
 import Component from "@ember/component";
-import layout from "select-kit/templates/components/select-kit/errors-collection";
+import { tagName } from "@ember-decorators/component";
 
-export default Component.extend({
-  layout,
-  tagName: "",
-});
+@tagName("")
+export default class ErrorsCollection extends Component {}

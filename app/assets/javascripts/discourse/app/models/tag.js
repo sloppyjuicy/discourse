@@ -1,19 +1,17 @@
+import { readOnly } from "@ember/object/computed";
+import discourseComputed from "discourse/lib/decorators";
 import RestModel from "discourse/models/rest";
-import discourseComputed from "discourse-common/utils/decorators";
 
-export default RestModel.extend({
+export default class Tag extends RestModel {
+  @readOnly("pm_only") pmOnly;
+
   @discourseComputed("count", "pm_count")
   totalCount(count, pmCount) {
-    return count + pmCount;
-  },
-
-  @discourseComputed("count", "pm_count")
-  pmOnly(count, pmCount) {
-    return count === 0 && pmCount > 0;
-  },
+    return pmCount ? count + pmCount : count;
+  }
 
   @discourseComputed("id")
   searchContext(id) {
     return { type: "tag", id, tag: this, name: id };
-  },
-});
+  }
+}

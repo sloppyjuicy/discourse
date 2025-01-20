@@ -1,85 +1,65 @@
-import { click, fillIn, settled } from "@ember/test-helpers";
-import componentTest, {
-  setupRenderingTest,
-} from "discourse/tests/helpers/component-test";
+import { next } from "@ember/runloop";
 import {
-  discourseModule,
-  exists,
-  query,
-  queryAll,
-} from "discourse/tests/helpers/qunit-helpers";
+  click,
+  fillIn,
+  focus,
+  render,
+  settled,
+  triggerEvent,
+  triggerKeyEvent,
+} from "@ember/test-helpers";
+import { hbs } from "ember-cli-htmlbars";
+import { module, test } from "qunit";
+import { withPluginApi } from "discourse/lib/plugin-api";
+import { setCaretPosition } from "discourse/lib/utilities";
+import { setupRenderingTest } from "discourse/tests/helpers/component-test";
+import formatTextWithSelection from "discourse/tests/helpers/d-editor-helper";
+import emojiPicker from "discourse/tests/helpers/emoji-picker-helper";
+import { paste, query, queryAll } from "discourse/tests/helpers/qunit-helpers";
 import {
   getTextareaSelection,
   setTextareaSelection,
 } from "discourse/tests/helpers/textarea-selection-helper";
-import I18n from "I18n";
-import { clearToolbarCallbacks } from "discourse/components/d-editor";
-import formatTextWithSelection from "discourse/tests/helpers/d-editor-helper";
-import hbs from "htmlbars-inline-precompile";
-import { next } from "@ember/runloop";
-import { withPluginApi } from "discourse/lib/plugin-api";
+import { i18n } from "discourse-i18n";
 
-discourseModule("Integration | Component | d-editor", function (hooks) {
+module("Integration | Component | d-editor", function (hooks) {
   setupRenderingTest(hooks);
 
-  componentTest("preview updates with markdown", {
-    template: hbs`{{d-editor value=value}}`,
+  test("preview updates with markdown", async function (assert) {
+    await render(hbs`<DEditor @value={{this.value}} />`);
 
-    async test(assert) {
-      assert.ok(exists(".d-editor-button-bar"));
-      await fillIn(".d-editor-input", "hello **world**");
+    assert.dom(".d-editor-button-bar").exists();
+    await fillIn(".d-editor-input", "hello **world**");
 
-      assert.equal(this.value, "hello **world**");
-      assert.equal(
-        queryAll(".d-editor-preview").html().trim(),
-        "<p>hello <strong>world</strong></p>"
-      );
-    },
+    assert.strictEqual(this.value, "hello **world**");
+    assert
+      .dom(".d-editor-preview")
+      .hasHtml("<p>hello <strong>world</strong></p>");
   });
 
-  componentTest("links in preview are not tabbable", {
-    template: hbs`{{d-editor value=value}}`,
+  test("links in preview are not tabbable", async function (assert) {
+    await render(hbs`<DEditor @value={{this.value}} />`);
 
-    async test(assert) {
-      await fillIn(".d-editor-input", "[discourse](https://www.discourse.org)");
+    await fillIn(".d-editor-input", "[discourse](https://www.discourse.org)");
 
-      assert.equal(
-        queryAll(".d-editor-preview").html().trim(),
+    assert
+      .dom(".d-editor-preview")
+      .hasHtml(
         '<p><a href="https://www.discourse.org" tabindex="-1">discourse</a></p>'
       );
-    },
   });
 
-  componentTest("preview sanitizes HTML", {
-    template: hbs`{{d-editor value=value}}`,
+  test("updating the value refreshes the preview", async function (assert) {
+    this.set("value", "evil trout");
 
-    async test(assert) {
-      await fillIn(".d-editor-input", `"><svg onload="prompt(/xss/)"></svg>`);
-      assert.equal(queryAll(".d-editor-preview").html().trim(), '<p>"&gt;</p>');
-    },
-  });
+    await render(hbs`<DEditor @value={{this.value}} />`);
 
-  componentTest("updating the value refreshes the preview", {
-    template: hbs`{{d-editor value=value}}`,
+    assert.dom(".d-editor-preview").hasHtml("<p>evil trout</p>");
 
-    beforeEach() {
-      this.set("value", "evil trout");
-    },
+    this.set("value", "zogstrip");
+    await settled();
 
-    async test(assert) {
-      assert.equal(
-        queryAll(".d-editor-preview").html().trim(),
-        "<p>evil trout</p>"
-      );
-
-      this.set("value", "zogstrip");
-      await settled();
-
-      assert.equal(
-        queryAll(".d-editor-preview").html().trim(),
-        "<p>zogstrip</p>"
-      );
-    },
+    assert.dom(".d-editor-preview").hasHtml("<p>zogstrip</p>");
   });
 
   function jumpEnd(textarea) {
@@ -88,31 +68,32 @@ discourseModule("Integration | Component | d-editor", function (hooks) {
     return textarea;
   }
 
-  function testCase(title, testFunc) {
-    componentTest(title, {
-      template: hbs`{{d-editor value=value}}`,
-      beforeEach() {
-        this.set("value", "hello world.");
-      },
-      test(assert) {
-        const textarea = jumpEnd(query("textarea.d-editor-input"));
-        testFunc.call(this, assert, textarea);
-      },
-      skip: !navigator.userAgent.includes("Chrome"),
+  function testCase(title, testFunc, userOptions = {}) {
+    test(title, async function (assert) {
+      this.currentUser.user_option = Object.assign(
+        {},
+        this.currentUser.user_option,
+        userOptions
+      );
+      this.set("value", "hello world.");
+
+      await render(hbs`<DEditor @value={{this.value}} />`);
+
+      const textarea = jumpEnd(query("textarea.d-editor-input"));
+      await testFunc.call(this, assert, textarea);
     });
   }
 
   function composerTestCase(title, testFunc) {
-    componentTest(title, {
-      template: hbs`{{d-editor value=value composerEvents=true}}`,
-      beforeEach() {
-        this.set("value", "hello world.");
-      },
+    test(title, async function (assert) {
+      this.set("value", "hello world.");
 
-      test(assert) {
-        const textarea = jumpEnd(query("textarea.d-editor-input"));
-        testFunc.call(this, assert, textarea);
-      },
+      await render(
+        hbs`<DEditor @value={{this.value}} @composerEvents={{true}} />`
+      );
+
+      const textarea = jumpEnd(query("textarea.d-editor-input"));
+      await testFunc.call(this, assert, textarea);
     });
   }
 
@@ -124,9 +105,9 @@ discourseModule("Integration | Component | d-editor", function (hooks) {
 
       await click(`button.bold`);
 
-      assert.equal(this.value, `hello **w**orld.`);
-      assert.equal(textarea.selectionStart, 8);
-      assert.equal(textarea.selectionEnd, 9);
+      assert.strictEqual(this.value, `hello **w**orld.`);
+      assert.strictEqual(textarea.selectionStart, 8);
+      assert.strictEqual(textarea.selectionEnd, 9);
     }
   );
 
@@ -138,19 +119,19 @@ discourseModule("Integration | Component | d-editor", function (hooks) {
 
       await click(`button.bold`);
 
-      assert.equal(this.value, `**hello** world.`);
-      assert.equal(textarea.selectionStart, 2);
-      assert.equal(textarea.selectionEnd, 7);
+      assert.strictEqual(this.value, `**hello** world.`);
+      assert.strictEqual(textarea.selectionStart, 2);
+      assert.strictEqual(textarea.selectionEnd, 7);
     }
   );
 
   testCase(`bold button with no selection`, async function (assert, textarea) {
     await click(`button.bold`);
 
-    const example = I18n.t(`composer.bold_text`);
-    assert.equal(this.value, `hello world.**${example}**`);
-    assert.equal(textarea.selectionStart, 14);
-    assert.equal(textarea.selectionEnd, 14 + example.length);
+    const example = i18n(`composer.bold_text`);
+    assert.strictEqual(this.value, `hello world.**${example}**`);
+    assert.strictEqual(textarea.selectionStart, 14);
+    assert.strictEqual(textarea.selectionEnd, 14 + example.length);
   });
 
   testCase(`bold button with a selection`, async function (assert, textarea) {
@@ -158,15 +139,31 @@ discourseModule("Integration | Component | d-editor", function (hooks) {
     textarea.selectionEnd = 11;
 
     await click(`button.bold`);
-    assert.equal(this.value, `hello **world**.`);
-    assert.equal(textarea.selectionStart, 8);
-    assert.equal(textarea.selectionEnd, 13);
+    assert.strictEqual(this.value, `hello **world**.`);
+    assert.strictEqual(textarea.selectionStart, 8);
+    assert.strictEqual(textarea.selectionEnd, 13);
 
     await click(`button.bold`);
-    assert.equal(this.value, "hello world.");
-    assert.equal(textarea.selectionStart, 6);
-    assert.equal(textarea.selectionEnd, 11);
+    assert.strictEqual(this.value, "hello world.");
+    assert.strictEqual(textarea.selectionStart, 6);
+    assert.strictEqual(textarea.selectionEnd, 11);
   });
+
+  testCase(
+    "bold button maintains undo history",
+    async function (assert, textarea) {
+      textarea.selectionStart = 6;
+      textarea.selectionEnd = 11;
+
+      await click("button.bold");
+      assert.strictEqual(this.value, "hello **world**.");
+      assert.strictEqual(textarea.selectionStart, 8);
+      assert.strictEqual(textarea.selectionEnd, 13);
+
+      document.execCommand("undo");
+      assert.strictEqual(this.value, "hello world.");
+    }
+  );
 
   testCase(
     `bold with a multiline selection`,
@@ -177,14 +174,14 @@ discourseModule("Integration | Component | d-editor", function (hooks) {
       textarea.selectionEnd = 12;
 
       await click(`button.bold`);
-      assert.equal(this.value, `**hello**\n\n**world**\n\ntest.`);
-      assert.equal(textarea.selectionStart, 0);
-      assert.equal(textarea.selectionEnd, 20);
+      assert.strictEqual(this.value, `**hello**\n\n**world**\n\ntest.`);
+      assert.strictEqual(textarea.selectionStart, 0);
+      assert.strictEqual(textarea.selectionEnd, 20);
 
       await click(`button.bold`);
-      assert.equal(this.value, `hello\n\nworld\n\ntest.`);
-      assert.equal(textarea.selectionStart, 0);
-      assert.equal(textarea.selectionEnd, 12);
+      assert.strictEqual(this.value, `hello\n\nworld\n\ntest.`);
+      assert.strictEqual(textarea.selectionStart, 0);
+      assert.strictEqual(textarea.selectionEnd, 12);
     }
   );
 
@@ -192,11 +189,11 @@ discourseModule("Integration | Component | d-editor", function (hooks) {
     `italic button with no selection`,
     async function (assert, textarea) {
       await click(`button.italic`);
-      const example = I18n.t(`composer.italic_text`);
-      assert.equal(this.value, `hello world.*${example}*`);
+      const example = i18n(`composer.italic_text`);
+      assert.strictEqual(this.value, `hello world.*${example}*`);
 
-      assert.equal(textarea.selectionStart, 13);
-      assert.equal(textarea.selectionEnd, 13 + example.length);
+      assert.strictEqual(textarea.selectionStart, 13);
+      assert.strictEqual(textarea.selectionEnd, 13 + example.length);
     }
   );
 
@@ -205,14 +202,14 @@ discourseModule("Integration | Component | d-editor", function (hooks) {
     textarea.selectionEnd = 11;
 
     await click(`button.italic`);
-    assert.equal(this.value, `hello *world*.`);
-    assert.equal(textarea.selectionStart, 7);
-    assert.equal(textarea.selectionEnd, 12);
+    assert.strictEqual(this.value, `hello *world*.`);
+    assert.strictEqual(textarea.selectionStart, 7);
+    assert.strictEqual(textarea.selectionEnd, 12);
 
     await click(`button.italic`);
-    assert.equal(this.value, "hello world.");
-    assert.equal(textarea.selectionStart, 6);
-    assert.equal(textarea.selectionEnd, 11);
+    assert.strictEqual(this.value, "hello world.");
+    assert.strictEqual(textarea.selectionStart, 6);
+    assert.strictEqual(textarea.selectionEnd, 11);
   });
 
   testCase(
@@ -224,285 +221,302 @@ discourseModule("Integration | Component | d-editor", function (hooks) {
       textarea.selectionEnd = 12;
 
       await click(`button.italic`);
-      assert.equal(this.value, `*hello*\n\n*world*\n\ntest.`);
-      assert.equal(textarea.selectionStart, 0);
-      assert.equal(textarea.selectionEnd, 16);
+      assert.strictEqual(this.value, `*hello*\n\n*world*\n\ntest.`);
+      assert.strictEqual(textarea.selectionStart, 0);
+      assert.strictEqual(textarea.selectionEnd, 16);
 
       await click(`button.italic`);
-      assert.equal(this.value, `hello\n\nworld\n\ntest.`);
-      assert.equal(textarea.selectionStart, 0);
-      assert.equal(textarea.selectionEnd, 12);
+      assert.strictEqual(this.value, `hello\n\nworld\n\ntest.`);
+      assert.strictEqual(textarea.selectionStart, 0);
+      assert.strictEqual(textarea.selectionEnd, 12);
     }
   );
 
-  componentTest("advanced code", {
-    template: hbs`{{d-editor value=value}}`,
-    beforeEach() {
-      this.siteSettings.code_formatting_style = "4-spaces-indent";
-      this.set(
-        "value",
-        `
-  function xyz(x, y, z) {
-    if (y === z) {
-      return true;
-    }
+  test("advanced code", async function (assert) {
+    this.siteSettings.code_formatting_style = "4-spaces-indent";
+    this.set(
+      "value",
+      `
+function xyz(x, y, z) {
+  if (y === z) {
+    return true;
   }
-  `
-      );
-    },
+}
+`
+    );
 
-    async test(assert) {
-      const textarea = query("textarea.d-editor-input");
-      textarea.selectionStart = 0;
-      textarea.selectionEnd = textarea.value.length;
+    await render(hbs`<DEditor @value={{this.value}} />`);
 
-      await click("button.code");
-      assert.equal(
-        this.value,
-        `
-      function xyz(x, y, z) {
-        if (y === z) {
-          return true;
-        }
+    const textarea = query("textarea.d-editor-input");
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = textarea.value.length;
+
+    await click("button.code");
+    assert.strictEqual(
+      this.value,
+      `
+    function xyz(x, y, z) {
+      if (y === z) {
+        return true;
       }
-  `
-      );
-    },
+    }
+`
+    );
   });
 
-  componentTest("code button", {
-    template: hbs`{{d-editor value=value}}`,
-    beforeEach() {
-      this.siteSettings.code_formatting_style = "4-spaces-indent";
-    },
+  test("code button", async function (assert) {
+    this.siteSettings.code_formatting_style = "4-spaces-indent";
 
-    async test(assert) {
-      const textarea = jumpEnd(query("textarea.d-editor-input"));
+    await render(hbs`<DEditor @value={{this.value}} />`);
 
-      await click("button.code");
-      assert.equal(this.value, `    ${I18n.t("composer.code_text")}`);
+    const textarea = jumpEnd(query("textarea.d-editor-input"));
 
-      this.set("value", "first line\n\nsecond line\n\nthird line");
+    await click("button.code");
+    assert.strictEqual(this.value, `    ${i18n("composer.code_text")}`);
 
-      textarea.selectionStart = 11;
-      textarea.selectionEnd = 11;
+    this.set("value", "first line\n\nsecond line\n\nthird line");
 
-      await click("button.code");
-      assert.equal(
-        this.value,
-        `first line
-    ${I18n.t("composer.code_text")}
+    textarea.selectionStart = 11;
+    textarea.selectionEnd = 11;
+
+    await click("button.code");
+    assert.strictEqual(
+      this.value,
+      `first line
+    ${i18n("composer.code_text")}
 second line
 
 third line`
-      );
+    );
 
-      this.set("value", "first line\n\nsecond line\n\nthird line");
+    this.set("value", "first line\n\nsecond line\n\nthird line");
 
-      await click("button.code");
-      assert.equal(
-        this.value,
-        `first line
+    await click("button.code");
+    assert.strictEqual(
+      this.value,
+      `first line
 
 second line
 
-third line\`${I18n.t("composer.code_title")}\``
-      );
-      this.set("value", "first line\n\nsecond line\n\nthird line");
+third line\`${i18n("composer.code_title")}\``
+    );
+    this.set("value", "first line\n\nsecond line\n\nthird line");
 
-      textarea.selectionStart = 5;
-      textarea.selectionEnd = 5;
+    textarea.selectionStart = 5;
+    textarea.selectionEnd = 5;
 
-      await click("button.code");
-      assert.equal(
-        this.value,
-        `first\`${I18n.t("composer.code_title")}\` line
+    await click("button.code");
+    assert.strictEqual(
+      this.value,
+      `first\`${i18n("composer.code_title")}\` line
 
 second line
 
 third line`
-      );
-      this.set("value", "first line\n\nsecond line\n\nthird line");
+    );
+    this.set("value", "first line\n\nsecond line\n\nthird line");
 
-      textarea.selectionStart = 6;
-      textarea.selectionEnd = 10;
+    textarea.selectionStart = 6;
+    textarea.selectionEnd = 10;
 
-      await click("button.code");
-      assert.equal(this.value, "first `line`\n\nsecond line\n\nthird line");
-      assert.equal(textarea.selectionStart, 7);
-      assert.equal(textarea.selectionEnd, 11);
+    await click("button.code");
+    assert.strictEqual(this.value, "first `line`\n\nsecond line\n\nthird line");
+    assert.strictEqual(textarea.selectionStart, 7);
+    assert.strictEqual(textarea.selectionEnd, 11);
 
-      await click("button.code");
-      assert.equal(this.value, "first line\n\nsecond line\n\nthird line");
-      assert.equal(textarea.selectionStart, 6);
-      assert.equal(textarea.selectionEnd, 10);
+    await click("button.code");
+    assert.strictEqual(this.value, "first line\n\nsecond line\n\nthird line");
+    assert.strictEqual(textarea.selectionStart, 6);
+    assert.strictEqual(textarea.selectionEnd, 10);
 
-      textarea.selectionStart = 0;
-      textarea.selectionEnd = 23;
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = 23;
 
-      await click("button.code");
-      assert.equal(
-        this.value,
-        "    first line\n\n    second line\n\nthird line"
-      );
-      assert.equal(textarea.selectionStart, 0);
-      assert.equal(textarea.selectionEnd, 31);
+    await click("button.code");
+    assert.strictEqual(
+      this.value,
+      "    first line\n\n    second line\n\nthird line"
+    );
+    assert.strictEqual(textarea.selectionStart, 0);
+    assert.strictEqual(textarea.selectionEnd, 31);
 
-      await click("button.code");
-      assert.equal(this.value, "first line\n\nsecond line\n\nthird line");
-      assert.equal(textarea.selectionStart, 0);
-      assert.equal(textarea.selectionEnd, 23);
-    },
+    await click("button.code");
+    assert.strictEqual(this.value, "first line\n\nsecond line\n\nthird line");
+    assert.strictEqual(textarea.selectionStart, 0);
+    assert.strictEqual(textarea.selectionEnd, 23);
   });
 
-  componentTest("code fences", {
-    template: hbs`{{d-editor value=value}}`,
-    beforeEach() {
-      this.set("value", "");
-    },
+  test("code button does not reset undo history", async function (assert) {
+    this.set("value", "existing");
 
-    async test(assert) {
-      const textarea = jumpEnd(query("textarea.d-editor-input"));
+    await render(hbs`<DEditor @value={{this.value}} />`);
+    const textarea = query("textarea.d-editor-input");
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = 8;
 
-      await click("button.code");
-      assert.equal(
-        this.value,
-        `\`\`\`
-${I18n.t("composer.paste_code_text")}
+    await click("button.code");
+    assert.strictEqual(this.value, "`existing`");
+
+    await click("button.code");
+    assert.strictEqual(this.value, "existing");
+
+    document.execCommand("undo");
+    assert.strictEqual(this.value, "`existing`");
+    document.execCommand("undo");
+    assert.strictEqual(this.value, "existing");
+  });
+
+  test("code fences", async function (assert) {
+    this.set("value", "");
+
+    await render(hbs`<DEditor @value={{this.value}} />`);
+
+    const textarea = jumpEnd(query("textarea.d-editor-input"));
+
+    await click("button.code");
+    assert.strictEqual(
+      this.value,
+      `\`\`\`
+${i18n("composer.paste_code_text")}
 \`\`\``
-      );
+    );
 
-      assert.equal(textarea.selectionStart, 4);
-      assert.equal(textarea.selectionEnd, 27);
+    assert.strictEqual(textarea.selectionStart, 4);
+    assert.strictEqual(textarea.selectionEnd, 27);
 
-      this.set("value", "first line\nsecond line\nthird line");
+    this.set("value", "first line\nsecond line\nthird line");
 
-      textarea.selectionStart = 0;
-      textarea.selectionEnd = textarea.value.length;
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = textarea.value.length;
 
-      await click("button.code");
+    await click("button.code");
 
-      assert.equal(
-        this.value,
-        `\`\`\`
+    assert.strictEqual(
+      this.value,
+      `\`\`\`
 first line
 second line
 third line
 \`\`\`
 `
-      );
+    );
 
-      assert.equal(textarea.selectionStart, textarea.value.length);
-      assert.equal(textarea.selectionEnd, textarea.value.length);
+    assert.strictEqual(textarea.selectionStart, textarea.value.length);
+    assert.strictEqual(textarea.selectionEnd, textarea.value.length);
 
-      this.set("value", "first line\nsecond line\nthird line");
+    this.set("value", "first line\nsecond line\nthird line");
 
-      textarea.selectionStart = 0;
-      textarea.selectionEnd = 0;
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = 0;
 
-      await click("button.code");
+    await click("button.code");
 
-      assert.equal(
-        this.value,
-        `\`${I18n.t("composer.code_title")}\`first line
+    assert.strictEqual(
+      this.value,
+      `\`${i18n("composer.code_title")}\`first line
 second line
 third line`
-      );
+    );
 
-      assert.equal(textarea.selectionStart, 1);
-      assert.equal(
-        textarea.selectionEnd,
-        I18n.t("composer.code_title").length + 1
-      );
+    assert.strictEqual(textarea.selectionStart, 1);
+    assert.strictEqual(
+      textarea.selectionEnd,
+      i18n("composer.code_title").length + 1
+    );
 
-      this.set("value", "first line\nsecond line\nthird line");
+    this.set("value", "first line\nsecond line\nthird line");
 
-      textarea.selectionStart = 0;
-      textarea.selectionEnd = 10;
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = 10;
 
-      await click("button.code");
+    await click("button.code");
 
-      assert.equal(
-        this.value,
-        `\`first line\`
+    assert.strictEqual(
+      this.value,
+      `\`first line\`
 second line
 third line`
-      );
+    );
 
-      assert.equal(textarea.selectionStart, 1);
-      assert.equal(textarea.selectionEnd, 11);
+    assert.strictEqual(textarea.selectionStart, 1);
+    assert.strictEqual(textarea.selectionEnd, 11);
 
-      this.set("value", "first line\nsecond line\nthird line");
+    this.set("value", "first line\nsecond line\nthird line");
 
-      textarea.selectionStart = 0;
-      textarea.selectionEnd = 23;
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = 23;
 
-      await click("button.code");
+    await click("button.code");
 
-      assert.equal(
-        this.value,
-        `\`\`\`
+    assert.strictEqual(
+      this.value,
+      `\`\`\`
 first line
 second line
 \`\`\`
 third line`
-      );
+    );
 
-      assert.equal(textarea.selectionStart, 30);
-      assert.equal(textarea.selectionEnd, 30);
+    assert.strictEqual(textarea.selectionStart, 30);
+    assert.strictEqual(textarea.selectionEnd, 30);
 
-      this.set("value", "first line\nsecond line\nthird line");
+    this.set("value", "first line\nsecond line\nthird line");
 
-      textarea.selectionStart = 6;
-      textarea.selectionEnd = 17;
+    textarea.selectionStart = 6;
+    textarea.selectionEnd = 17;
 
-      await click("button.code");
+    await click("button.code");
 
-      assert.equal(
-        this.value,
-        `first \n\`\`\`\nline\nsecond\n\`\`\`\n line\nthird line`
-      );
+    assert.strictEqual(
+      this.value,
+      `first \n\`\`\`\nline\nsecond\n\`\`\`\n line\nthird line`
+    );
 
-      assert.equal(textarea.selectionStart, 27);
-      assert.equal(textarea.selectionEnd, 27);
-    },
+    assert.strictEqual(textarea.selectionStart, 27);
+    assert.strictEqual(textarea.selectionEnd, 27);
+
+    document.execCommand("undo");
+    assert.strictEqual(this.value, "first line\nsecond line\nthird line");
   });
 
-  componentTest("quote button - empty lines", {
-    template: hbs`{{d-editor value=value composerEvents=true}}`,
-    beforeEach() {
-      this.set("value", "one\n\ntwo\n\nthree");
-    },
-    async test(assert) {
-      const textarea = jumpEnd(query("textarea.d-editor-input"));
+  test("quote button - empty lines", async function (assert) {
+    this.set("value", "one\n\ntwo\n\nthree");
 
-      textarea.selectionStart = 0;
+    await render(
+      hbs`<DEditor @value={{this.value}} @composerEvents={{true}} />`
+    );
 
-      await click("button.blockquote");
+    const textarea = jumpEnd(query("textarea.d-editor-input"));
 
-      assert.equal(this.value, "> one\n> \n> two\n> \n> three");
-      assert.equal(textarea.selectionStart, 0);
-      assert.equal(textarea.selectionEnd, 25);
+    textarea.selectionStart = 0;
 
-      await click("button.blockquote");
-      assert.equal(this.value, "one\n\ntwo\n\nthree");
-    },
+    await click("button.blockquote");
+
+    assert.strictEqual(this.value, "> one\n> \n> two\n> \n> three");
+    assert.strictEqual(textarea.selectionStart, 0);
+    assert.strictEqual(textarea.selectionEnd, 25);
+
+    await click("button.blockquote");
+    assert.strictEqual(this.value, "one\n\ntwo\n\nthree");
   });
 
-  componentTest("quote button - selecting empty lines", {
-    template: hbs`{{d-editor value=value composerEvents=true}}`,
-    beforeEach() {
-      this.set("value", "one\n\n\n\ntwo");
-    },
-    async test(assert) {
-      const textarea = jumpEnd(query("textarea.d-editor-input"));
+  test("quote button - selecting empty lines", async function (assert) {
+    this.set("value", "one\n\n\n\ntwo");
 
-      textarea.selectionStart = 6;
-      textarea.selectionEnd = 10;
+    await render(
+      hbs`<DEditor @value={{this.value}} @composerEvents={{true}} />`
+    );
 
-      await click("button.blockquote");
-      assert.equal(this.value, "one\n\n\n> \n> two");
-    },
+    const textarea = jumpEnd(query("textarea.d-editor-input"));
+
+    textarea.selectionStart = 6;
+    textarea.selectionEnd = 10;
+
+    await click("button.blockquote");
+    assert.strictEqual(this.value, "one\n\n\n> \n> two");
+
+    document.execCommand("undo");
+    assert.strictEqual(this.value, "one\n\n\n\ntwo");
   });
 
   testCase("quote button", async function (assert, textarea) {
@@ -510,35 +524,35 @@ third line`
     textarea.selectionEnd = 9;
 
     await click("button.blockquote");
-    assert.equal(this.value, "hello\n\n> wor\n\nld.");
-    assert.equal(textarea.selectionStart, 7);
-    assert.equal(textarea.selectionEnd, 12);
+    assert.strictEqual(this.value, "hello\n\n> wor\n\nld.");
+    assert.strictEqual(textarea.selectionStart, 7);
+    assert.strictEqual(textarea.selectionEnd, 12);
 
     await click("button.blockquote");
 
-    assert.equal(this.value, "hello\n\nwor\n\nld.");
-    assert.equal(textarea.selectionStart, 7);
-    assert.equal(textarea.selectionEnd, 10);
+    assert.strictEqual(this.value, "hello\n\nwor\n\nld.");
+    assert.strictEqual(textarea.selectionStart, 7);
+    assert.strictEqual(textarea.selectionEnd, 10);
 
     textarea.selectionStart = 15;
     textarea.selectionEnd = 15;
 
     await click("button.blockquote");
-    assert.equal(this.value, "hello\n\nwor\n\nld.\n\n> Blockquote");
+    assert.strictEqual(this.value, "hello\n\nwor\n\nld.\n\n> Blockquote");
   });
 
   testCase(
     `bullet button with no selection`,
     async function (assert, textarea) {
-      const example = I18n.t("composer.list_item");
+      const example = i18n("composer.list_item");
 
       await click(`button.bullet`);
-      assert.equal(this.value, `hello world.\n\n* ${example}`);
-      assert.equal(textarea.selectionStart, 14);
-      assert.equal(textarea.selectionEnd, 16 + example.length);
+      assert.strictEqual(this.value, `hello world.\n\n* ${example}`);
+      assert.strictEqual(textarea.selectionStart, 14);
+      assert.strictEqual(textarea.selectionEnd, 16 + example.length);
 
       await click(`button.bullet`);
-      assert.equal(this.value, `hello world.\n\n${example}`);
+      assert.strictEqual(this.value, `hello world.\n\n${example}`);
     }
   );
 
@@ -547,14 +561,14 @@ third line`
     textarea.selectionEnd = 11;
 
     await click(`button.bullet`);
-    assert.equal(this.value, `hello\n\n* world\n\n.`);
-    assert.equal(textarea.selectionStart, 7);
-    assert.equal(textarea.selectionEnd, 14);
+    assert.strictEqual(this.value, `hello\n\n* world\n\n.`);
+    assert.strictEqual(textarea.selectionStart, 7);
+    assert.strictEqual(textarea.selectionEnd, 14);
 
     await click(`button.bullet`);
-    assert.equal(this.value, `hello\n\nworld\n\n.`);
-    assert.equal(textarea.selectionStart, 7);
-    assert.equal(textarea.selectionEnd, 12);
+    assert.strictEqual(this.value, `hello\n\nworld\n\n.`);
+    assert.strictEqual(textarea.selectionStart, 7);
+    assert.strictEqual(textarea.selectionEnd, 12);
   });
 
   testCase(
@@ -566,29 +580,29 @@ third line`
       textarea.selectionEnd = 20;
 
       await click(`button.bullet`);
-      assert.equal(this.value, "Hello\n\nWorld\n\nEvil");
-      assert.equal(textarea.selectionStart, 0);
-      assert.equal(textarea.selectionEnd, 18);
+      assert.strictEqual(this.value, "Hello\n\nWorld\n\nEvil");
+      assert.strictEqual(textarea.selectionStart, 0);
+      assert.strictEqual(textarea.selectionEnd, 18);
 
       await click(`button.bullet`);
-      assert.equal(this.value, "* Hello\n\n* World\n\n* Evil");
-      assert.equal(textarea.selectionStart, 0);
-      assert.equal(textarea.selectionEnd, 24);
+      assert.strictEqual(this.value, "* Hello\n\n* World\n\n* Evil");
+      assert.strictEqual(textarea.selectionStart, 0);
+      assert.strictEqual(textarea.selectionEnd, 24);
     }
   );
 
   testCase(`list button with no selection`, async function (assert, textarea) {
-    const example = I18n.t("composer.list_item");
+    const example = i18n("composer.list_item");
 
     await click(`button.list`);
-    assert.equal(this.value, `hello world.\n\n1. ${example}`);
-    assert.equal(textarea.selectionStart, 14);
-    assert.equal(textarea.selectionEnd, 17 + example.length);
+    assert.strictEqual(this.value, `hello world.\n\n1. ${example}`);
+    assert.strictEqual(textarea.selectionStart, 14);
+    assert.strictEqual(textarea.selectionEnd, 17 + example.length);
 
     await click(`button.list`);
-    assert.equal(this.value, `hello world.\n\n${example}`);
-    assert.equal(textarea.selectionStart, 14);
-    assert.equal(textarea.selectionEnd, 14 + example.length);
+    assert.strictEqual(this.value, `hello world.\n\n${example}`);
+    assert.strictEqual(textarea.selectionStart, 14);
+    assert.strictEqual(textarea.selectionEnd, 14 + example.length);
   });
 
   testCase(`list button with a selection`, async function (assert, textarea) {
@@ -596,14 +610,14 @@ third line`
     textarea.selectionEnd = 11;
 
     await click(`button.list`);
-    assert.equal(this.value, `hello\n\n1. world\n\n.`);
-    assert.equal(textarea.selectionStart, 7);
-    assert.equal(textarea.selectionEnd, 15);
+    assert.strictEqual(this.value, `hello\n\n1. world\n\n.`);
+    assert.strictEqual(textarea.selectionStart, 7);
+    assert.strictEqual(textarea.selectionEnd, 15);
 
     await click(`button.list`);
-    assert.equal(this.value, `hello\n\nworld\n\n.`);
-    assert.equal(textarea.selectionStart, 7);
-    assert.equal(textarea.selectionEnd, 12);
+    assert.strictEqual(this.value, `hello\n\nworld\n\n.`);
+    assert.strictEqual(textarea.selectionStart, 7);
+    assert.strictEqual(textarea.selectionEnd, 12);
   });
 
   testCase(`list button with line sequence`, async function (assert, textarea) {
@@ -613,93 +627,147 @@ third line`
     textarea.selectionEnd = 18;
 
     await click(`button.list`);
-    assert.equal(this.value, "1. Hello\n\n2. World\n\n3. Evil");
-    assert.equal(textarea.selectionStart, 0);
-    assert.equal(textarea.selectionEnd, 27);
+    assert.strictEqual(this.value, "1. Hello\n\n2. World\n\n3. Evil");
+    assert.strictEqual(textarea.selectionStart, 0);
+    assert.strictEqual(textarea.selectionEnd, 27);
 
     await click(`button.list`);
-    assert.equal(this.value, "Hello\n\nWorld\n\nEvil");
-    assert.equal(textarea.selectionStart, 0);
-    assert.equal(textarea.selectionEnd, 18);
+    assert.strictEqual(this.value, "Hello\n\nWorld\n\nEvil");
+    assert.strictEqual(textarea.selectionStart, 0);
+    assert.strictEqual(textarea.selectionEnd, 18);
   });
 
-  componentTest("clicking the toggle-direction changes dir from ltr to rtl", {
-    template: hbs`{{d-editor value=value}}`,
-    beforeEach() {
-      this.siteSettings.support_mixed_text_direction = true;
-      this.siteSettings.default_locale = "en";
-    },
+  testCase(
+    "list button does not reset undo history",
+    async function (assert, textarea) {
+      this.set("value", "existing");
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = 8;
 
-    async test(assert) {
-      const textarea = queryAll("textarea.d-editor-input");
-      await click("button.toggle-direction");
-      assert.equal(textarea.attr("dir"), "rtl");
-    },
+      await click("button.list");
+      assert.strictEqual(this.value, "1. existing");
+
+      document.execCommand("undo");
+
+      assert.strictEqual(this.value, "existing");
+    }
+  );
+
+  test("clicking the toggle-direction changes dir from ltr to rtl and back", async function (assert) {
+    this.siteSettings.support_mixed_text_direction = true;
+    this.siteSettings.default_locale = "en";
+
+    await render(hbs`<DEditor @value={{this.value}} />`);
+
+    await click("button.toggle-direction");
+    assert.dom("textarea.d-editor-input").hasAttribute("dir", "rtl");
+
+    await click("button.toggle-direction");
+    assert.dom("textarea.d-editor-input").hasAttribute("dir", "ltr");
   });
 
-  componentTest("clicking the toggle-direction changes dir from ltr to rtl", {
-    template: hbs`{{d-editor value=value}}`,
-    beforeEach() {
-      this.siteSettings.support_mixed_text_direction = true;
-      this.siteSettings.default_locale = "en";
-    },
+  test("toolbar event supports replaceText", async function (assert) {
+    withPluginApi("0.1", (api) => {
+      api.onToolbarCreate((toolbar) => {
+        toolbar.addButton({
+          id: "replace-text",
+          icon: "xmark",
+          group: "extras",
+          action: () => {
+            toolbar.context.newToolbarEvent().replaceText("hello", "goodbye");
+          },
+          condition: () => true,
+        });
+      });
+    });
 
-    async test(assert) {
-      const textarea = queryAll("textarea.d-editor-input");
-      textarea.attr("dir", "ltr");
-      await click("button.toggle-direction");
-      assert.equal(textarea.attr("dir"), "rtl");
-    },
+    this.value = "hello";
+
+    await render(hbs`<DEditor @value={{this.value}} />`);
+    await click("button.replace-text");
+
+    assert.strictEqual(this.value, "goodbye");
   });
 
   testCase(
     `doesn't jump to bottom with long text`,
     async function (assert, textarea) {
-      let longText = "hello world.";
-      for (let i = 0; i < 8; i++) {
-        longText = longText + longText;
-      }
-      this.set("value", longText);
+      this.set("value", "hello world.".repeat(8));
 
-      $(textarea).scrollTop(0);
+      textarea.scrollTop = 0;
       textarea.selectionStart = 3;
       textarea.selectionEnd = 3;
 
       await click("button.bold");
-      assert.equal($(textarea).scrollTop(), 0, "it stays scrolled up");
+      assert.strictEqual(textarea.scrollTop, 0, "it stays scrolled up");
     }
   );
 
-  componentTest("emoji", {
-    template: hbs`{{d-editor value=value}}`,
-    beforeEach() {
-      // Test adding a custom button
-      withPluginApi("0.1", (api) => {
-        api.onToolbarCreate((toolbar) => {
-          toolbar.addButton({
-            id: "emoji",
-            group: "extras",
-            icon: "far-smile",
-            action: () => toolbar.context.send("emoji"),
-          });
+  test("emoji", async function (assert) {
+    this.set("value", "hello world.");
+    // we need DMenus here, as we are testing the d-editor which is not renderining
+    // the in-element outlet container necessary for DMenu to work
+    await render(hbs`<DMenus /><DEditor @value={{this.value}} />`);
+    const picker = emojiPicker();
+    jumpEnd(query("textarea.d-editor-input"));
+    await click(".d-editor-button-bar .emoji");
+    await picker.select("raised_hands");
+
+    assert.strictEqual(
+      this.value,
+      "hello world. :raised_hands:",
+      "it works when there is no partial emoji"
+    );
+
+    await click("textarea.d-editor-input");
+    await fillIn(".d-editor-input", "starting to type an emoji like :woman");
+    jumpEnd(query("textarea.d-editor-input"));
+    await triggerKeyEvent(".d-editor-input", "keyup", "Backspace"); //simplest way to trigger more menu here
+    await click(".ac-emoji li:last-child a");
+    await picker.select("womans_clothes");
+
+    assert.strictEqual(
+      this.value,
+      "starting to type an emoji like :womans_clothes:",
+      "it works when there is a partial emoji"
+    );
+  });
+
+  test("Toolbar buttons are only rendered when condition is met", async function (assert) {
+    withPluginApi("0.1", (api) => {
+      api.onToolbarCreate((toolbar) => {
+        toolbar.addButton({
+          id: "shown",
+          group: "extras",
+          icon: "far-face-smile",
+          action: () => {},
+          condition: () => true,
+        });
+
+        toolbar.addButton({
+          id: "not-shown",
+          group: "extras",
+          icon: "far-face-frown",
+          action: () => {},
+          condition: () => false,
         });
       });
-      this.set("value", "hello world.");
-    },
+    });
 
-    afterEach() {
-      clearToolbarCallbacks();
-    },
+    await render(hbs`<DEditor/>`);
 
-    async test(assert) {
-      jumpEnd(query("textarea.d-editor-input"));
-      await click("button.emoji");
+    assert.dom(".d-editor-button-bar button.shown").exists();
+    assert.dom(".d-editor-button-bar button.not-shown").doesNotExist();
+  });
 
-      await click(
-        '.emoji-picker .section[data-section="smileys_&_emotion"] img.emoji[title="grinning"]'
-      );
-      assert.equal(this.value, "hello world. :grinning:");
-    },
+  test("toolbar buttons tabindex", async function (assert) {
+    await render(hbs`<DEditor />`);
+    const buttons = queryAll(".d-editor-button-bar .btn");
+
+    assert
+      .dom(buttons[0])
+      .hasAttribute("tabindex", "0", "it makes the first button focusable");
+    assert.dom(buttons[1]).hasAttribute("tabindex", "-1");
   });
 
   testCase("replace-text event by default", async function (assert) {
@@ -709,7 +777,7 @@ third line`
       .lookup("service:app-events")
       .trigger("composer:replace-text", "green", "yellow");
 
-    assert.equal(this.value, "red green blue");
+    assert.strictEqual(this.value, "red green blue");
   });
 
   composerTestCase("replace-text event for composer", async function (assert) {
@@ -719,43 +787,389 @@ third line`
       .lookup("service:app-events")
       .trigger("composer:replace-text", "green", "yellow");
 
-    assert.equal(this.value, "red yellow blue");
+    assert.strictEqual(this.value, "red yellow blue");
   });
 
-  async function paste(element, text) {
-    let e = new Event("paste");
-    e.clipboardData = { getData: () => text };
-    element.dispatchEvent(e);
-    await settled();
+  async function indentSelection(container, direction) {
+    await container
+      .lookup("service:app-events")
+      .trigger("composer:indent-selected-text", direction);
   }
 
-  componentTest("paste table", {
-    template: hbs`{{d-editor value=value composerEvents=true}}`,
-    beforeEach() {
-      this.set("value", "");
-      this.siteSettings.enable_rich_text_paste = true;
-    },
+  composerTestCase(
+    "indents a single line of text to the right",
+    async function (assert, textarea) {
+      this.set("value", "Hello world");
+      setTextareaSelection(textarea, 0, textarea.value.length);
+      await indentSelection(this.container, "right");
 
-    async test(assert) {
-      let element = query(".d-editor");
-      await paste(element, "\ta\tb\n1\t2\t3");
-      assert.equal(this.value, "||a|b|\n|---|---|---|\n|1|2|3|\n");
-    },
+      assert.strictEqual(
+        this.value,
+        "  Hello world",
+        "a single line of selection is indented correctly"
+      );
+    }
+  );
+
+  composerTestCase(
+    "de-indents a single line of text to the left",
+    async function (assert, textarea) {
+      this.set("value", "  Hello world");
+      setTextareaSelection(textarea, 0, textarea.value.length);
+      await indentSelection(this.container, "left");
+
+      assert.strictEqual(
+        this.value,
+        "Hello world",
+        "a single line of selection is deindented correctly"
+      );
+    }
+  );
+
+  composerTestCase(
+    "indents multiple lines of text to the right",
+    async function (assert, textarea) {
+      this.set("value", "  Hello world\nThis is me");
+      setTextareaSelection(textarea, 2, textarea.value.length);
+      await indentSelection(this.container, "right");
+
+      assert.strictEqual(
+        this.value,
+        "    Hello world\n  This is me",
+        "multiple lines are indented correctly without selecting preceding space"
+      );
+
+      this.set("value", "  Hello world\nThis is me");
+      setTextareaSelection(textarea, 0, textarea.value.length);
+      await indentSelection(this.container, "right");
+
+      assert.strictEqual(
+        this.value,
+        "    Hello world\n  This is me",
+        "multiple lines are indented correctly with selecting preceding space"
+      );
+    }
+  );
+
+  composerTestCase(
+    "de-indents multiple lines of text to the left",
+    async function (assert, textarea) {
+      this.set("value", "  Hello world\nThis is me");
+      setTextareaSelection(textarea, 2, textarea.value.length);
+      await indentSelection(this.container, "left");
+
+      assert.strictEqual(
+        this.value,
+        "Hello world\nThis is me",
+        "multiple lines are de-indented correctly without selecting preceding space"
+      );
+    }
+  );
+
+  composerTestCase(
+    "detects the indentation character (tab vs. string) and uses that",
+    async function (assert, textarea) {
+      this.set(
+        "value",
+        "```\nfunc init() {\n	strings = generateStrings()\n}\n```"
+      );
+      setTextareaSelection(textarea, 4, textarea.value.length - 4);
+      await indentSelection(this.container, "right");
+
+      assert.strictEqual(
+        this.value,
+        "```\n	func init() {\n		strings = generateStrings()\n	}\n```",
+        "detects the prevalent indentation character and uses that (tab)"
+      );
+    }
+  );
+
+  test("paste table", async function (assert) {
+    this.set("value", "");
+    this.siteSettings.enable_rich_text_paste = true;
+
+    await render(
+      hbs`<DEditor @value={{this.value}} @composerEvents={{true}} />`
+    );
+
+    let element = query(".d-editor");
+    await paste(element, "\ta\tb\n1\t2\t3");
+    assert.strictEqual(this.value, "||a|b|\n|---|---|---|\n|1|2|3|\n");
+
+    document.execCommand("undo");
+    assert.strictEqual(this.value, "");
   });
 
-  componentTest("paste a different table", {
-    template: hbs`{{d-editor value=value composerEvents=true}}`,
-    beforeEach() {
-      this.set("value", "");
-      this.siteSettings.enable_rich_text_paste = true;
-    },
+  test("paste a different table", async function (assert) {
+    this.set("value", "");
+    this.siteSettings.enable_rich_text_paste = true;
 
-    async test(assert) {
-      let element = query(".d-editor");
-      await paste(element, '\ta\tb\n1\t"2\n2.5"\t3');
-      assert.equal(this.value, "||a|b|\n|---|---|---|\n|1|2<br>2.5|3|\n");
-    },
+    await render(
+      hbs`<DEditor @value={{this.value}} @composerEvents={{true}} />`
+    );
+
+    let element = query(".d-editor");
+    await paste(element, '\ta\tb\n1\t"2\n2.5"\t3');
+    assert.strictEqual(this.value, "||a|b|\n|---|---|---|\n|1|2<br>2.5|3|\n");
   });
+
+  testCase(
+    `pasting a link into a selection applies a link format`,
+    async function (assert, textarea) {
+      this.set("value", "See discourse in action");
+      setTextareaSelection(textarea, 4, 13);
+      const element = query(".d-editor");
+      const event = await paste(element, "https://www.discourse.org/");
+      assert.strictEqual(
+        this.value,
+        "See [discourse](https://www.discourse.org/) in action"
+      );
+      assert.strictEqual(event.defaultPrevented, true);
+
+      document.execCommand("undo");
+      assert.strictEqual(this.value, "See discourse in action");
+    }
+  );
+
+  testCase(
+    `pasting other text into a selection will replace text value`,
+    async function (assert, textarea) {
+      this.set("value", "good morning");
+      setTextareaSelection(textarea, 5, 12);
+      const element = query(".d-editor");
+      const event = await paste(element, "evening");
+      // Synthetic paste events do not manipulate document content.
+      assert.strictEqual(this.value, "good morning");
+      assert.strictEqual(event.defaultPrevented, false);
+    }
+  );
+
+  testCase(
+    `pasting a url without a selection will insert the url`,
+    async function (assert, textarea) {
+      this.set("value", "a link example:");
+      jumpEnd(textarea);
+      const element = query(".d-editor");
+      const event = await paste(element, "https://www.discourse.org/");
+      // Synthetic paste events do not manipulate document content.
+      assert.strictEqual(this.value, "a link example:");
+      assert.strictEqual(event.defaultPrevented, false);
+    }
+  );
+
+  testCase(
+    `pasting text that contains urls and other content will use default paste behavior`,
+    async function (assert, textarea) {
+      this.set("value", "a link example:");
+      setTextareaSelection(textarea, 0, 1);
+      const element = query(".d-editor");
+      const event = await paste(
+        element,
+        "Try out Discourse at: https://www.discourse.org/"
+      );
+      // Synthetic paste events do not manipulate document content.
+      assert.strictEqual(this.value, "a link example:");
+      assert.strictEqual(event.defaultPrevented, false);
+    }
+  );
+
+  testCase(
+    `pasting an email into a selection applies a link format`,
+    async function (assert, textarea) {
+      this.set("value", "team email");
+      setTextareaSelection(textarea, 5, 10);
+      const element = query(".d-editor");
+      const event = await paste(element, "mailto:team@discourse.org");
+      assert.strictEqual(this.value, "team [email](mailto:team@discourse.org)");
+      assert.strictEqual(event.defaultPrevented, true);
+    }
+  );
+
+  testCase(
+    `pasting a url onto a selection that contains urls and other content will use default paste behavior`,
+    async function (assert, textarea) {
+      this.set("value", "Try https://www.discourse.org");
+      setTextareaSelection(textarea, 0, 29);
+      const element = query(".d-editor");
+      const event = await paste(element, "https://www.discourse.com/");
+      // Synthetic paste events do not manipulate document content.
+      assert.strictEqual(this.value, "Try https://www.discourse.org");
+      assert.strictEqual(event.defaultPrevented, false);
+    }
+  );
+
+  testCase(
+    `pasting a url onto a selection that contains bbcode-like tags will use default paste behavior`,
+    async function (assert, textarea) {
+      this.set("value", "hello [url=foobar]foobar[/url]");
+      setTextareaSelection(textarea, 0, 30);
+      const element = query(".d-editor");
+      const event = await paste(element, "https://www.discourse.com/");
+      // Synthetic paste events do not manipulate document content.
+      assert.strictEqual(this.value, "hello [url=foobar]foobar[/url]");
+      assert.strictEqual(event.defaultPrevented, false);
+    }
+  );
+
+  // Smart list functionality relies on beforeinput, which QUnit does not send with
+  // `typeIn` synthetic events. We need to send it ourselves manually along with `input`.
+  // Not ideal, but gets the job done.
+  //
+  // c.f. https://github.com/emberjs/ember-test-helpers/blob/master/API.md#typein and
+  // https://github.com/emberjs/ember-test-helpers/issues/1336
+  async function triggerEnter(textarea) {
+    await triggerEvent(textarea, "beforeinput", {
+      inputType: "insertLineBreak",
+    });
+    await triggerEvent(textarea, "input", {
+      inputType: "insertText",
+      data: "\n",
+    });
+  }
+
+  testCase(
+    "smart lists - when enable_smart_lists is false pressing enter on a line with a list item starting with *",
+    async function (assert, textarea) {
+      const initialValue = "* first item in list\n";
+      this.set("value", initialValue);
+      setCaretPosition(textarea, initialValue.length);
+      await triggerEnter(textarea);
+
+      assert.strictEqual(
+        this.value,
+        initialValue,
+        "it does not create an empty list item on the next line"
+      );
+    },
+    { enable_smart_lists: false }
+  );
+
+  testCase(
+    "smart lists - pressing enter on a line with a list item starting with *",
+    async function (assert, textarea) {
+      const initialValue = "* first item in list\n";
+      this.set("value", initialValue);
+      setCaretPosition(textarea, initialValue.length);
+      await triggerEnter(textarea);
+
+      assert.strictEqual(
+        this.value,
+        initialValue + "* ",
+        "it creates a list item on the next line"
+      );
+    },
+    { enable_smart_lists: true }
+  );
+
+  testCase(
+    "smart lists - pressing enter on a line with a list item inside a codefence",
+    async function (assert, textarea) {
+      const initialValue = "```\n* first item in list\n";
+      this.set("value", initialValue);
+      setCaretPosition(textarea, initialValue.length);
+      await triggerEnter(textarea);
+
+      assert.strictEqual(
+        this.value,
+        initialValue + "",
+        "it doesn’t continue the list"
+      );
+    },
+    { enable_smart_lists: true }
+  );
+
+  testCase(
+    "smart lists - pressing enter on a line with a list item after a codefence",
+    async function (assert, textarea) {
+      const initialValue = "```\ndef test\n```\n* first item in list\n";
+      this.set("value", initialValue);
+      setCaretPosition(textarea, initialValue.length);
+      await triggerEnter(textarea);
+
+      assert.strictEqual(
+        this.value,
+        initialValue + "* ",
+        "it continues the list"
+      );
+    },
+    { enable_smart_lists: true }
+  );
+
+  testCase(
+    "smart lists - pressing enter on a line with a list item starting with - creates a list item on the next line",
+    async function (assert, textarea) {
+      const initialValue = "- first item in list\n";
+      this.set("value", initialValue);
+      setCaretPosition(textarea, initialValue.length);
+      await triggerEnter(textarea);
+      assert.strictEqual(this.value, initialValue + "- ");
+    },
+    { enable_smart_lists: true }
+  );
+
+  testCase(
+    "smart lists - pressing enter on a line with a list item starting with a number (e.g. 1.) in a list",
+    async function (assert, textarea) {
+      const initialValue = "1. first item in list\n";
+      this.set("value", initialValue);
+      setCaretPosition(textarea, initialValue.length);
+      await triggerEnter(textarea);
+      assert.strictEqual(
+        this.value,
+        initialValue + "2. ",
+        "it creates a list item on the next line with an auto-incremented number"
+      );
+    },
+    { enable_smart_lists: true }
+  );
+
+  testCase(
+    "smart lists - pressing enter inside a list",
+    async function (assert, textarea) {
+      const initialValue = "* first item in list\n\n* second item in list";
+      this.set("value", initialValue);
+      setCaretPosition(textarea, 21);
+      await triggerEnter(textarea);
+      assert.strictEqual(
+        this.value,
+        "* first item in list\n* \n* second item in list",
+        "it inserts a new list item on the next line"
+      );
+    },
+    { enable_smart_lists: true }
+  );
+
+  testCase(
+    "smart lists - pressing enter inside a list with numbers",
+    async function (assert, textarea) {
+      const initialValue = "1. first item in list\n\n2. second item in list";
+      this.set("value", initialValue);
+      setCaretPosition(textarea, 22);
+      await triggerEnter(textarea);
+      assert.strictEqual(
+        this.value,
+        "1. first item in list\n2. \n3. second item in list",
+        "it inserts a new list item on the next line and renumbers the rest of the list"
+      );
+    },
+    { enable_smart_lists: true }
+  );
+
+  testCase(
+    "smart lists - pressing enter again on an empty list item",
+    async function (assert, textarea) {
+      const initialValue = "* first item in list with empty line\n* \n";
+      this.set("value", initialValue);
+      setCaretPosition(textarea, initialValue.length);
+      await triggerEnter(textarea);
+      assert.strictEqual(
+        this.value,
+        "* first item in list with empty line\n",
+        "it removes the list item"
+      );
+    },
+    { enable_smart_lists: true }
+  );
 
   (() => {
     // Tests to check cursor/selection after replace-text event.
@@ -823,7 +1237,7 @@ third line`
     for (let i = 0; i < CASES.length; i++) {
       const CASE = CASES[i];
       // prettier-ignore
-      composerTestCase(`replace-text event: ${CASE.description}`, async function( // eslint-disable-line no-loop-func
+      composerTestCase(`replace-text event: ${CASE.description}`, async function(
         assert,
         textarea
       ) {
@@ -831,7 +1245,7 @@ third line`
 
         await focus(textarea);
 
-        assert.ok(textarea.value === BEFORE);
+        assert.strictEqual(textarea.value, BEFORE);
 
         const [start, len] = CASE.before;
         setTextareaSelection(textarea, start, start + len);
@@ -846,7 +1260,7 @@ third line`
             this.value,
             getTextareaSelection(textarea)
           );
-          assert.equal(actual, expect);
+          assert.strictEqual(actual, expect);
         });
       });
     }

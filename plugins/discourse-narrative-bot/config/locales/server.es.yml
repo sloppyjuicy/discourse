@@ -18,12 +18,12 @@ es:
       name: Certificado
       description: "Tutorial de usuario nuevo completado"
       long_description: |
-        Esta insignia se otorga al completar con éxito el tutorial interactivo para usuarios nuevos. ¡Tomaste la iniciativa de aprender las herramientas básicas de discusión y ahora estás certificado!
+        Esta medalla se otorga al completar con éxito el tutorial interactivo para usuarios nuevos. ¡Tomaste la iniciativa de aprender las herramientas básicas de discusión y ahora estás certificado!
     licensed:
       name: Con licencia
       description: "Tutorial de usuario avanzado completado"
       long_description: |
-        Esta insignia se otorga al completar con éxito el tutorial interactivo para usuarios avanzados. Has dominado las herramientas avanzadas de discusión y ¡ahora tienes licencia completa!
+        Esta medalla se otorga al completar con éxito el tutorial interactivo para usuarios avanzados. Has dominado las herramientas avanzadas de discusión y ¡ahora tienes licencia completa!
   discourse_narrative_bot:
     bio: "Hola, no soy una persona real. Soy un robot que te puedo enseñar a usar este sitio. Para interactuar conmigo mándame un mensaje o mencióname por nombre."
     tl2_promotion_message:
@@ -46,8 +46,8 @@ es:
       invalid: |-
         Lo siento, es matemáticamente imposible tirar esa combinación de dados. :confounded:
       not_enough_dice:
-        one: "Solo tengo %{count} dado. [Vergonzoso](https://www.toplessrobot.com/2009/04/the_10_most_shameful_rpg_dice.php), ¡lo sé!"
-        other: "Solo tengo %{count} dados. [Vergonzoso](https://www.toplessrobot.com/2009/04/the_10_most_shameful_rpg_dice.php), ¡lo sé!"
+        one: "Solo tengo %{count} dados. ¡Vergonzoso, lo sé!"
+        other: "Solo tengo %{count} dados. ¡Vergonzoso, lo sé!"
       out_of_range: |-
         ¿Sabías que [el número máximo de lados](https://www.wired.com/2016/05/mathematical-challenge-of-designing-the-worlds-most-complex-120-sided-dice) que un dado matemáticamente correcto puede tener es 120?
       results: |-
@@ -84,6 +84,15 @@ es:
       "10":
         quote: "Lo que sea que la mente del hombre pueda concebir y creer, lo puede lograr."
         author: "Napoleon Hill"
+      "11":
+        quote: "Paz en casa, paz en el mundo."
+        author: "Mustafa Kemal Atatürk"
+      "12":
+        quote: "La educación no es una forma de escapar de la pobreza, es una forma de combatirla."
+        author: "Julius Nyerere"
+      "13":
+        quote: "Un viaje de mil millas debe comenzar con un simple paso."
+        author: "Lao Tzu"
       results: |-
         > :left_speech_bubble: _%{quote}_ &mdash; %{author}
     magic_8_ball:
@@ -156,7 +165,7 @@ es:
 
           - Solo soy un robot, pero [nuestro amable personal](%{base_uri}/about) también está aquí para ayudarte si necesitas comunicarte con una persona.
 
-          - Por razones de seguridad, limitamos temporalmente lo que los nuevos usuarios pueden hacer. Obtendrás [nuevas habilidades](https://blog.discourse.org/2018/06/understanding-discourse-trust-levels/) (e [insignias](%{base_uri}/badges)) a medida que te conozcamos.
+          - Por razones de seguridad, limitamos temporalmente lo que los nuevos usuarios pueden hacer. Obtendrás [nuevas habilidades](https://blog.discourse.org/2018/06/understanding-discourse-trust-levels/) (y [medallas](%{base_uri}/badges)) a medida que te conozcamos.
 
           - Creemos en [el comportamiento de una comunidad civilizada](%{base_uri}/guidelines) en todo momento.
       onebox:
@@ -214,7 +223,7 @@ es:
 
           - o, presiona los botones <kbd><b>B</b></kbd> o <kbd><i>I</i></kbd> en el editor
         reply: |-
-          Buen trabajo! HTML y BBCode también funcionan para darle formato al texto – aprende más en [este tutorial](http://commonmark.org/help) :nerd:
+          ¡Buen trabajo! También puedes usar HTML y BBCode para darle formato al texto – aprende más en [esta guía](https://commonmark.org/help) :nerd:
         not_found: |-
           Aww, no encontré ningún texto con formato en tu respuesta. :pencil2:
 
@@ -242,7 +251,7 @@ es:
         instructions: |-
           Si quieres aprender más, selecciona debajo el botón <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> y <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-bookmark.png" width="16" height="16"> **guarda en marcadores este mensaje personal**. Si lo haces, ¡puede haber un :gift: en tu futuro!
         reply: |-
-          ¡Excelente! Ahora puedes encontrar fácilmente las conversaciones privadas en cualquier momento directamente desde la [sección de marcadores de tu perfil](%{bookmark_url}). Solo debes seleccionar tu foto de perfil en la parte superior derecha de la pantalla &#8599;
+          ¡Excelente! Ahora puedes volver fácilmente a nuestra conversación en cualquier momento, directamente desde [la pestaña de favoritos de tu perfil](%{bookmark_url}). Solo tienes que seleccionar tu foto de perfil en la parte superior derecha &#8599;
         not_found: |-
           Oh oh, no veo ningún marcador en este tema. ¿Encontraste el botón para guardar en marcadores que se encuentra debajo de cada mensaje? Usa el botón mostrar más <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> para que aparezcan acciones adicionales si necesitas.
       emoji:
@@ -276,20 +285,20 @@ es:
           (¡Sí! mi nombre de usuario es _disco_, como el baile de los años 70. [¡Me encanta la vida nocturna!](https://www.youtube.com/watch?v=B_wGI3_sGf8) :dancer:)
       flag:
         instructions: |-
-          Nos gusta que nuestros debates sean amables, y necesitamos tu ayuda para [mantener las cosas civilizadas](%{guidelines_url}). Si ves un problema, marca la bandera para informar al autor o a [nuestro colaborador](%{about_url}) sobre él. Hay muchas razones por las que puede querer denunciar una publicación, que va desde una inocua sugerencia de división de temas hasta una clara violación de los estándares comunitarios. Si seleccionas **Algo más**, iniciarás una discusión privada de mensajes con los moderadores donde podrás hacer más preguntas.
+          Nos gusta que nuestros debates sean amables, y necesitamos tu ayuda para [mantener las cosas civilizadas](%{guidelines_url}). Si ves un problema, marca la bandera para informar al autor o a [nuestro colaborador](%{about_url}) sobre él. Hay muchas razones por las que puede querer denunciar una publicación, que va desde una inocua sugerencia de división de temas hasta una clara violación de los estándares comunitarios. Si seleccionas **Algo más**, iniciarás una discusión a través de mensajes personales con los moderadores donde podrás hacer más preguntas.
 
           > :imp: Escribí algo desagradable aquí
 
           ¡Sigue adelante y **denuncia esta publicación** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> y selecciona **Es inapropiada** como la razón!
         reply: |-
-          Se notificará a [nuestro personal](%{base_uri}/groups/staff) por privado sobre tu denuncia. Si un número suficiente de miembros denuncia una publicación, esta se ocultará automáticamente como precaución. (Puesto que no escribí algo realmente desagradable :angel:, he quitado la denuncia por ahora)
+          Se notificará a [nuestro personal](%{group_url}) por privado sobre tu denuncia. Si un número suficiente de miembros denuncia una publicación, esta se ocultará automáticamente como precaución. (Puesto que no escribí algo realmente desagradable :angel:, he quitado la denuncia por ahora)
         not_found: |-
           Oh no, mi publicación desagradable todavía no ha sido denunciada. :worried: ¿Puedes denunciarla como inapropiada usando el botón de **denunciar** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16">? No olvides que esa opción está oculta, así que primero debes presionar el botón ver más <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> para que se muestren otras opciones para cada mensaje.
       search:
         instructions: |-
-          _psst_ … He ocultado una sorpresa en este tema. Si estás listo para el desafío, **selecciona el botón para buscar** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> que está arriba a la derecha &#8599; y ahí puedes buscar palabras.
+          _psst_ ... He escondido una sorpresa en este tema. Si te apetece el reto, **selecciona el icono de búsqueda** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> arriba a la derecha &#8599;, elige «en este tema», y luego búscalo.
 
-          Trata de buscar el término «capi&#8203;bara» en este tema.
+          Intenta buscar el término «capi&#8203;bara» en este tema
         hidden_message: |-
           ¿Cómo pudiste pasar por alto este capibara? :wink:
 
@@ -364,14 +373,14 @@ es:
           Ten en cuenta que solo tienes %{deletion_after} hora(s) para deshacer la eliminación de una publicación.
       category_hashtag:
         instructions: |-
-          ¿Sabías que puedes hacer referencia a categorías y etiquetas en tu publicación? Por ejemplo, ¿has visto la categoría %{category}?
+          ¿Sabías que puedes hacer referencia a categorías y etiquetas en tus publicaciones? Por ejemplo, ¿has visto la categoría %{category}?
 
-          Escribe «#» en el medio de una oración y selecciona cualquier categoría o etiqueta.
+          Escribe «#» en cualquier lugar de una frase y selecciona cualquier categoría o etiqueta.
         not_found: |-
-          Umm, no veo ninguna categoría. Ten en cuenta que «#» no puede ser el primer carácter. ¿Puedes copiar esto en tu próxima respuesta?
+          Hmm, no veo ninguna categoría por ninguna parte. ¿Puedes copiar esto en tu próxima respuesta?
 
-          ```text
-          Yo puedo crear un enlace a la categoría usando #
+          ```texto
+          Puedo crear un enlace de categoría mediante #
           ```
         reply: |-
           ¡Excelente! Recuerda que esto funciona para categorías _y_ etiquetas, si las etiquetas están disponibles.
@@ -379,7 +388,7 @@ es:
         instructions: |-
           Cada tema tiene un nivel de notificación. Comienza en «normal», lo que significa que normalmente solo se notificará cuando alguien te está hablando directamente.
 
-          De forma predeterminada, el nivel de notificación de un mensaje privado se establece en el nivel más alto de «vigilancia», lo que significa que se te notificará cada respuesta nueva. Pero puedes sobrescribir el nivel de notificación de _cualquier_ tema a «vigilar», «seguir» o «silenciar».
+          De forma predeterminada, el nivel de notificación de un mensaje personal se establece en el nivel más alto de «vigilancia», lo que significa que se te notificará cada respuesta nueva. Pero puedes sobrescribir el nivel de notificación de _cualquier_ tema a «vigilar», «seguir» o «silenciar».
 
           Intentemos cambiar el nivel de notificación de este tema. Al final del tema, encontrarás un botón que muestra que estás **vigilando** este tema. ¿Puedes cambiar el nivel de notificación a **en seguimiento**?
         not_found: |-

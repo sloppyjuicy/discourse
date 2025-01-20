@@ -46,8 +46,8 @@ de:
       invalid: |-
         Es tut mir leid, aber das Würfeln dieser Kombination ist mathematisch unmöglich. :confounded:
       not_enough_dice:
-        one: "Ich habe nur %{count} Würfel. [Beschämend](https://www.toplessrobot.com/2009/04/the_10_most_shameful_rpg_dice.php), ich weiß!"
-        other: "Ich habe nur %{count} Würfel. [Beschämend](https://www.toplessrobot.com/2009/04/the_10_most_shameful_rpg_dice.php), ich weiß!"
+        one: "Ich habe nur %{count} Würfel. Peinlich, ich weiß!"
+        other: "Ich habe nur %{count} Würfel. Peinlich, ich weiß!"
       out_of_range: |-
         Wusstest du, dass ein fairer Würfel aus [maximal 120 Seiten](http://www.spiegel.de/wissenschaft/mensch/d120-groesster-wuerfel-der-welt-hat-120-seiten-a-1099170.html) besteht?
       results: |-
@@ -73,7 +73,7 @@ de:
         quote: "Das Leben ist wie eine Schachtel Pralinen. Man weiß nie, was man kriegt."
         author: "Mutter von Forrest Gump"
       "7":
-        quote: "Das ist ein kleiner Schritt für einen Menschen, ein riesiger Sprung für die Menschheit."
+        quote: "Dies ist ein kleiner Schritt für einen Menschen, aber ein gewaltiger Sprung für die Menschheit."
         author: "Neil Armstrong"
       "8":
         quote: "Tue jeden Tag etwas, wovor du Angst hast."
@@ -84,6 +84,15 @@ de:
       "10":
         quote: "Was der Verstand eines Menschen begreifen und glauben kann, kann er erreichen."
         author: "Napoleon Hill"
+      "11":
+        quote: "Frieden zu Hause, Frieden in der Welt."
+        author: "Mustafa Kemal Atatürk"
+      "12":
+        quote: "Bildung ist kein Weg, der Armut zu entkommen, sondern ein Weg, sie zu bekämpfen."
+        author: "Julius Nyerere"
+      "13":
+        quote: "Eine Reise von tausend Meilen muss mit einem einzigen Schritt beginnen."
+        author: "Lao Tzu"
       results: |-
         > :left_speech_bubble: _%{quote}_ &mdash; %{author}
     magic_8_ball:
@@ -214,7 +223,7 @@ de:
 
           - Oder drücke die <kbd><b>F</b></kbd>- oder <kbd><i>K</i></kbd>-Schaltflächen im Editor
         reply: |-
-          Großartige Leistung! HTML und BBCode funktionieren auch zur Formatierung – um mehr zu erfahren, [probiere dieses Tutorial aus](http://commonmark.org/help) :nerd:
+          Gut gemacht! HTML und BBCode können auch zur Formatierung genutzt werden – mehr dazu findet sich [in diesem Tutorial](https://commonmark.org/help) :nerd:
         not_found: |-
           Huch, ich habe keine Formatierung in deiner Antwort gefunden. :pencil2:
 
@@ -242,7 +251,7 @@ de:
         instructions: |-
           Wenn du gerne mehr darüber erfahren möchtest, wähle unten <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> aus und klicke auf <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-bookmark.png" width="16" height="16"> **Lesezeichen für diese Nachricht**. Wenn du das machst, wird es demnächst vielleicht ein :gift: geben!
         reply: |-
-          Ausgezeichnet! Jetzt kannst du jederzeit leicht zu unserer privaten Unterhaltung zurückfinden, direkt über [die Lesezeichen-Registerkarte auf deinem Profil](%{bookmark_url}). Wähle einfach dein Profilbild oben rechts aus &#8599;
+          Ausgezeichnet! Jetzt kannst du über [die Lesezeichen-Registerkarte auf deinem Profil](%{bookmark_url}) jederzeit leicht zu unserer Unterhaltung zurückfinden. Wähle einfach dein Profilbild oben rechts aus &#8599;
         not_found: |-
           Oh je, ich sehe keine Lesezeichen in diesem Thema. Hast du das Lesezeichen unter jedem Beitrag gefunden? Verwende das „Mehr anzeigen“-Symbol <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16">, um bei Bedarf weitere Aktionen anzuzeigen.
       emoji:
@@ -277,18 +286,18 @@ de:
           (Und ja, mein Benutzername wird wirklich _disco_ geschrieben. Genau wie die Tanzmusik aus den 1970er Jahren. Ich [liebe das Nachtleben!](https://www.youtube.com/watch?v=B_wGI3_sGf8) :dancer:)
       flag:
         instructions: |-
-          Wir legen viel Wert auf freundliche Diskussionen und wir brauchen deine Hilfe, um [sie zivilisiert zu halten](%{guidelines_url}). Wenn du ein Problem siehst, melde es bitte, um den Verfasser oder [unser hilfsbereites Team](%{about_url}) privat darüber zu informieren. Es gibt viele Gründe, einen Beitrag zu melden – von einem harmlosen Vorschlag zur Aufteilung des Themas bis hin zu einem eindeutigen Verstoß gegen die Community-Standards. Wenn du **Sonstiges** auswählst, beginnst du eine private Unterhaltung mit den Moderatoren, im Rahmen derer du weitere Fragen stellen kannst.
+          Wir legen viel Wert auf freundliche Diskussionen und wir brauchen deine Hilfe, um [sie zivilisiert zu halten](%{guidelines_url}). Wenn du ein Problem siehst, melde es bitte, um den Verfasser oder [unser hilfsbereites Team](%{about_url}) darüber zu informieren. Es gibt viele Gründe, einen Beitrag zu melden – von einem harmlosen Vorschlag zur Aufteilung des Themas bis hin zu einem eindeutigen Verstoß gegen die Community-Standards. Wenn du **Sonstiges** auswählst, beginnst du eine persönliche Unterhaltung mit den Moderatoren, im Rahmen derer du weitere Fragen stellen kannst.
 
           > :imp: Ich habe hier etwas Böses geschrieben
 
           Nur zu: **Melde diesen Beitrag** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> und wähle **Unangemessen** als Grund aus!
         reply: |-
-          [Unser Team](%{base_uri}/groups/staff) wird diskret über deine Meldung informiert. Wenn genügend Community-Mitglieder einen Beitrag melden, wird er als Vorsichtsmaßnahme automatisch versteckt. (Weil ich nicht wirklich einen bösen Beitrag geschrieben habe :angel:, habe ich mir erlaubt, die Meldung fürs Erste wieder zu löschen.)
+          [Unser Team](%{group_url}) wird diskret über deine Meldung informiert. Wenn genügend Community-Mitglieder einen Beitrag melden, wird er als Vorsichtsmaßnahme automatisch versteckt. (Weil ich nicht wirklich einen bösen Beitrag geschrieben habe :angel:, habe ich mir erlaubt, die Meldung fürs Erste wieder zu löschen.)
         not_found: |-
           Oh nein, mein anstößiger Beitrag wurde noch nicht gemeldet. :worried: Kannst du ihn als unangemessen **melden** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16">? Vergiss nicht, die „Mehr anzeigen“-Schaltfläche <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> zu verwenden, um weitere Aktionen für den jeweiligen Beitrag einzublenden.
       search:
         instructions: |-
-          _Psst_ … ich habe in diesem Thema eine Überraschung versteckt. Wenn du für eine Herausforderung zu haben bist, dann **wähle das Such-Symbol** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> oben rechts &#8599; aus und suche danach.
+          _Psst_ … Ich habe in diesem Thema eine Überraschung versteckt. Wenn du für eine Herausforderung zu haben bist, dann **wähle das Such-Symbol** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> oben rechts &#8599; aus, wähle „in diesem Thema“ und suche dann danach.
 
           Versuche, in diesem Thema nach dem Begriff „Capy&#8203;bara“ zu suchen.
         hidden_message: |-
@@ -365,14 +374,14 @@ de:
           Bitte beachte, dass du nur %{deletion_after} Stunde(n) hast, um einen Beitrag wiederherzustellen.
       category_hashtag:
         instructions: |-
-          Wusstest du, dass du auf Kategorien und Schlagwörter in deinen Beiträgen verweisen kannst? Hast du zum Beispiel die Kategorie %{category} schon gesehen?
+          Wusstest du, dass du in deinen Beiträgen auf Kategorien und Schlagwörter verweisen kannst? Hast du zum Beispiel die Kategorie %{category} schon gesehen?
 
-          Gib `#` in der Mitte eines Satzes ein und wähle eine Kategorie oder ein Schlagwort aus.
+          Gib `#` in einem Satz ein und wähle eine Kategorie oder ein Schlagwort aus.
         not_found: |-
-          Hmm, ich sehe darin nirgendwo eine Kategorie. Beachte, dass `#` nicht das erste Zeichen sein darf. Kannst du dies in deine nächste Antwort kopieren?
+          Hmm, ich sehe nirgendwo eine Kategorie. Kannst du das in deine nächste Antwort kopieren?
 
           ```text
-          Ich erstelle einen Kategorie-Link per #
+          Ich kann einen Kategorie-Link per # erstellen
           ```
         reply: |-
           Hervorragend! Denk daran, dass dies sowohl für Kategorien _als auch_ für Schlagwörter funktioniert, sofern Schlagwörter aktiviert sind.
@@ -380,7 +389,7 @@ de:
         instructions: |-
           Jedes Thema hat eine Benachrichtigungsstufe. Es beginnt bei „Normal“, was bedeutet, dass du normalerweise nur benachrichtigt wirst, wenn dich jemand direkt anspricht.
 
-          Standardmäßig ist die Benachrichtigungsstufe für private Nachrichten auf die höchste Stufe „Beobachten“ gesetzt, was bedeutet, dass du über jede Antwort informiert wirst. Aber du kannst die Benachrichtigungsstufe für _jedes_ Thema auf „Beobachten“, „Verfolgen“ oder „Stummgeschaltet“ setzen.
+          Standardmäßig ist die Benachrichtigungsstufe für persönliche Nachrichten auf die höchste Stufe „Beobachten“ gesetzt, was bedeutet, dass du über jede Antwort informiert wirst. Aber du kannst die Benachrichtigungsstufe für _jedes_ Thema auf „Beobachten“, „Verfolgen“ oder „Stummgeschaltet“ setzen.
 
           Lass uns versuchen, die Benachrichtigungsstufe für dieses Thema zu ändern. Am Ende des Themas wirst du eine Schaltfläche finden, die „Beobachten“ anzeigt. Kannst du die Benachrichtigungsstufe auf **Verfolgen** ändern?
         not_found: |-

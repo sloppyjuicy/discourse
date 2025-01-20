@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 class SilenceLogger < Rails::Rack::Logger
-  PATH_INFO = 'PATH_INFO'
-  HTTP_X_SILENCE_LOGGER = 'HTTP_X_SILENCE_LOGGER'
+  PATH_INFO = "PATH_INFO"
+  HTTP_X_SILENCE_LOGGER = "HTTP_X_SILENCE_LOGGER"
 
   def initialize(app, opts = {})
     @app = app
@@ -17,28 +17,26 @@ class SilenceLogger < Rails::Rack::Logger
     path_info = env[PATH_INFO]
     override = false
 
-    if    env[HTTP_X_SILENCE_LOGGER] ||
-          @opts[:silenced].include?(path_info) ||
-          path_info.start_with?('/logs') ||
-          path_info.start_with?('/user_avatar') ||
-          path_info.start_with?('/letter_avatar')
-      if ::Logster::Logger === Rails.logger
+    if env[HTTP_X_SILENCE_LOGGER] || @opts[:silenced].include?(path_info) ||
+         path_info.start_with?("/logs") || path_info.start_with?("/user_avatar") ||
+         path_info.start_with?("/letter_avatar")
+      if defined?(::Logster::Logger) && Logster.logger
         override = true
-        Rails.logger.override_level = Logger::WARN
+        Logster.logger.override_level = Logger::WARN
       end
       @app.call(env)
     else
-      super(env)
+      super
     end
   ensure
-    Rails.logger.override_level = nil if override
+    Logster.logger.override_level = nil if override
   end
 end
 
-silenced = [
-  "/mini-profiler-resources/results",
-  "/mini-profiler-resources/includes.js",
-  "/mini-profiler-resources/includes.css",
-  "/mini-profiler-resources/jquery.tmpl.js"
+silenced = %w[
+  /mini-profiler-resources/results
+  /mini-profiler-resources/includes.js
+  /mini-profiler-resources/includes.css
+  /mini-profiler-resources/jquery.tmpl.js
 ]
 Rails.configuration.middleware.swap Rails::Rack::Logger, SilenceLogger, silenced: silenced

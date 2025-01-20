@@ -1,48 +1,46 @@
-import DropdownSelectBoxComponent from "select-kit/components/dropdown-select-box";
-import I18n from "I18n";
 import { computed } from "@ember/object";
-import { setting } from "discourse/lib/computed";
+import { classNames } from "@ember-decorators/component";
+import { i18n } from "discourse-i18n";
+import DropdownSelectBoxComponent from "select-kit/components/dropdown-select-box";
+import { pluginApiIdentifiers, selectKitOptions } from "./select-kit";
 
-export default DropdownSelectBoxComponent.extend({
-  pluginApiIdentifiers: ["categories-admin-dropdown"],
-  classNames: ["categories-admin-dropdown"],
-  fixedCateoryPositions: setting("fixed_category_positions"),
-
-  selectKitOptions: {
-    icons: ["wrench", "caret-down"],
-    showFullTitle: false,
-    autoFilterable: false,
-    filterable: false,
-    none: "select_kit.components.categories_admin_dropdown.title",
-  },
-
-  content: computed(function () {
+@classNames("categories-admin-dropdown")
+@selectKitOptions({
+  icons: ["wrench", "caret-down"],
+  showFullTitle: false,
+  autoFilterable: false,
+  filterable: false,
+  none: "select_kit.components.categories_admin_dropdown.title",
+  focusAfterOnChange: false,
+})
+@pluginApiIdentifiers(["categories-admin-dropdown"])
+export default class CategoriesAdminDropdown extends DropdownSelectBoxComponent {
+  @computed
+  get content() {
     const items = [
       {
         id: "create",
-        name: I18n.t("category.create"),
-        description: I18n.t("category.create_long"),
+        name: i18n("category.create"),
+        description: i18n("category.create_long"),
         icon: "plus",
       },
     ];
 
-    if (this.fixedCateoryPositions) {
-      items.push({
-        id: "reorder",
-        name: I18n.t("categories.reorder.title"),
-        description: I18n.t("categories.reorder.title_long"),
-        icon: "random",
-      });
-    }
+    items.push({
+      id: "reorder",
+      name: i18n("categories.reorder.title"),
+      description: i18n("categories.reorder.title_long"),
+      icon: "shuffle",
+    });
 
     return items;
-  }),
+  }
 
   _onChange(value, item) {
     if (item.onChange) {
       item.onChange(value, item);
-    } else if (this.attrs.onChange) {
-      this.attrs.onChange(value, item);
+    } else if (this.onChange) {
+      this.onChange(value, item);
     }
-  },
-});
+  }
+}

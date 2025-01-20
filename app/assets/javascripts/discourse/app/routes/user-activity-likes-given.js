@@ -1,25 +1,30 @@
+import { htmlSafe } from "@ember/template";
+import { iconHTML } from "discourse/lib/icon-library";
 import UserAction from "discourse/models/user-action";
 import UserActivityStreamRoute from "discourse/routes/user-activity-stream";
-import { iconHTML } from "discourse-common/lib/icon-library";
-import I18n from "I18n";
+import { i18n } from "discourse-i18n";
 
-export default UserActivityStreamRoute.extend({
-  userActionType: UserAction.TYPES["likes_given"],
-  emptyStateOthers: I18n.t("user_activity.no_likes_others"),
+export default class UserActivityLikesGiven extends UserActivityStreamRoute {
+  userActionType = UserAction.TYPES["likes_given"];
 
   emptyState() {
-    const title = I18n.t("user_activity.no_likes_title");
-    const body = I18n.t("user_activity.no_likes_body", {
-      heartIcon: iconHTML("heart"),
-    }).htmlSafe();
+    const user = this.modelFor("user");
+
+    const title = this.isCurrentUser(user)
+      ? i18n("user_activity.no_likes_title")
+      : i18n("user_activity.no_likes_title_others", {
+          username: user.username,
+        });
+    const body = htmlSafe(
+      i18n("user_activity.no_likes_body", {
+        heartIcon: iconHTML("heart"),
+      })
+    );
 
     return { title, body };
-  },
+  }
 
-  actions: {
-    didTransition() {
-      this.controllerFor("application").set("showFooter", true);
-      return true;
-    },
-  },
-});
+  titleToken() {
+    return i18n("user_action_groups.1");
+  }
+}

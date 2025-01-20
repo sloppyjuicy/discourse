@@ -18,33 +18,33 @@ module Reports::ModeratorsActivity
         {
           property: :flag_count,
           type: :number,
-          title: I18n.t("reports.moderators_activity.labels.flag_count")
+          title: I18n.t("reports.moderators_activity.labels.flag_count"),
         },
         {
           type: :seconds,
           property: :time_read,
-          title: I18n.t("reports.moderators_activity.labels.time_read")
+          title: I18n.t("reports.moderators_activity.labels.time_read"),
         },
         {
           property: :topic_count,
           type: :number,
-          title: I18n.t("reports.moderators_activity.labels.topic_count")
+          title: I18n.t("reports.moderators_activity.labels.topic_count"),
         },
         {
           property: :pm_count,
           type: :number,
-          title: I18n.t("reports.moderators_activity.labels.pm_count")
+          title: I18n.t("reports.moderators_activity.labels.pm_count"),
         },
         {
           property: :post_count,
           type: :number,
-          title: I18n.t("reports.moderators_activity.labels.post_count")
+          title: I18n.t("reports.moderators_activity.labels.post_count"),
         },
         {
           property: :revision_count,
           type: :number,
-          title: I18n.t("reports.moderators_activity.labels.revision_count")
-        }
+          title: I18n.t("reports.moderators_activity.labels.revision_count"),
+        },
       ]
 
       report.modes = [:table]
@@ -73,9 +73,10 @@ module Reports::ModeratorsActivity
       flag_count AS (
           WITH period_actions AS (
           SELECT agreed_by_id,
-          disagreed_by_id
+          disagreed_by_id,
+          deferred_by_id
           FROM post_actions
-          WHERE post_action_type_id IN (#{PostActionType.flag_types_without_custom.values.join(',')})
+          WHERE post_action_type_id IN (#{PostActionType.flag_types_without_additional_message.values.join(",")})
           AND created_at >= '#{report.start_date}'
           AND created_at <= '#{report.end_date}'
           ),
@@ -94,13 +95,23 @@ module Reports::ModeratorsActivity
           JOIN period_actions pa
           ON pa.disagreed_by_id = m.user_id
           GROUP BY disagreed_by_id
+          ),
+          deferred_flags AS (
+          SELECT pa.deferred_by_id AS user_id,
+          COUNT(*) AS flag_count
+          FROM mods m
+          JOIN period_actions pa
+          ON pa.deferred_by_id = m.user_id
+          GROUP BY deferred_by_id
           )
       SELECT
-      COALESCE(af.user_id, df.user_id) AS user_id,
-      COALESCE(af.flag_count, 0) + COALESCE(df.flag_count, 0) AS flag_count
+      COALESCE(af.user_id, df.user_id, def.user_id) AS user_id,
+      COALESCE(af.flag_count, 0) + COALESCE(df.flag_count, 0) + COALESCE(def.flag_count, 0) AS flag_count
       FROM agreed_flags af
       FULL OUTER JOIN disagreed_flags df
       ON df.user_id = af.user_id
+      FULL OUTER JOIN deferred_flags def
+      ON def.user_id = af.user_id
       ),
       revision_count AS (
       SELECT pr.user_id,
@@ -173,19 +184,21 @@ module Reports::ModeratorsActivity
       ORDER BY m.username
       SQL
 
-      DB.query(query).each do |row|
-        mod = {}
-        mod[:username] = row.username
-        mod[:user_id] = row.user_id
-        mod[:user_avatar_template] = User.avatar_template(row.username, row.uploaded_avatar_id)
-        mod[:time_read] = row.time_read
-        mod[:flag_count] = row.flag_count
-        mod[:revision_count] = row.revision_count
-        mod[:topic_count] = row.topic_count
-        mod[:post_count] = row.post_count
-        mod[:pm_count] = row.pm_count
-        report.data << mod
-      end
+      DB
+        .query(query)
+        .each do |row|
+          mod = {}
+          mod[:username] = row.username
+          mod[:user_id] = row.user_id
+          mod[:user_avatar_template] = User.avatar_template(row.username, row.uploaded_avatar_id)
+          mod[:time_read] = row.time_read
+          mod[:flag_count] = row.flag_count
+          mod[:revision_count] = row.revision_count
+          mod[:topic_count] = row.topic_count
+          mod[:post_count] = row.post_count
+          mod[:pm_count] = row.pm_count
+          report.data << mod
+        end
     end
   end
 end

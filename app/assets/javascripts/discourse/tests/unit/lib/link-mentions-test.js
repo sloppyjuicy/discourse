@@ -1,70 +1,48 @@
+import { setupTest } from "ember-qunit";
+import { module, test } from "qunit";
+import domFromString from "discourse/lib/dom-from-string";
 import {
   fetchUnseenMentions,
   linkSeenMentions,
 } from "discourse/lib/link-mentions";
-import { module, test } from "qunit";
-import { Promise } from "rsvp";
-import pretender from "discourse/tests/helpers/create-pretender";
+import pretender, { response } from "discourse/tests/helpers/create-pretender";
 
-module("Unit | Utility | link-mentions", function () {
+module("Unit | Utility | link-mentions", function (hooks) {
+  setupTest(hooks);
+
   test("linkSeenMentions replaces users and groups", async function (assert) {
-    pretender.get("/u/is_local_username", () => [
-      200,
-      { "Content-Type": "application/json" },
-      {
-        valid: ["valid_user"],
-        valid_groups: ["valid_group"],
-        mentionable_groups: [
-          {
-            name: "mentionable_group",
-            user_count: 1,
-          },
-        ],
-        cannot_see: [],
+    pretender.get("/composer/mentions", () =>
+      response({
+        users: ["valid_user"],
+        user_reasons: {},
+        groups: {
+          valid_group: { user_count: 1 },
+          mentionable_group: { user_count: 1 },
+        },
+        group_reasons: { valid_group: "not_mentionable" },
         max_users_notified_per_group_mention: 100,
-      },
-    ]);
+      })
+    );
 
-    await fetchUnseenMentions([
-      "valid_user",
-      "mentionable_group",
-      "valid_group",
-      "invalid",
-    ]);
+    await fetchUnseenMentions({
+      names: ["valid_user", "mentionable_group", "valid_group", "invalid"],
+    });
 
-    let html = `
+    const root = domFromString(`
       <div>
         <span class="mention">@invalid</span>
         <span class="mention">@valid_user</span>
         <span class="mention">@valid_group</span>
         <span class="mention">@mentionable_group</span>
       </div>
-    `;
-
-    let template = document.createElement("template");
-    html = html.trim();
-    template.innerHTML = html;
-    const root = template.content.firstChild;
-
+    `)[0];
     await linkSeenMentions(root);
 
-    // Ember.Test.registerWaiter is not available here, so we are implementing
-    // our own
-    await new Promise((resolve) => {
-      const interval = setInterval(() => {
-        if (root.querySelectorAll("a").length > 0) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, 500);
-    });
-
-    assert.equal(root.querySelector("a").innerText, "@valid_user");
-    assert.equal(root.querySelectorAll("a")[1].innerText, "@valid_group");
-    assert.equal(
-      root.querySelector("a.notify").innerText,
-      "@mentionable_group"
-    );
-    assert.equal(root.querySelector("span.mention").innerHTML, "@invalid");
+    assert.dom(root.querySelectorAll("a")[0]).hasText("@valid_user");
+    assert.dom(root.querySelectorAll("a")[1]).hasText("@valid_group");
+    assert
+      .dom("a[data-mentionable-user-count]", root)
+      .hasText("@mentionable_group");
+    assert.dom("span.mention", root).hasHtml("@invalid");
   });
 });

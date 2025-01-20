@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
-
-describe NotificationSerializer do
-  describe '#as_json' do
-    fab!(:user) { Fabricate(:user) }
+RSpec.describe NotificationSerializer do
+  describe "#as_json" do
+    fab!(:user)
     let(:notification) { Fabricate(:notification, user: user) }
     let(:serializer) { NotificationSerializer.new(notification) }
     let(:json) { serializer.as_json }
@@ -18,10 +16,10 @@ describe NotificationSerializer do
     end
   end
 
-  describe '#sso_enabled' do
+  describe "#sso_enabled" do
     let :user do
       user = Fabricate(:user)
-      SingleSignOnRecord.create!(user_id: user.id, external_id: '12345', last_payload: '')
+      SingleSignOnRecord.create!(user_id: user.id, external_id: "12345", last_payload: "")
       user
     end
     let(:notification) { Fabricate(:notification, user: user) }

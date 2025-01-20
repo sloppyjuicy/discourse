@@ -13,7 +13,7 @@
         },
         "categories": {
           "type": "array",
-          "items": [
+          "items":
             {
               "type": "object",
               "additionalProperties": false,
@@ -43,13 +43,13 @@
                   "type": "integer"
                 },
                 "description": {
-                  "type": "string"
+                  "type": ["string", "null"]
                 },
                 "description_text": {
-                  "type": "string"
+                  "type": ["string", "null"]
                 },
                 "description_excerpt": {
-                  "type": "string"
+                  "type": ["string", "null"]
                 },
                 "topic_url": {
                   "type": [
@@ -77,6 +77,12 @@
                 },
                 "has_children": {
                   "type": "boolean"
+                },
+                "subcategory_count": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "sort_order": {
                   "type": [
@@ -137,18 +143,18 @@
                 },
                 "subcategory_ids": {
                   "type": "array",
-                  "items": [
+                  "items": {
 
-                  ]
+                  }
                 },
                 "subcategory_list": {
                   "type": [
                     "array",
                     "null"
                   ],
-                  "items": [
+                  "items": {
 
-                  ]
+                  }
                 },
                 "uploaded_logo": {
                   "type": [
@@ -156,7 +162,19 @@
                     "null"
                   ]
                 },
+                "uploaded_logo_dark": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "uploaded_background": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "uploaded_background_dark": {
                   "type": [
                     "string",
                     "null"
@@ -182,6 +200,7 @@
                 "can_edit",
                 "topic_template",
                 "has_children",
+                "subcategory_count",
                 "sort_order",
                 "sort_ascending",
                 "show_subcategory_list",
@@ -197,13 +216,13 @@
                 "topics_month",
                 "topics_year",
                 "topics_all_time",
-                "is_uncategorized",
                 "subcategory_ids",
                 "uploaded_logo",
-                "uploaded_background"
+                "uploaded_logo_dark",
+                "uploaded_background",
+                "uploaded_background_dark"
               ]
             }
-          ]
         }
       },
       "required": [

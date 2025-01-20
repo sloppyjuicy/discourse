@@ -1,7 +1,8 @@
-import I18n from "I18n";
-import deprecated from "discourse-common/lib/deprecated";
-import bootbox from "bootbox";
+import deprecated from "discourse/lib/deprecated";
+import { getOwnerWithFallback } from "discourse/lib/get-owner";
+import { humanizeList } from "discourse/lib/text";
 import { isAppleDevice } from "discourse/lib/utilities";
+import I18n, { i18n } from "discourse-i18n";
 
 function isGUID(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -9,11 +10,33 @@ function isGUID(value) {
   );
 }
 
+// original string `![image|foo=bar|690x220, 50%|bar=baz](upload://1TjaobgKObzpU7xRMw2HuUc87vO.png "image title")`
+// group 1 `image|foo=bar`
+// group 2 `690x220`
+// group 3 `, 50%`
+// group 4 '|bar=baz'
+// group 5 'upload://1TjaobgKObzpU7xRMw2HuUc87vO.png "image title"'
+
+// Notes:
+// Group 3 is optional. group 4 can match images with or without a markdown title.
+// All matches are whitespace tolerant as long it's still valid markdown.
+// If the image is inside a code block, we'll ignore it `(?!(.*`))`.
+export const IMAGE_MARKDOWN_REGEX =
+  /!\[(.*?)\|(\d{1,4}x\d{1,4})(,\s*\d{1,3}%)?(.*?)\]\((upload:\/\/.*?)\)(?!(.*`))/g;
+
+// This wrapper simplifies unit testing the dialog service
+export const dialog = {
+  alert(msg) {
+    const dg = getOwnerWithFallback(this).lookup("service:dialog");
+    dg.alert(msg);
+  },
+};
+
 export function markdownNameFromFileName(fileName) {
-  let name = fileName.substr(0, fileName.lastIndexOf("."));
+  let name = fileName.slice(0, fileName.lastIndexOf("."));
 
   if (isAppleDevice() && isGUID(name)) {
-    name = I18n.t("upload_selector.default_image_alt_text");
+    name = i18n("upload_selector.default_image_alt_text");
   }
 
   return name.replace(/\[|\]|\|/g, "");
@@ -25,7 +48,7 @@ export function validateUploadedFiles(files, opts) {
   }
 
   if (files.length > 1) {
-    bootbox.alert(I18n.t("post.errors.too_many_uploads"));
+    dialog.alert(i18n("post.errors.too_many_uploads"));
     return false;
   }
 
@@ -56,6 +79,7 @@ export function validateUploadedFile(file, opts) {
   let staff = user && user.staff;
 
   if (!authorizesOneOrMoreExtensions(staff, opts.siteSettings)) {
+    dialog.alert(i18n("post.errors.no_uploads_authorized"));
     return false;
   }
 
@@ -74,8 +98,8 @@ export function validateUploadedFile(file, opts) {
 
   if (opts.imagesOnly) {
     if (!isImage(name) && !isAuthorizedImage(name, staff, opts.siteSettings)) {
-      bootbox.alert(
-        I18n.t("post.errors.upload_not_authorized", {
+      dialog.alert(
+        i18n("post.errors.upload_not_authorized", {
           authorized_extensions: authorizedImagesExtensions(
             staff,
             opts.siteSettings
@@ -86,7 +110,7 @@ export function validateUploadedFile(file, opts) {
     }
   } else if (opts.csvOnly) {
     if (!/\.csv$/i.test(name)) {
-      bootbox.alert(I18n.t("user.invited.bulk_invite.error"));
+      dialog.alert(i18n("user.invited.bulk_invite.error"));
       return false;
     }
   } else {
@@ -94,8 +118,8 @@ export function validateUploadedFile(file, opts) {
       !authorizesAllExtensions(staff, opts.siteSettings) &&
       !isAuthorizedFile(name, staff, opts.siteSettings)
     ) {
-      bootbox.alert(
-        I18n.t("post.errors.upload_not_authorized", {
+      dialog.alert(
+        i18n("post.errors.upload_not_authorized", {
           authorized_extensions: authorizedExtensions(
             staff,
             opts.siteSettings
@@ -109,25 +133,30 @@ export function validateUploadedFile(file, opts) {
   if (!opts.bypassNewUserRestriction) {
     // ensures that new users can upload a file
     if (user && !user.isAllowedToUploadAFile(opts.type)) {
-      bootbox.alert(
-        I18n.t(`post.errors.${opts.type}_upload_not_allowed_for_new_user`)
+      dialog.alert(
+        i18n(`post.errors.${opts.type}_upload_not_allowed_for_new_user`)
       );
       return false;
     }
+  }
+
+  if (file.size === 0) {
+    /* eslint-disable no-console */
+    console.warn("File with a 0 byte size detected, cancelling upload.", file);
+    dialog.alert(i18n("post.errors.file_size_zero"));
+    return false;
   }
 
   // everything went fine
   return true;
 }
 
-const IMAGES_EXTENSIONS_REGEX = /(png|jpe?g|gif|svg|ico|heic|heif|webp)/i;
-
 function extensionsToArray(exts) {
   return exts
     .toLowerCase()
     .replace(/[\s\.]+/g, "")
     .split("|")
-    .filter((ext) => ext.indexOf("*") === -1);
+    .filter((ext) => !ext.includes("*"));
 }
 
 function extensions(siteSettings) {
@@ -139,12 +168,10 @@ function staffExtensions(siteSettings) {
 }
 
 function imagesExtensions(staff, siteSettings) {
-  let exts = extensions(siteSettings).filter((ext) =>
-    IMAGES_EXTENSIONS_REGEX.test(ext)
-  );
+  let exts = extensions(siteSettings).filter((ext) => isImage(`.${ext}`));
   if (staff) {
     const staffExts = staffExtensions(siteSettings).filter((ext) =>
-      IMAGES_EXTENSIONS_REGEX.test(ext)
+      isImage(`.${ext}`)
     );
     exts = exts.concat(staffExts);
   }
@@ -184,14 +211,14 @@ export function authorizedExtensions(staff, siteSettings) {
 
 function authorizedImagesExtensions(staff, siteSettings) {
   return authorizesAllExtensions(staff, siteSettings)
-    ? "png, jpg, jpeg, gif, svg, ico, heic, heif, webp"
+    ? "png, jpg, jpeg, gif, svg, ico, heic, heif, webp, avif"
     : imagesExtensions(staff, siteSettings).join(", ");
 }
 
 export function authorizesAllExtensions(staff, siteSettings) {
   return (
-    siteSettings.authorized_extensions.indexOf("*") >= 0 ||
-    (siteSettings.authorized_extensions_for_staff.indexOf("*") >= 0 && staff)
+    siteSettings.authorized_extensions.includes("*") ||
+    (siteSettings.authorized_extensions_for_staff.includes("*") && staff)
   );
 }
 
@@ -202,7 +229,11 @@ export function authorizesOneOrMoreExtensions(staff, siteSettings) {
 
   return (
     siteSettings.authorized_extensions.split("|").filter((ext) => ext).length >
-    0
+      0 ||
+    (siteSettings.authorized_extensions_for_staff
+      .split("|")
+      .filter((ext) => ext).length > 0 &&
+      staff)
   );
 }
 
@@ -214,27 +245,33 @@ export function authorizesOneOrMoreImageExtensions(staff, siteSettings) {
 }
 
 export function isImage(path) {
-  return /\.(png|webp|jpe?g|gif|svg|ico)$/i.test(path);
+  return /\.(png|webp|jpe?g|gif|svg|ico|heic|heif|avif)$/i.test(path);
 }
 
 export function isVideo(path) {
-  return /\.(mov|mp4|webm|m4v|3gp|ogv|avi|mpeg|ogv)$/i.test(path);
+  return /\.(mov|mp4|webm|m4v|3gp|ogv|avi|mpeg)$/i.test(path);
 }
 
 export function isAudio(path) {
   return /\.(mp3|og[ga]|opus|wav|m4[abpr]|aac|flac)$/i.test(path);
 }
 
+export function isBackup(path) {
+  return /^\w[\w\.-]*-v\d+\.(tar\.gz)$/i.test(path);
+}
+
 function uploadTypeFromFileName(fileName) {
-  return isImage(fileName) ? "image" : "attachment";
+  return isImage(fileName)
+    ? "image"
+    : isBackup(fileName)
+    ? "backup"
+    : "attachment";
 }
 
 export function allowsImages(staff, siteSettings) {
   return (
     authorizesAllExtensions(staff, siteSettings) ||
-    IMAGES_EXTENSIONS_REGEX.test(
-      authorizedExtensions(staff, siteSettings).join()
-    )
+    authorizedExtensions(staff, siteSettings).some((ext) => isImage(`.${ext}`))
   );
 }
 
@@ -280,10 +317,17 @@ export function getUploadMarkdown(upload) {
   }
 }
 
+export function displayErrorForBulkUpload(errors) {
+  const fileNames = humanizeList(errors.mapBy("fileName"));
+
+  dialog.alert(i18n("post.errors.upload", { file_name: fileNames }));
+}
+
 export function displayErrorForUpload(data, siteSettings, fileName) {
   if (!fileName) {
     deprecated(
-      "Calling displayErrorForUpload without a fileName is deprecated and will be removed in a future version."
+      "Calling displayErrorForUpload without a fileName is deprecated and will be removed in a future version.",
+      { id: "discourse.uploads.display-error-for-upload" }
     );
     fileName = data.files[0].name;
   }
@@ -298,10 +342,18 @@ export function displayErrorForUpload(data, siteSettings, fileName) {
     if (didError) {
       return;
     }
-  } else if (data.body && data.status) {
+  } else if (data.responseText && data.status) {
+    let parsedBody = data.responseText;
+    if (typeof parsedBody === "string") {
+      try {
+        parsedBody = JSON.parse(parsedBody);
+      } catch {
+        // ignore
+      }
+    }
     const didError = displayErrorByResponseStatus(
       data.status,
-      data.body,
+      parsedBody,
       fileName,
       siteSettings
     );
@@ -309,38 +361,42 @@ export function displayErrorForUpload(data, siteSettings, fileName) {
       return;
     }
   } else if (data.errors && data.errors.length > 0) {
-    bootbox.alert(data.errors.join("\n"));
+    dialog.alert(data.errors.join("\n"));
     return;
   }
 
   // otherwise, display a generic error message
-  bootbox.alert(I18n.t("post.errors.upload"));
+  dialog.alert(i18n("post.errors.upload", { file_name: fileName }));
 }
 
 function displayErrorByResponseStatus(status, body, fileName, siteSettings) {
   switch (status) {
     // didn't get headers from server, or browser refuses to tell us
     case 0:
-      bootbox.alert(I18n.t("post.errors.upload"));
+      dialog.alert(i18n("post.errors.upload", { file_name: fileName }));
       return true;
 
     // entity too large, usually returned from the web server
     case 413:
       const type = uploadTypeFromFileName(fileName);
-      const max_size_kb = siteSettings[`max_${type}_size_kb`];
-      bootbox.alert(
-        I18n.t("post.errors.file_too_large_humanized", {
-          max_size: I18n.toHumanSize(max_size_kb * 1024),
-        })
-      );
+      if (type === "backup") {
+        dialog.alert(i18n("post.errors.backup_too_large"));
+      } else {
+        const max_size_kb = siteSettings[`max_${type}_size_kb`];
+        dialog.alert(
+          i18n("post.errors.file_too_large_humanized", {
+            max_size: I18n.toHumanSize(max_size_kb * 1024),
+          })
+        );
+      }
       return true;
 
     // the error message is provided by the server
     case 422:
       if (body.message) {
-        bootbox.alert(body.message);
+        dialog.alert(body.message);
       } else {
-        bootbox.alert(body.errors.join("\n"));
+        dialog.alert(body.errors.join("\n"));
       }
       return true;
   }

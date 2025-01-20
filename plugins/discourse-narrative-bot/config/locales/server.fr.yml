@@ -46,8 +46,8 @@ fr:
       invalid: |-
         Je regrette, c'est mathématiquement impossible d'obtenir cette combinaison de dés. :confounded:
       not_enough_dice:
-        one: "Je n'ai que %{count} dé. [Shameful](https://www.toplessrobot.com/2009/04/the_10_most_shameful_rpg_dice.php), Je sais !"
-        other: "Je n'ai que %{count} dés. [Honteux](https://www.toplessrobot.com/2009/04/the_10_most_shameful_rpg_dice.php), Je sais !"
+        one: "Je n'ai que %{count} dé. C'est honteux, je sais !"
+        other: "Je n'ai que %{count} dés. C'est honteux, je sais !"
       out_of_range: |-
         Saviez-vous que [le nombre maximal de faces](https://www.wired.com/2016/05/mathematical-challenge-of-designing-the-worlds-most-complex-120-sided-dice) d'un dé non truqué est de 120 ?
       results: |-
@@ -84,6 +84,15 @@ fr:
       "10":
         quote: "Tout ce que l'esprit de l'homme peut concevoir et croire peut être atteint."
         author: "Napoleon Hill"
+      "11":
+        quote: "La paix chez nous, la paix dans le monde."
+        author: "Mustafa Kemal Atatürk"
+      "12":
+        quote: "L'éducation n'est pas un moyen d'échapper à la pauvreté. Elle est un\nmoyen de la combattre."
+        author: "Julius Nyerere"
+      "13":
+        quote: "Un voyage de mille lieues commence toujours par un premier pas."
+        author: "Lao Tseu"
       results: |-
         > :left_speech_bubble: %{quote} __ &mdash; %{author}
     magic_8_ball:
@@ -214,7 +223,7 @@ fr:
 
           - Ou appuyez sur le bouton<kbd><b>G</b></kbd> ou <kbd><i>I</i></kbd> dans l'éditeur
         reply: |-
-          Bon travail ! Le HTML et le BBCode fonctionnent aussi pour la mise en forme. Pour en savoir plus, [essayez ce tutoriel](http://commonmark.org/help) :nerd:
+          Bon travail ! Le HTML et le BBCode fonctionnent aussi pour la mise en forme. Pour en savoir plus, [essayez ce tutoriel](https://commonmark.org/help) :nerd:
         not_found: |-
           Je regrette, je n'ai pas trouvé de mise en page dans votre réponse. :pencil2:
 
@@ -227,22 +236,20 @@ fr:
           >
           > L'avantage de se parler à soi-même, c'est que l'on est sûr que quelqu'un nous écoute.
           >
-          > Certaines personnes ont du talent avec des mots, et d'autres personnes... oh, euh, n'en ont pas.
+          > Certaines personnes ont du talent avec les mots, tandis que d'autres… eh bien, n'en ont pas.
 
-          Sélectionnez le texte de votre &uarr; citation préférée, et appuyez sur le bouton **Citer** qui apparaît sur votre sélection ou sur le bouton **Répondre** sous ce message.
+          Sélectionnez le texte de votre &uarr; citation préférée et appuyez sur le bouton **Citer** qui apparaît sur votre sélection ou sur le bouton **Répondre** sous ce message.
 
           Sous cette citation, ajoutez un ou deux mots pour expliquer votre choix, je suis curieux ! :thinking:
         reply: |-
           Bon travail, vous avez choisi ma citation préférée ! :left_speech_bubble:
         not_found: |-
-          Hum... je n'ai pas l'impression que vous m'ayez cité dans votre réponse ?
+          Hum… je n'ai pas l'impression que vous m'ayez cité dans votre réponse ?
 
           La sélection de n'importe quel texte dans mon message fera apparaître le bouton <kbd>**Citer**</kbd>. L'utilisation de la fonction « Répondre » avec le texte sélectionné fonctionnera également ! Pouvez-vous réessayer ?
       bookmark:
         instructions: |-
           Si vous souhaitez en savoir plus, sélectionnez <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> en dessous et <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-bookmark.png" width="16" height="16"> **ajoutez ce message direct aux signets**. Si vous le faites, vous pourriez recevoir un :gift: prochainement !
-        reply: |-
-          Excellent ! Maintenant, vous pouvez facilement retrouver notre conversation privée à tout moment, à partir de [l'onglet signet présent sur votre profil](%{bookmark_url}). Sélectionnez simplement votre photo de profil dans le coin supérieur droit &#8599;
         not_found: |-
           Oups, je ne vois aucun signet sur ce sujet ! Avez-vous trouvé le bouton signet sous chaque message ? Utilisez le bouton « Afficher plus » <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> pour dévoiler d'autres actions si nécessaire.
       emoji:
@@ -276,20 +283,11 @@ fr:
 
           (Et oui, mon nom d'utilisateur est écrit « _disco_ », comme dans la folie des années 1970. J'adore [la vie nocturne !](https://www.youtube.com/watch?v=B_wGI3_sGf8) :dancer:)
       flag:
-        instructions: |-
-          Nous aimons que les discussions restent sympathiques, et nous comptons sur vous pour veiller à ce que [la civilité règne](%{guidelines_url}). Si quelque chose dans un message vous semble gênant, nous vous invitons à le signaler pour que son auteur ou que [nos aimables responsables](%{about_url}) soient mis au courant. Il y a de nombreuses raisons valables de signaler un message, qui vont de la simple suggestion pour que l'on scinde un sujet en deux jusqu'au signalement d'une infraction claire et nette à la charte communautaire. Au moment de définir le motif de votre signalement, si vous choisissez **Autre**, un échange privé avec les modérateurs sera lancé pour vous donner la possibilité de leur adresser des questions particulières.
-
-          > :imp: J'ai écrit quelque chose de vilain ici
-
-          N'hésitez pas, **signalez ce message** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> et choisissez le motif **C'est répréhensible** !
-        reply: |-
-          [Notre équipe](%{base_uri}/groups/staff) sera notifiée de façon privée au sujet de votre signalement. Si suffisamment de membres de la communauté signalent un message, ce dernier sera automatiquement masqué par précaution.
-          (Vu que le message que j'ai écrit n'était pas vraiment méchant :angel:, j'ai anticipé et j'ai enlevé le signalement pour le moment.)
         not_found: |-
-          Oh non, mon vilain message n'a pas encore été signalé comme étant répréhensible. :worried: Pouvez-vous le signaler comme étant répréhensible avec le **drapeau** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> ? Pensez à utiliser le bouton « Afficher plus » <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> afin de faire apparaître les autres actions relatives aux messages.
+          Oh non ! Mon vilain message n'a pas encore été signalé comme étant répréhensible. :worried: Pouvez-vous le signaler comme étant répréhensible avec l'**indicateur** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-flag.png" width="16" height="16"> ? Pensez à utiliser le bouton « Afficher plus » <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-ellipsis.png" width="16" height="16"> afin de faire apparaître les autres actions relatives aux messages.
       search:
         instructions: |-
-          _psst_ … J'ai caché une surprise dans ce sujet. Si vous aimez les défis, sélectionnez **l’icône de recherche** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> située en haut à droite &#8599; pour la trouver.
+          _psst_ … J'ai caché une surprise dans ce sujet. Si vous aimez les défis, sélectionnez **l'icône de recherche** <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> située en haut à droite &#8599;, choisissez « dans ce sujet », puis tentez de la trouver.
 
           Essayez de chercher le terme « capy​&#8203;bara » dans ce sujet.
         hidden_message: |-
@@ -307,7 +305,7 @@ fr:
 
           - Si vous avez un clavier physique :keyboard:, appuyez sur <kbd>?</kbd> pour voir nos raccourcis clavier pratiques.
         not_found: |-
-          Hum... Il semble que vous rencontrez des difficultés. J'en suis désolé. Avez-vous cherché <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> le mot **capy&#8203;bara** ?
+          Hum… Il semble que vous rencontrez des difficultés. J'en suis désolé. Avez-vous cherché <img src="%{base_uri}/plugins/discourse-narrative-bot/images/font-awesome-search.png" width="16" height="16"> le mot **capy&#8203;bara** ?
       end:
         message: |-
           Merci d'être resté(e) avec moi @%{username} ! J'ai fait ça pour vous, je pense que vous l'avez mérité :
@@ -368,22 +366,16 @@ fr:
         instructions: |-
           Saviez-vous que vous pouviez faire référence aux catégories et étiquettes dans vos messages ? Par exemple, avez-vous vu la catégorie %{category} ?
 
-          Saisissez « # » au milieu d'une phrase et sélectionnez n'importe quelle catégorie ou étiquette.
+          Saisissez « # » dans une phrase et sélectionnez la catégorie ou l'étiquette de votre choix.
         not_found: |-
-          Hum, je ne vois de catégorie nulle part. Notez que « # » ne peut pas être le premier caractère. Pouvez-vous copier ceci dans votre prochaine réponse ?
+          Hum, je ne vois aucune catégorie ici. Pouvez-vous copier ceci dans votre prochaine réponse ?
 
-          « texte
+          ```text
           Je peux créer un lien de catégorie via #
-          »
+          ```
         reply: |-
           Excellent ! Retenez que ceci fonctionne pour les catégories _et_ les étiquettes, si les étiquettes sont activées.
       change_topic_notification_level:
-        instructions: |-
-          Chaque sujet a un niveau de notification. Il démarre comme « normal », c'est à dire que vous ne serez notifié(e) que quand quelqu'un vous parlera directement.
-
-          Par défaut, le niveau de notification pour un message direct est configuré au plus haut niveau de « surveillance », c'est-à-dire que vous serez notifié(e) à chaque nouvelle réponse. Mais vous pouvez changer le niveau de notification pour _n'importe quel_ sujet sur « Surveiller », « Suivi » ou « Silencieux ».
-
-          Essayons de changer le niveau de notification pour ce sujet. En bas de ce sujet, vous trouverez un bouton qui vous indique que vous **Surveillez** ce sujet. Pouvez-vous changer le niveau de notification pour **Suivi** ?
         not_found: |-
           Il semble que vous êtes encore en train de surveiller :eyes: ce sujet ! Si vous avez des difficultés à le trouver, le bouton du niveau de notification est situé sous le sujet.
         reply: |-
@@ -408,8 +400,8 @@ fr:
           Hé, bon sondage ! Comment s'est passée votre formation ?
 
           [poll]
-          :+1:
-          :-1:
+          * :+1:
+          * :-1:
           [/poll]
       details:
         instructions: |-
@@ -438,12 +430,12 @@ fr:
           Beau travail ! Votre attention pour les _détails_ est admirable !
       end:
         message: |-
-          Vous avez suivi ce tutoriel comme un _utiliser avancé_ :bow:
+          Vous avez suivi ce tutoriel comme un _utilisateur avancé_ :bow:
 
           %{certificate}
 
           C'est tout ce que j'ai pour vous.
 
-          Au revoir ! Si vous voulez me reparler, envoyez moi un message à tout moment :sunglasses:
+          Au revoir ! Si vous voulez me reparler, envoyez-moi un message à tout moment :sunglasses:
       certificate:
         alt: "Certificat de réussite de l'utilisateur avancé"

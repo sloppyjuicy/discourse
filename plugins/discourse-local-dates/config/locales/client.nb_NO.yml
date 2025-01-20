@@ -31,6 +31,7 @@ nb_NO:
           format_title: Datoformat
           timezone: Tidssone
           until: Inntil...
+          current_timezone: "Gjeldende tidssone:"
           recurring:
             every_day: "Hver dag"
             every_week: "Hver uke"
@@ -40,3 +41,4 @@ nb_NO:
             every_three_months: "Hver tredje måned"
             every_six_months: "Hver sjette måned"
             every_year: "Hvert år"
+      default_title: "%{site_name} Hendelse"

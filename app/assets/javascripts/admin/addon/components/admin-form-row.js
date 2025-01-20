@@ -1,4 +1,5 @@
 import Component from "@ember/component";
-export default Component.extend({
-  classNames: ["row"],
-});
+import { classNames } from "@ember-decorators/component";
+
+@classNames("row")
+export default class AdminFormRow extends Component {}

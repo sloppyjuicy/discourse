@@ -7,12 +7,16 @@
   display: grid;
   grid-template-columns: 1fr 5fr;
   grid-template-rows: auto auto 1fr auto;
-  grid-row-gap: 20px;
+  grid-gap: 20px;
   .user-primary-navigation {
     grid-column-start: 1;
     grid-column-end: 3;
     grid-row-start: 1;
     grid-row-end: 2;
+
+    .nav-pills {
+      flex-wrap: wrap;
+    }
   }
   .user-secondary-navigation {
     grid-column-start: 1;
@@ -60,6 +64,15 @@
 
   .show-mores {
     width: 100%;
+
+    .alert-info.clickable {
+      gap: 0.5em;
+
+      &.loading {
+        color: var(--primary-medium);
+        cursor: default;
+      }
+    }
   }
 
   .d-icon-heart {
@@ -74,9 +87,11 @@
 }
 
 .user-main {
+  background: var(--d-content-background);
+
   .about {
     width: 100%;
-    margin-bottom: 15px;
+    margin-bottom: 0;
 
     &.has-background {
       .user-profile-image {
@@ -100,7 +115,7 @@
 
       dl {
         margin: 0;
-        padding: 5px 10px;
+        padding: 0.25em 0;
         div {
           display: inline-flex;
           align-items: baseline;
@@ -144,30 +159,7 @@
       background: rgba(var(--secondary-rgb), 0.8);
       border-bottom: 1px solid var(--primary-low);
 
-      h1 {
-        font-size: $font-up-5;
-        font-weight: normal;
-        .d-icon {
-          font-size: 0.8em;
-        }
-      }
-
-      h2 {
-        font-weight: normal;
-        max-width: 100%;
-        @include ellipsis;
-      }
-
-      h3 {
-        font-weight: normal;
-        margin-bottom: 0.5em;
-        .d-icon:not(:first-of-type) {
-          margin-left: 10px;
-        }
-      }
-
       .groups {
-        margin-left: 10px;
         display: inline;
       }
 
@@ -182,18 +174,11 @@
       .primary {
         width: 100%;
         position: relative;
-
-        h1 {
-          font-weight: bold;
-        }
+        display: flex;
 
         .bio {
           max-height: 300px;
           overflow: auto;
-
-          a[href] {
-            text-decoration: underline;
-          }
 
           img {
             max-width: 100%;
@@ -203,7 +188,7 @@
 
       .user-profile-avatar {
         position: relative;
-        float: left;
+        align-self: flex-start;
         .avatar-flair {
           bottom: 8px;
           right: 16px;
@@ -213,8 +198,11 @@
 
     .controls {
       ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em;
         list-style-type: none;
-        margin-top: 0;
+        margin: 0 0 0.5em 0;
       }
     }
 
@@ -236,15 +224,17 @@
             height: 45px;
           }
 
-          h1 {
-            font-size: $font-up-3;
+          .user-profile-names__primary {
+            font-size: var(--font-up-3);
           }
 
-          h2 {
-            font-size: $font-up-1;
+          .user-profile-names__secondary {
+            font-size: var(--font-up-1);
           }
-          h3,
-          h3.location-and-website {
+
+          .user-profile-names__title,
+          .user-profile__location-and-website,
+          .user-profile__featured-topic {
             display: none;
           }
         }
@@ -255,7 +245,7 @@
           bottom: 8px;
           right: 2px;
           .d-icon {
-            font-size: $font-0;
+            font-size: var(--font-0);
           }
         }
       }
@@ -312,17 +302,17 @@
     margin-bottom: 10px;
 
     .controls {
-      label {
+      label:not(.checkbox-label) {
         width: auto;
         text-align: left;
-        font-weight: normal;
+        font-weight: bold;
       }
 
       .instructions {
         color: var(--primary-medium);
         margin-top: 5px;
         margin-bottom: 10px;
-        font-size: $font-down-1;
+        font-size: var(--font-down-1);
       }
     }
   }
@@ -385,12 +375,15 @@
     button {
       margin-left: auto;
     }
+    label a {
+      margin: 0;
+    }
   }
-  $label-max-width: 300px;
+  --label-max-width: 300px;
   label.radio {
     display: flex;
     align-items: center;
-    max-width: $label-max-width;
+    max-width: var(--label-max-width);
     margin: 0 0.5em 0 0;
     padding: 0;
     .avatar {
@@ -401,7 +394,7 @@
   .error {
     color: var(--danger);
     margin: 0;
-    max-width: calc(#{$label-max-width} - 20px);
+    max-width: calc(var(--label-max-width) - 20px);
     grid-column-start: 2;
     grid-column-end: 3;
   }
@@ -459,7 +452,7 @@
 
   .value {
     font-weight: bold;
-    font-size: $font-up-2;
+    font-size: var(--font-up-2);
   }
 
   .label {
@@ -484,6 +477,21 @@
     color: var(--primary-medium);
   }
 
+  .user-info .user-detail {
+    width: 100%;
+    .name-line {
+      span {
+        width: auto;
+      }
+      .username {
+        overflow-wrap: anywhere;
+      }
+      > a {
+        flex-wrap: nowrap;
+      }
+    }
+  }
+
   @media all and (max-width: 600px) {
     float: none;
     width: 100%;
@@ -500,7 +508,7 @@
 
 .links-section {
   .domain {
-    font-size: $font-down-1;
+    font-size: var(--font-down-1);
     color: var(--primary-medium);
   }
 }
@@ -535,6 +543,23 @@
 }
 
 .user-preferences {
+  .form-vertical {
+    width: 500px;
+    max-width: 100%;
+
+    .control-group {
+      margin-bottom: 2em;
+    }
+  }
+
+  .category-selector,
+  .tag-chooser,
+  textarea,
+  input.user-selector,
+  .user-chooser {
+    width: 100%;
+  }
+
   textarea {
     height: 100px;
   }
@@ -564,9 +589,8 @@
 
   .instructions {
     color: var(--primary-medium);
-    margin-bottom: 10px;
-    font-size: $font-down-1;
-    line-height: $line-height-large;
+    font-size: var(--font-down-1);
+    line-height: var(--line-height-large);
 
     a[href] {
       color: var(--tertiary);
@@ -599,59 +623,6 @@
     .second-factor-token-input {
       margin-right: 10px;
     }
-
-    .form-horizontal {
-      .instructions {
-        margin-left: 0;
-      }
-      .actions {
-        margin-top: 5px;
-      }
-    }
-
-    .backup-codes {
-      margin: 2em 0;
-
-      .wrapper {
-        display: inline-block;
-        position: relative;
-        border-radius: 3px;
-        border: 1px solid var(--primary-low);
-        width: 100%;
-      }
-
-      .backup-codes-area {
-        resize: none;
-        padding: 0;
-        height: auto;
-        text-align: center;
-        width: 100%;
-        background: var(--secondary);
-        border: 0;
-        cursor: auto;
-        outline: none;
-        font-family: monospace;
-
-        &:focus {
-          box-shadow: none;
-          border-color: var(--primary-low);
-        }
-      }
-
-      .backup-codes-copy-btn,
-      .backup-codes-download-btn {
-        right: 5px;
-        position: absolute;
-      }
-
-      .backup-codes-copy-btn {
-        top: 5px;
-      }
-
-      .backup-codes-download-btn {
-        top: 40px;
-      }
-    }
   }
 
   .pref-associated-accounts table {
@@ -664,11 +635,14 @@
     font-weight: bold;
   }
   .save-theme-alert {
-    font-size: $font-down-1;
+    font-size: var(--font-down-1);
+  }
+
+  .color-scheme .controls {
+    display: flex;
   }
 
   .control-subgroup {
-    float: left;
     + .controls {
       clear: both;
       padding-top: 1em;
@@ -680,9 +654,16 @@
   }
 
   .instructions {
-    clear: both;
-    display: inline-block;
-    margin-top: 4px;
+    display: block;
+    margin-top: 0.25em;
+  }
+
+  .success-back {
+    display: flex;
+    align-items: center;
+    .d-icon {
+      margin-right: 0.25em;
+    }
   }
 
   @mixin inactiveMode() {
@@ -704,7 +685,101 @@
   }
 
   .undo-preview {
-    margin-bottom: 1em;
+    margin: 1em 0;
+  }
+
+  .save-button {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+  }
+
+  .pref-auth-tokens {
+    .auth-token-icon {
+      color: var(--primary-medium);
+      font-size: 2.25em;
+      float: left;
+      margin-right: 10px;
+    }
+
+    .auth-token-first {
+      font-size: 1.1em;
+
+      .auth-token-device {
+        font-weight: bold;
+      }
+    }
+
+    .auth-token-second {
+      color: var(--primary-medium);
+
+      .active {
+        color: var(--success);
+        font-weight: bold;
+      }
+    }
+
+    .auth-token-dropdown {
+      float: right;
+
+      .btn,
+      .btn:hover {
+        background: transparent;
+
+        .d-icon {
+          color: var(--primary-high);
+        }
+      }
+    }
+  }
+
+  .pref-passkeys,
+  .pref-auth-tokens {
+    .row {
+      border-top: 1px solid var(--primary-low);
+      padding: 0.5em 0;
+      margin: 0.5em 0;
+
+      &:last-child {
+        border-bottom: 1px solid var(--primary-low);
+      }
+    }
+  }
+
+  .pref-passkeys {
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+
+      .row-passkey__name {
+        font-weight: bold;
+      }
+
+      .row-passkey__created-date,
+      .row-passkey__used-date {
+        color: var(--primary-medium);
+      }
+    }
+
+    &__add {
+      margin-top: 1em;
+    }
+
+    .passkey-options-dropdown {
+      .btn,
+      .btn:hover {
+        background: transparent;
+
+        .d-icon {
+          color: var(--primary-high);
+        }
+      }
+    }
+  }
+
+  .pref-second-factor {
+    margin-top: 0.5em;
   }
 }
 
@@ -715,59 +790,79 @@
   }
 }
 
-.large-notifications {
-  margin: 0;
-}
-
-.large-notification {
-  display: flex;
-  align-items: center;
-
-  a {
+.second-factor {
+  .second-factor-item {
+    width: 100%;
     display: flex;
+    justify-content: space-between;
+    border-top: 1px solid var(--primary-low);
+    margin: 0.25em 0;
+    padding: 0.25em 0;
     align-items: center;
 
-    .d-icon {
-      margin-right: 0.5em;
-    }
-
-    span:first-child {
-      color: var(--primary);
-    }
-
-    // Can remove this once other languages have removed html from i18n values
-    div {
-      .fa {
-        display: none;
+    .select-kit {
+      .select-kit-header {
+        background: transparent;
+        &:hover .d-icon {
+          color: var(--primary-high);
+        }
       }
-      p {
-        margin: 0;
+
+      &.is-expanded {
+        .select-kit-header .d-icon {
+          color: var(--primary-high);
+        }
       }
+    }
+  }
+
+  .-actions {
+    display: flex;
+    align-items: center;
+  }
+}
+
+.backup-codes {
+  margin: 1em 0;
+
+  .wrapper {
+    display: flex;
+    border: 1px solid var(--primary-low);
+    width: 100%;
+  }
+
+  textarea.backup-codes-area {
+    flex: 1 1 100%;
+    height: 100%;
+    resize: none;
+    margin: 0;
+    padding: 0.5em;
+    height: auto;
+    background: var(--secondary);
+    border: 0;
+    cursor: auto;
+    outline: none;
+    font-family: var(--d-font-family--monospace);
+    &:focus {
+      box-shadow: none;
+      border-color: var(--primary-low);
+    }
+  }
+
+  .controls {
+    padding: 0.5em;
+    flex: 1 1 2em;
+    margin-left: auto;
+    .btn {
+      margin-bottom: 0.5em;
     }
   }
 }
 
-.qr-code-container {
-  display: flex;
-  .qr-code {
-    padding: 5px 5px 0 5px;
-    background-color: white;
-  }
-}
-
-.second-factor {
-  &.instructions {
-    color: var(--primary-medium);
-    margin-top: 5px;
-    margin-bottom: 10px;
-    font-size: $font-down-1;
-  }
-  .second-factor-item {
-    margin-top: 0.75em;
-  }
-  .btn.edit {
-    min-height: auto;
-  }
+.primary-textual {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: auto;
 }
 
 .primary-textual .staged,
@@ -775,20 +870,79 @@
   font-style: italic;
 }
 
+.user-profile-names__primary,
+.user-profile-names__secondary {
+  max-width: 100%;
+  margin: 0;
+  @include ellipsis;
+}
+
+.user-profile-names__primary {
+  font-weight: bold;
+  font-size: var(--font-up-5);
+  line-height: var(--line-height-medium);
+  .d-icon {
+    font-size: 0.8em;
+    vertical-align: baseline;
+  }
+  .user-status-message {
+    display: inline-flex;
+    vertical-align: baseline;
+  }
+}
+
+.user-profile-names__secondary {
+  font-size: var(--font-up-3);
+}
+
+.user-profile__featured-topic,
+.user-profile__location-and-website {
+  font-size: var(--font-0);
+  margin-top: 0.5em;
+  @include ellipsis;
+  .d-icon {
+    font-size: var(--font-down-1);
+    color: var(--primary-high);
+    margin-right: 0.33em;
+  }
+}
+
+.user-profile__location-and-website {
+  display: flex;
+  max-width: 100%;
+  .user-profile-location {
+    margin-right: 1em;
+  }
+}
+
 .selectable-avatars {
   max-height: 350px;
   margin-bottom: 1em;
   text-align: justify;
+  overflow-y: auto;
   .selectable-avatar {
     margin: 5px;
     display: inline-block;
+    position: relative;
     .avatar {
       cursor: pointer;
       width: 60px;
       height: 60px;
-      &:hover {
-        box-shadow: 0 0 10px var(--primary);
+    }
+    &:hover {
+      .selectable-avatar__remove {
+        visibility: visible;
       }
+    }
+    &__remove {
+      visibility: hidden;
+      color: var(--primary-high);
+      position: absolute;
+      bottom: 0px;
+      width: 100%;
+      left: 0px;
+      text-align: center;
+      font-size: var(--font-up-2);
     }
   }
 }
@@ -810,7 +964,7 @@
     }
 
     .invite-extra {
-      font-size: $font-down-1;
+      font-size: var(--font-down-1);
       margin: 0.25em 0;
 
       a {
@@ -818,6 +972,19 @@
       }
     }
   }
+}
+
+.user-additional-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+}
+
+.user-invite-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-left: auto;
 }
 
 .notification-schedule {
@@ -838,5 +1005,25 @@
         }
       }
     }
+  }
+}
+
+// Due to special login animations, the order here needs to be changed
+.control-group[data-setting-name="user-user-fields"]
+  .user-field.text
+  .controls {
+  display: flex;
+  flex-direction: column;
+  .control-label.alt-placeholder {
+    order: 1;
+  }
+  .ember-text-field {
+    order: 2;
+  }
+  .tip {
+    order: 3;
+  }
+  .instructions {
+    order: 4;
   }
 }

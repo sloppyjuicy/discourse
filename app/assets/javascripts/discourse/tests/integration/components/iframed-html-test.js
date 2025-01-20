@@ -1,33 +1,25 @@
-import componentTest, {
-  setupRenderingTest,
-} from "discourse/tests/helpers/component-test";
-import {
-  discourseModule,
-  queryAll,
-} from "discourse/tests/helpers/qunit-helpers";
-import hbs from "htmlbars-inline-precompile";
+import { render } from "@ember/test-helpers";
+import { hbs } from "ember-cli-htmlbars";
+import { module, test } from "qunit";
+import { setupRenderingTest } from "discourse/tests/helpers/component-test";
 
-discourseModule("Integration | Component | iframed-html", function (hooks) {
+module("Integration | Component | iframed-html", function (hooks) {
   setupRenderingTest(hooks);
 
-  componentTest("appends the html into the iframe", {
-    template: hbs`{{iframed-html html="<h1 id='find-me'>hello</h1>" className='this-is-an-iframe'}}`,
+  test("appends the html into the iframe", async function (assert) {
+    await render(
+      hbs`<IframedHtml @html="<h1 id='find-me'>hello</h1>" class="this-is-an-iframe" />`
+    );
 
-    async test(assert) {
-      const iframe = queryAll("iframe.this-is-an-iframe");
-      assert.equal(iframe.length, 1, "inserts an iframe");
+    assert
+      .dom("iframe.this-is-an-iframe")
+      .exists({ count: 1 }, "inserts an iframe");
 
-      assert.ok(
-        iframe[0].classList.contains("this-is-an-iframe"),
-        "Adds className to the iframes classList"
-      );
-
-      assert.equal(
-        iframe[0].contentWindow.document.body.querySelectorAll("#find-me")
-          .length,
-        1,
-        "inserts the passed in html into the iframe"
-      );
-    },
+    const iframe = document.querySelector(".iframed-html");
+    assert.strictEqual(
+      iframe.contentWindow.document.body.querySelectorAll("#find-me").length,
+      1,
+      "inserts the passed in html into the iframe"
+    );
   });
 });

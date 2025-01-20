@@ -20,13 +20,27 @@
   margin: 0;
   font-weight: normal;
   color: $text-color;
-  background: $bg-color;
+  &:visited {
+    // covers cases where we add button classes to links
+    color: $text-color;
+  }
+  background-color: $bg-color;
+  background-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0),
+    rgba(0, 0, 0, 0)
+  );
+  border-radius: var(--d-button-border-radius);
+  transition: var(--d-button-transition);
   cursor: pointer;
-  transition: all 0.25s;
   .d-icon {
     color: $icon-color;
     margin-right: 0.45em;
-    transition: color 0.25s;
+    transition: var(--d-button-transition);
+    // For Windows High Contrast (see whcm.scss for more)
+    @media (forced-colors: active) {
+      color: ButtonText;
+    }
   }
   .d-button-label + .d-icon {
     margin-left: 0.45em;
@@ -38,27 +52,47 @@
     }
   }
   @include hover {
-    background: $hover-bg-color;
+    background-color: $hover-bg-color;
     color: $hover-text-color;
     .d-icon {
       color: $hover-icon-color;
+      // For Windows High Contrast (see whcm.scss for more)
+      @media (forced-colors: active) {
+        color: Highlight;
+      }
     }
   }
-  &:focus {
+  &:focus-visible {
     outline: none;
-    background: $hover-bg-color;
+    background-color: $hover-bg-color;
+    color: $hover-text-color;
+    .d-icon {
+      color: $hover-icon-color;
+      @media (forced-colors: active) {
+        color: Highlight;
+      }
+    }
+  }
+
+  .discourse-no-touch &:active:not(:hover):not(:focus),
+  .discourse-no-touch &.btn-active:not(:hover):not(:focus),
+  &:active:not(:hover):not(:focus),
+  &.btn-active:not(:hover):not(:focus) {
+    @include darken-background($bg-color, 0.6);
     color: $hover-text-color;
     .d-icon {
       color: $hover-icon-color;
     }
   }
-  &[href] {
-    color: $text-color;
-  }
+  .discourse-no-touch &:active,
+  .discourse-no-touch &.btn-active,
   &:active,
   &.btn-active {
-    @include linear-gradient($hover-bg-color 0%, $bg-color 100%);
-    border-bottom-color: $bg-color;
+    @include darken-background($bg-color, 0.3);
+    color: $hover-text-color;
+    .d-icon {
+      color: $hover-icon-color;
+    }
   }
   &[disabled],
   &.disabled {
@@ -82,20 +116,15 @@
 
   &.is-loading {
     &.btn-text {
-      .d-button-label {
-        font-size: $font-down-2;
-      }
-
       &.btn-small {
         .loading-icon {
-          font-size: $font-down-1;
+          font-size: var(--font-down-1);
           margin-right: 0.2em;
         }
       }
     }
 
     .loading-icon {
-      -webkit-animation: rotate-forever 1s infinite linear, fadein 1s;
       animation: rotate-forever 1s infinite linear, fadein 1s;
     }
   }
@@ -167,10 +196,8 @@
 .btn-social {
   color: #000;
   background: #fff;
-  border: 1px solid transparent;
-  &:hover,
-  &:focus {
-    box-shadow: shadow("card");
+  border-radius: var(--d-border-radius);
+  &:focus-visible {
     outline: 1px solid #000;
   }
   &[href] {
@@ -178,34 +205,11 @@
   }
   &:before {
     margin-right: 9px;
-    font-size: $font-0;
+    font-size: var(--font-0);
   }
   .d-icon,
   &.btn:hover .d-icon {
     color: #000;
-  }
-  &.google_oauth2 {
-    background: var(--google);
-    color: #333;
-    // non-FA SVG icon for Google in login-buttons.hbs
-    .d-icon {
-      opacity: 0.9;
-    }
-    &:hover,
-    &:focus {
-      color: currentColor;
-    }
-  }
-
-  &.facebook {
-    .d-icon {
-      color: $facebook;
-    }
-    &:hover {
-      .d-icon {
-        color: $facebook;
-      }
-    }
   }
   &.cas {
     .d-icon {
@@ -247,6 +251,8 @@
       }
     }
   }
+  // https://developers.facebook.com/docs/facebook-login/userexperience/#buttondesign
+  // if you are unable to use Facebook blue, revert to black and white.
 }
 
 // Button Sizes
@@ -271,37 +277,81 @@
 .btn-flat {
   background: transparent;
   border: 0;
-  line-height: $line-height-small;
-  transition: color 0.25s, background 0.25s;
+  line-height: var(--line-height-small);
+  transition: var(--d-button-transition);
   .d-icon {
     color: var(--primary-low-mid);
+    transition: var(--d-button-transition);
   }
-  @include hover {
-    .d-icon {
+  .discourse-no-touch & {
+    &:hover,
+    &:focus-visible {
       color: var(--primary);
+      .d-icon {
+        color: var(--primary);
+      }
+    }
+    &:hover {
+      background: transparent;
+    }
+    &:focus-visible {
+      background: var(--primary-low);
     }
   }
   &.close {
-    padding: 0;
     background: transparent;
-    font-size: var(--font-up-3);
+    font-size: var(--font-up-2);
     .d-icon {
       color: var(--primary-high);
     }
-    @include hover {
+    .discourse-no-touch & {
+      &:hover,
+      &:focus-visible {
+        background: transparent;
+        .d-icon {
+          color: var(--primary);
+        }
+      }
+    }
+    &:focus-visible {
       background: transparent;
       .d-icon {
         color: var(--primary);
       }
     }
   }
+  &.btn-text {
+    color: var(--tertiary);
+    &[disabled] {
+      &,
+      &:hover,
+      &.btn-hover,
+      &:focus-visible {
+        color: var(--primary);
+      }
+    }
+    &:not([disabled]) {
+      &:hover,
+      &.btn-hover,
+      &:focus-visible {
+        color: var(--tertiary-hover);
+      }
 
-  &:focus {
+      &:active,
+      &.btn-active {
+        @include darken-background(transparent, 0.2);
+      }
+    }
+  }
+  &:focus-visible {
     outline: none;
     background: var(--primary-low);
     .d-icon {
       color: var(--primary);
     }
+  }
+  &.back-button {
+    margin-bottom: 1em;
   }
 }
 
@@ -310,21 +360,78 @@
   border: 0;
   padding: 0;
   color: var(--tertiary);
+  .discourse-no-touch & {
+    &:hover {
+      color: var(--tertiary);
+      background: transparent;
+    }
+  }
+  &:focus-visible {
+    color: var(--tertiary);
+    background: transparent;
+    @include default-focus;
+  }
+}
+
+@mixin btn-colors($btn-color) {
+  color: var(--#{$btn-color});
+  .d-icon {
+    color: inherit;
+  }
+  &:focus-visible {
+    color: var(--#{$btn-color}-hover);
+  }
+  .discourse-no-touch & {
+    &:hover {
+      color: var(--#{$btn-color}-hover);
+    }
+  }
+}
+
+.btn-transparent {
+  &,
+  &.btn-default {
+    background: transparent;
+    border: 0;
+    color: var(--primary);
+    .d-icon {
+      color: var(--primary-high);
+    }
+    &:focus-visible {
+      background: transparent;
+      color: var(--tertiary-hover);
+      .d-icon {
+        color: inherit;
+      }
+    }
+    .discourse-no-touch & {
+      &:hover {
+        background: transparent;
+        color: var(--tertiary-hover);
+        .d-icon {
+          color: inherit;
+        }
+      }
+    }
+  }
+  &.btn-primary {
+    @include btn-colors("tertiary");
+  }
+  &.btn-danger {
+    @include btn-colors("danger");
+  }
+  &.btn-success {
+    @include btn-colors("success");
+  }
 }
 
 .btn-mini-toggle {
+  border-radius: var(--d-border-radius);
   padding: 0.4em 0.467em;
   .d-icon {
-    color: var(--primary-high);
+    color: var(--primary-medium);
   }
   @include hover {
-    background: transparent;
-    .d-icon {
-      color: var(--primary);
-    }
-  }
-  &:focus {
-    background: var(--primary-low);
     .d-icon {
       color: var(--primary);
     }

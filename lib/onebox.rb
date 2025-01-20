@@ -16,12 +16,12 @@ module Onebox
   DEFAULTS = {
     connect_timeout: 5,
     timeout: 10,
-    max_download_kb: (10 * 1024), # 10MB
+    max_download_kb: 2048, # 2MB
     load_paths: [File.join(Rails.root, "lib/onebox/templates")],
     allowed_ports: [80, 443],
-    allowed_schemes: ["http", "https"],
-    sanitize_config: Sanitize::Config::ONEBOX,
-    redirect_limit: 5
+    allowed_schemes: %w[http https],
+    sanitize_config: SanitizeConfig::ONEBOX,
+    redirect_limit: 5,
   }
 
   @@options = DEFAULTS

@@ -1,10 +1,13 @@
-import { cancel, later } from "@ember/runloop";
-import { caretPosition, setCaretPosition } from "discourse/lib/utilities";
-import { INPUT_DELAY } from "discourse-common/config/environment";
-import Site from "discourse/models/site";
+import { cancel } from "@ember/runloop";
 import { createPopper } from "@popperjs/core";
-import discourseDebounce from "discourse-common/lib/debounce";
-import { iconHTML } from "discourse-common/lib/icon-library";
+import $ from "jquery";
+import discourseDebounce from "discourse/lib/debounce";
+import { INPUT_DELAY } from "discourse/lib/environment";
+import { iconHTML } from "discourse/lib/icon-library";
+import discourseLater from "discourse/lib/later";
+import { isDocumentRTL } from "discourse/lib/text-direction";
+import { TextareaAutocompleteHandler } from "discourse/lib/textarea-text-manipulation";
+import Site from "discourse/models/site";
 
 /**
   This is a jQuery plugin to support autocompleting values in our text fields.
@@ -14,8 +17,9 @@ import { iconHTML } from "discourse-common/lib/icon-library";
 
 export const SKIP = "skip";
 export const CANCELLED_STATUS = "__CANCELLED";
-const allowedLettersRegex = /[\s\t\[\{\(\/]/;
-let _autoCompletePopper;
+
+const ALLOWED_LETTERS_REGEXP = /[\s[{(/]/;
+let _autoCompletePopper, _inputTimeout;
 
 const keys = {
   backSpace: 8,
@@ -43,25 +47,19 @@ const keys = {
   z: 90,
 };
 
-let inputTimeout;
-
 export default function (options) {
-  const autocompletePlugin = this;
-
   if (this.length === 0) {
     return;
   }
 
   if (options === "destroy" || options.updateData) {
-    cancel(inputTimeout);
+    cancel(_inputTimeout);
 
-    $(this)
-      .off("keyup.autocomplete")
-      .off("keydown.autocomplete")
-      .off("paste.autocomplete")
-      .off("click.autocomplete");
-
-    $(window).off("click.autocomplete");
+    this[0].removeEventListener("keydown", handleKeyDown);
+    this[0].removeEventListener("keyup", handleKeyUp);
+    this[0].removeEventListener("paste", handlePaste);
+    this[0].removeEventListener("click", closeAutocomplete);
+    window.removeEventListener("click", closeAutocomplete);
 
     if (options === "destroy") {
       return;
@@ -94,9 +92,9 @@ export default function (options) {
   let autocompleteOptions = null;
   let selectedOption = null;
   let completeStart = null;
-  let completeEnd = null;
   let me = this;
   let div = null;
+  let scrollElement = null;
   let prevTerm = null;
 
   // By default, when the autocomplete popup is rendered it has the
@@ -116,13 +114,46 @@ export default function (options) {
   const isInput = me[0].tagName === "INPUT" && !options.treatAsTextarea;
   let inputSelectedItems = [];
 
-  function closeAutocomplete() {
-    _autoCompletePopper && _autoCompletePopper.destroy();
+  options.textHandler ??= new TextareaAutocompleteHandler(me[0]);
 
-    if (div) {
-      div.hide().remove();
+  function handlePaste() {
+    discourseLater(() => me.trigger("keydown"), 50);
+  }
+
+  function scrollAutocomplete() {
+    if (!scrollElement && !div) {
+      return;
     }
+
+    const scrollingElement =
+      scrollElement?.length > 0 ? scrollElement[0] : div[0];
+    const selectedElement = getSelectedOptionElement();
+    const selectedElementTop = selectedElement.offsetTop;
+    const selectedElementBottom =
+      selectedElementTop + selectedElement.clientHeight;
+
+    // the top of the item is above the top of the scrollElement, so scroll UP
+    if (selectedElementTop <= scrollingElement.scrollTop) {
+      scrollingElement.scrollTo(0, selectedElementTop);
+
+      // the bottom of the item is below the bottom of the div, so scroll DOWN
+    } else if (
+      selectedElementBottom >=
+      scrollingElement.scrollTop + scrollingElement.clientHeight
+    ) {
+      scrollingElement.scrollTo(
+        0,
+        scrollingElement.scrollTop + selectedElement.clientHeight
+      );
+    }
+  }
+
+  function closeAutocomplete() {
+    _autoCompletePopper?.destroy();
+    options.onClose?.();
+    div?.hide()?.remove();
     div = null;
+    scrollElement = null;
     completeStart = null;
     autocompleteOptions = null;
     prevTerm = null;
@@ -147,7 +178,7 @@ export default function (options) {
     const divs = transformed.map((itm) => {
       let d = $(
         `<div class='item'><span>${itm}<a class='remove' href>${iconHTML(
-          "times"
+          "xmark"
         )}</a></span></div>`
       );
       const $parent = me.parent();
@@ -186,7 +217,7 @@ export default function (options) {
       });
   }
 
-  let completeTerm = async function (term) {
+  let completeTerm = async function (term, event) {
     if (term) {
       if (isInput) {
         me.val("");
@@ -196,26 +227,36 @@ export default function (options) {
         addInputSelectedItem(term, true);
       } else {
         if (options.transformComplete) {
-          term = await options.transformComplete(term);
+          term = await options.transformComplete(term, event);
         }
 
         if (term) {
-          let text = me.val();
-          text =
-            text.substring(0, completeStart) +
-            (options.preserveKey ? options.key || "" : "") +
-            term +
-            " " +
-            text.substring(completeEnd + 1, text.length);
-          me.val(text);
-          let newCaretPos = completeStart + 1 + term.length;
-          if (options.key) {
-            newCaretPos++;
+          // After completion is done our position for completeStart may have
+          // drifted. This can happen if the TEXTAREA changed out-of-band between
+          // the time autocomplete was first displayed and the time of completion
+          // Specifically this may happen due to uploads which inject a placeholder
+          // which is later replaced with a different length string.
+          let pos = await guessCompletePosition({ completeTerm: true });
+          let completeEnd = null;
+          if (
+            pos.completeStart !== undefined &&
+            pos.completeEnd !== undefined
+          ) {
+            completeStart = pos.completeStart;
+            completeEnd = pos.completeEnd;
+          } else {
+            completeStart = completeEnd =
+              options.textHandler.getCaretPosition();
           }
-          setCaretPosition(me[0], newCaretPos);
+
+          options.textHandler.replaceTerm({
+            start: completeStart,
+            end: completeEnd,
+            term: (options.preserveKey ? options.key || "" : "") + term,
+          });
 
           if (options && options.afterComplete) {
-            options.afterComplete(text);
+            options.afterComplete(options.textHandler.value, event);
           }
         }
       }
@@ -276,15 +317,22 @@ export default function (options) {
     this.val("");
     completeStart = 0;
     wrap.click(function () {
-      autocompletePlugin.focus();
+      this.focus();
       return true;
     });
   }
 
   function markSelected() {
-    const links = div.find("li a");
-    links.removeClass("selected");
-    return $(links[selectedOption]).addClass("selected");
+    getLinks().removeClass("selected");
+    return $(getSelectedOptionElement()).addClass("selected");
+  }
+
+  function getSelectedOptionElement() {
+    return getLinks()[selectedOption];
+  }
+
+  function getLinks() {
+    return div.find("li a");
   }
 
   // a sane spot below cursor
@@ -307,13 +355,32 @@ export default function (options) {
     } else {
       selectedOption = -1;
     }
-    ul.find("li").click(function () {
+    ul.find("li").click(async function ({ originalEvent }) {
+      // this is required to prevent the default behaviour when clicking on a <a> tag
+      originalEvent.preventDefault();
+      originalEvent.stopPropagation();
+
       selectedOption = ul.find("li").index(this);
-      completeTerm(autocompleteOptions[selectedOption]);
-      if (!options.single) {
-        me.focus();
+      // hack for Gboard, see meta.discourse.org/t/-/187009/24
+      if (autocompleteOptions == null) {
+        const opts = { ...options, _gboard_hack_force_lookup: true };
+        const data = await dataSource(prevTerm, opts);
+        if (data) {
+          updateAutoComplete(data);
+          await completeTerm(
+            autocompleteOptions[selectedOption],
+            originalEvent
+          );
+          if (!options.single) {
+            me.focus();
+          }
+        }
+      } else {
+        await completeTerm(autocompleteOptions[selectedOption], originalEvent);
+        if (!options.single) {
+          me.focus();
+        }
       }
-      return false;
     });
 
     if (options.appendSelector) {
@@ -322,11 +389,18 @@ export default function (options) {
       me.parent().append(div);
     }
 
+    if (options.scrollElementSelector) {
+      scrollElement = div.find(options.scrollElementSelector);
+    }
+
+    if (options.onRender) {
+      options.onRender(autocompleteOptions);
+    }
+
     if (isInput || options.treatAsTextarea) {
       _autoCompletePopper && _autoCompletePopper.destroy();
       _autoCompletePopper = createPopper(me[0], div[0], {
-        placement: "bottom-start",
-        strategy: "fixed",
+        placement: `${Site.currentProp("mobileView") ? "top" : "bottom"}-start`,
         modifiers: [
           {
             name: "offset",
@@ -340,19 +414,11 @@ export default function (options) {
     }
 
     let vOffset = 0;
-    let hOffset = 0;
-    let pos = me.caretPosition({
-      pos: completeStart + 1,
-    });
+    let pos = options.textHandler.getCaretCoords(completeStart);
 
-    hOffset = 10;
     if (options.treatAsTextarea) {
       vOffset = -32;
     }
-
-    div.css({
-      left: "-1000px",
-    });
 
     if (!isInput && !options.treatAsTextarea) {
       vOffset = div.height();
@@ -366,44 +432,57 @@ export default function (options) {
         vOffset = BELOW;
       }
 
+      if (Site.currentProp("mobileView") && me.height() / 2 >= pos.top) {
+        vOffset = BELOW;
+      }
+    }
+
+    const mePos = me.position();
+
+    let left;
+    if (isDocumentRTL()) {
+      left = mePos.left + pos.left - div.width();
+    } else {
+      let hOffset = 10;
       if (Site.currentProp("mobileView")) {
-        if (me.height() / 2 >= pos.top) {
-          vOffset = BELOW;
-        }
         if (me.width() / 2 <= pos.left) {
           hOffset = -div.width();
         }
       }
+      left = mePos.left + pos.left + hOffset;
     }
-
-    let mePos = me.position();
-
-    let borderTop = parseInt(me.css("border-top-width"), 10) || 0;
-
-    let left = mePos.left + pos.left + hOffset;
     if (left < 0) {
       left = 0;
     }
 
     const offsetTop = me.offset().top;
+    const borderTop = parseInt(me.css("border-top-width"), 10) || 0;
     if (mePos.top + pos.top + borderTop - vOffset + offsetTop < 30) {
       vOffset = BELOW;
     }
 
     div.css({
       position: "absolute",
-      top: mePos.top + pos.top - vOffset + borderTop + "px",
-      left: left + "px",
+      top: `${mePos.top + pos.top - vOffset + borderTop}px`,
+      left: `${left}px`,
     });
   }
 
   function dataSource(term, opts) {
-    if (prevTerm === term) {
+    const force = opts._gboard_hack_force_lookup;
+    if (force) {
+      delete opts._gboard_hack_force_lookup;
+    }
+    if (prevTerm === term && !force) {
       return SKIP;
     }
 
     prevTerm = term;
-    if (term.length !== 0 && term.trim().length === 0) {
+    if (
+      (term.length !== 0 && term.trim().length === 0) ||
+      // close unless the caret is at the end of a word, like #line|<-
+      options.textHandler.value[options.textHandler.getCaretPosition()]?.trim()
+    ) {
       closeAutocomplete();
       return null;
     } else {
@@ -447,39 +526,37 @@ export default function (options) {
     closeAutocomplete();
   });
 
-  $(window).on("click.autocomplete", () => closeAutocomplete());
-  $(this).on("click.autocomplete", () => closeAutocomplete());
-
-  $(this).on("paste.autocomplete", () => {
-    later(() => me.trigger("keydown"), 50);
-  });
-
-  function checkTriggerRule(opts) {
-    return options.triggerRule ? options.triggerRule(me[0], opts) : true;
+  async function checkTriggerRule(_opts) {
+    const opts = {
+      ..._opts,
+      inCodeBlock: () => options.textHandler.inCodeBlock(),
+    };
+    const shouldTrigger = await options.triggerRule?.(me[0], opts);
+    return shouldTrigger ?? true;
   }
 
-  $(this).on("keyup.autocomplete", function (e) {
+  async function handleKeyUp(e) {
     if (options.debounced) {
       discourseDebounce(this, performAutocomplete, e, INPUT_DELAY);
     } else {
-      performAutocomplete(e);
+      await performAutocomplete(e);
     }
-  });
+  }
 
-  function performAutocomplete(e) {
-    if ([keys.esc, keys.enter].indexOf(e.which) !== -1) {
+  async function performAutocomplete(e) {
+    if ([keys.esc, keys.enter].includes(e.which)) {
       return true;
     }
 
-    let cp = caretPosition(me[0]);
-    const key = me[0].value[cp - 1];
+    let cp = options.textHandler.getCaretPosition();
+    const key = options.textHandler.value[cp - 1];
 
     if (options.key) {
       if (options.onKeyUp && key !== options.key) {
-        let match = options.onKeyUp(me.val(), cp);
+        let match = options.onKeyUp(options.textHandler.value, cp);
+
         if (match) {
           completeStart = cp - match[0].length;
-          completeEnd = completeStart + match[0].length - 1;
           let term = match[0].substring(1, match[0].length);
           updateAutoComplete(dataSource(term, options));
         }
@@ -488,23 +565,74 @@ export default function (options) {
 
     if (completeStart === null && cp > 0) {
       if (key === options.key) {
-        let prevChar = me.val().charAt(cp - 2);
+        let prevChar = options.textHandler.value.charAt(cp - 2);
         if (
-          checkTriggerRule() &&
-          (!prevChar || allowedLettersRegex.test(prevChar))
+          (await checkTriggerRule()) &&
+          (!prevChar || ALLOWED_LETTERS_REGEXP.test(prevChar))
         ) {
-          completeStart = completeEnd = cp - 1;
+          completeStart = cp - 1;
           updateAutoComplete(dataSource("", options));
         }
       }
     } else if (completeStart !== null) {
-      let term = me.val().substring(completeStart + (options.key ? 1 : 0), cp);
+      let term = options.textHandler.value.substring(
+        completeStart + (options.key ? 1 : 0),
+        cp
+      );
       updateAutoComplete(dataSource(term, options));
     }
   }
 
-  $(this).on("keydown.autocomplete", function (e) {
-    let c, i, initial, prev, prevIsGood, stopFound, term, total, userToComplete;
+  async function guessCompletePosition(opts) {
+    let prev, stopFound, term;
+    let prevIsGood = true;
+    let backSpace = opts?.backSpace;
+    let completeTermOption = opts?.completeTerm;
+    let caretPos = options.textHandler.getCaretPosition();
+
+    if (backSpace) {
+      caretPos -= 1;
+    }
+
+    let start = null;
+    let end = null;
+
+    let initialCaretPos = caretPos;
+
+    while (prevIsGood && caretPos >= 0) {
+      caretPos -= 1;
+      prev = options.textHandler.value[caretPos];
+
+      stopFound = prev === options.key;
+
+      if (stopFound) {
+        prev = options.textHandler.value[caretPos - 1];
+        const shouldTrigger = await checkTriggerRule({ backSpace });
+
+        if (
+          shouldTrigger &&
+          (prev === undefined || ALLOWED_LETTERS_REGEXP.test(prev))
+        ) {
+          start = caretPos;
+          term = options.textHandler.value.substring(
+            caretPos + 1,
+            initialCaretPos
+          );
+          end = caretPos + term.length;
+          break;
+        }
+      }
+      prevIsGood = !/\s/.test(prev);
+      if (completeTermOption) {
+        prevIsGood ||= prev === " ";
+      }
+    }
+
+    return { completeStart: start, completeEnd: end, term };
+  }
+
+  async function handleKeyDown(e) {
+    let i, term, total, userToComplete;
     let cp;
 
     if (e.ctrlKey || e.altKey || e.metaKey) {
@@ -514,15 +642,16 @@ export default function (options) {
     if (options.allowAny) {
       // saves us wiring up a change event as well
 
-      cancel(inputTimeout);
-      inputTimeout = later(function () {
+      cancel(_inputTimeout);
+      _inputTimeout = discourseLater(() => {
         if (inputSelectedItems.length === 0) {
           inputSelectedItems.push("");
         }
 
-        if (typeof inputSelectedItems[0] === "string" && me.val().length > 0) {
+        const value = options.textHandler.value;
+        if (typeof inputSelectedItems[0] === "string" && value.length > 0) {
           inputSelectedItems.pop();
-          inputSelectedItems.push(me.val());
+          inputSelectedItems.push(value);
           if (options.onChangeItems) {
             options.onChangeItems(inputSelectedItems);
           }
@@ -533,31 +662,18 @@ export default function (options) {
     if (!options.key) {
       completeStart = 0;
     }
+
     if (e.which === keys.shift) {
       return;
     }
+
     if (completeStart === null && e.which === keys.backSpace && options.key) {
-      c = caretPosition(me[0]);
-      c -= 1;
-      initial = c;
-      prevIsGood = true;
-      while (prevIsGood && c >= 0) {
-        c -= 1;
-        prev = me[0].value[c];
-        stopFound = prev === options.key;
-        if (stopFound) {
-          prev = me[0].value[c - 1];
-          if (
-            checkTriggerRule({ backSpace: true }) &&
-            (!prev || allowedLettersRegex.test(prev))
-          ) {
-            completeStart = c;
-            term = me[0].value.substring(c + 1, initial);
-            updateAutoComplete(dataSource(term, options));
-            return true;
-          }
-        }
-        prevIsGood = /[a-zA-Z\.-]/.test(prev);
+      let position = await guessCompletePosition({ backSpace: true });
+      completeStart = position.completeStart;
+
+      if (position.completeEnd) {
+        updateAutoComplete(dataSource(position.term, options));
+        return true;
       }
     }
 
@@ -565,16 +681,21 @@ export default function (options) {
     if (e.which === keys.esc) {
       if (div !== null) {
         closeAutocomplete();
+        e.preventDefault();
+        e.stopImmediatePropagation();
         return false;
       }
       return true;
     }
 
     if (completeStart !== null) {
-      cp = caretPosition(me[0]);
+      cp = options.textHandler.getCaretPosition();
 
       // allow people to right arrow out of completion
-      if (e.which === keys.rightArrow && me[0].value[cp] === " ") {
+      if (
+        e.which === keys.rightArrow &&
+        options.textHandler.value[cp] === " "
+      ) {
         closeAutocomplete();
         return true;
       }
@@ -597,12 +718,14 @@ export default function (options) {
             selectedOption >= 0 &&
             (userToComplete = autocompleteOptions[selectedOption])
           ) {
-            completeTerm(userToComplete);
+            await completeTerm(userToComplete, e);
           } else {
             // We're cancelling it, really.
             return true;
           }
+
           e.stopImmediatePropagation();
+          e.preventDefault();
           return false;
         case keys.upArrow:
           selectedOption = selectedOption - 1;
@@ -610,8 +733,15 @@ export default function (options) {
             selectedOption = 0;
           }
           markSelected();
+          scrollAutocomplete();
+          e.preventDefault();
           return false;
         case keys.downArrow:
+          if (!autocompleteOptions) {
+            closeAutocomplete();
+            return true;
+          }
+
           total = autocompleteOptions.length;
           selectedOption = selectedOption + 1;
           if (selectedOption >= total) {
@@ -621,14 +751,16 @@ export default function (options) {
             selectedOption = 0;
           }
           markSelected();
+          scrollAutocomplete();
+          e.preventDefault();
           return false;
         case keys.backSpace:
           autocompleteOptions = null;
-          completeEnd = cp;
           cp--;
 
           if (cp < 0) {
             closeAutocomplete();
+
             if (isInput) {
               i = wrap.find("a:last");
               if (i) {
@@ -638,7 +770,10 @@ export default function (options) {
             return true;
           }
 
-          term = me.val().substring(completeStart + (options.key ? 1 : 0), cp);
+          term = options.textHandler.value.substring(
+            completeStart + (options.key ? 1 : 0),
+            cp
+          );
 
           if (completeStart === cp && term === options.key) {
             closeAutocomplete();
@@ -648,11 +783,16 @@ export default function (options) {
           return true;
         default:
           autocompleteOptions = null;
-          completeEnd = cp;
           return true;
       }
     }
-  });
+  }
+
+  window.addEventListener("click", closeAutocomplete);
+  this[0].addEventListener("click", closeAutocomplete);
+  this[0].addEventListener("paste", handlePaste);
+  this[0].addEventListener("keyup", handleKeyUp);
+  this[0].addEventListener("keydown", handleKeyDown);
 
   return this;
 }

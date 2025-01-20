@@ -11,26 +11,23 @@ class Archetype
   end
 
   def attributes
-    {
-      id: @id,
-      options: @options
-    }
+    { id: @id, options: @options }
   end
 
   def self.default
-    'regular'
+    "regular"
   end
 
   def self.private_message
-    'private_message'
+    "private_message"
   end
 
   def self.banner
-    'banner'
+    "banner"
   end
 
   def self.list
-    return [] unless @archetypes.present?
+    return [] if @archetypes.blank?
     @archetypes.values
   end
 
@@ -39,9 +36,13 @@ class Archetype
     @archetypes[name] = Archetype.new(name, options)
   end
 
-  # default archetypes
-  register 'regular'
-  register 'private_message'
-  register 'banner'
+  def self.deregister(name)
+    @archetypes ||= {}
+    @archetypes.delete(name)
+  end
 
+  # default archetypes
+  register "regular"
+  register "private_message"
+  register "banner"
 end

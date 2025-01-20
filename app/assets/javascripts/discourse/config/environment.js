@@ -1,12 +1,14 @@
 "use strict";
 
+// This is used only in the test environment!
+// See app/helpers/application_helper.rb#discourse_config_environment
+// for the method that generates configs for other envs.
 module.exports = function (environment) {
-  let ENV = {
+  const ENV = {
     modulePrefix: "discourse",
     environment,
-    rootURL: process.env.DISCOURSE_RELATIVE_URL_ROOT || "/",
-    locationType: "auto",
-    historySupportMiddleware: false,
+    rootURL: `${process.env.DISCOURSE_RELATIVE_URL_ROOT ?? ""}/`, // Add a trailing slash (not required by the Rails app in this env variable)
+    locationType: "history",
     EmberENV: {
       FEATURES: {
         // Here you can enable experimental features on an ember canary build
@@ -15,7 +17,9 @@ module.exports = function (environment) {
       EXTEND_PROTOTYPES: {
         // Prevent Ember Data from overriding Date.parse.
         Date: false,
+        String: false,
       },
+      LOG_STACKTRACE_ON_DEPRECATION: false,
     },
 
     APP: {
@@ -24,12 +28,12 @@ module.exports = function (environment) {
     },
   };
 
-  if (environment === "development") {
-    // ENV.APP.LOG_RESOLVER = true;
-    // ENV.APP.LOG_ACTIVE_GENERATION = true;
-    // ENV.APP.LOG_TRANSITIONS = true;
-    // ENV.APP.LOG_TRANSITIONS_INTERNAL = true;
-    // ENV.APP.LOG_VIEW_LOOKUPS = true;
+  if (process.env.EMBER_RAISE_ON_DEPRECATION === "1") {
+    ENV.EmberENV.RAISE_ON_DEPRECATION = true;
+  } else if (process.env.EMBER_RAISE_ON_DEPRECATION === "0") {
+    ENV.EmberENV.RAISE_ON_DEPRECATION = false;
+  } else {
+    // Default (normally false; true in core qunit runs)
   }
 
   if (environment === "test") {
@@ -42,10 +46,6 @@ module.exports = function (environment) {
 
     ENV.APP.rootElement = "#ember-testing";
     ENV.APP.autoboot = false;
-  }
-
-  if (environment === "production") {
-    // here you can enable a production-specific feature
   }
 
   return ENV;

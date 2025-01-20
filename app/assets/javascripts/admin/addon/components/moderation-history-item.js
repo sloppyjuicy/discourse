@@ -1,4 +1,5 @@
 import Component from "@ember/component";
-export default Component.extend({
-  tagName: "tr",
-});
+import { tagName } from "@ember-decorators/component";
+
+@tagName("tr")
+export default class ModerationHistoryItem extends Component {}

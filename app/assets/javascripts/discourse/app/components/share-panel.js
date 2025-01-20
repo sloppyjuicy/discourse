@@ -1,17 +1,19 @@
 import Component from "@ember/component";
-import I18n from "I18n";
-import Sharing from "discourse/lib/sharing";
+import { action } from "@ember/object";
 import { alias } from "@ember/object/computed";
-import discourseComputed from "discourse-common/utils/decorators";
-import { escapeExpression } from "discourse/lib/utilities";
 import { isEmpty } from "@ember/utils";
-import { later } from "@ember/runloop";
+import discourseComputed from "discourse/lib/decorators";
+import discourseLater from "discourse/lib/later";
+import Sharing from "discourse/lib/sharing";
+import { escapeExpression } from "discourse/lib/utilities";
+import { i18n } from "discourse-i18n";
 
-export default Component.extend({
-  tagName: null,
-  type: alias("panel.model.type"),
-  topic: alias("panel.model.topic"),
-  privateCategory: alias("panel.model.topic.category.read_restricted"),
+export default class SharePanel extends Component {
+  tagName = null;
+
+  @alias("panel.model.type") type;
+  @alias("panel.model.topic") topic;
+  @alias("panel.model.topic.category.read_restricted") privateCategory;
 
   @discourseComputed("topic.{isPrivateMessage,invisible,category}")
   sources(topic) {
@@ -21,13 +23,13 @@ export default Component.extend({
       (topic && topic.invisible) ||
       this.privateCategory;
     return Sharing.activeSources(this.siteSettings.share_links, privateContext);
-  },
+  }
 
   @discourseComputed("type", "topic.title")
   shareTitle(type, topicTitle) {
     topicTitle = escapeExpression(topicTitle);
-    return I18n.t("share.topic_html", { topicTitle });
-  },
+    return i18n("share.topic_html", { topicTitle });
+  }
 
   @discourseComputed("panel.model.shareUrl", "topic.shareUrl")
   shareUrl(forcedShareUrl, shareUrl) {
@@ -38,17 +40,17 @@ export default Component.extend({
     }
 
     // Relative urls
-    if (shareUrl.indexOf("/") === 0) {
+    if (shareUrl.startsWith("/")) {
       const location = window.location;
       shareUrl = `${location.protocol}//${location.host}${shareUrl}`;
     }
 
     return encodeURI(shareUrl);
-  },
+  }
 
   didInsertElement() {
-    this._super(...arguments);
-    later(() => {
+    super.didInsertElement(...arguments);
+    discourseLater(() => {
       if (this.element) {
         const textArea = this.element.querySelector(".topic-share-url");
         textArea.style.height = textArea.scrollHeight + "px";
@@ -56,14 +58,13 @@ export default Component.extend({
         textArea.setSelectionRange(0, this.shareUrl.length);
       }
     }, 200);
-  },
+  }
 
-  actions: {
-    share(source) {
-      Sharing.shareSource(source, {
-        url: this.shareUrl,
-        title: this.get("topic.title"),
-      });
-    },
-  },
-});
+  @action
+  share(source) {
+    Sharing.shareSource(source, {
+      url: this.shareUrl,
+      title: this.topic.get("title"),
+    });
+  }
+}

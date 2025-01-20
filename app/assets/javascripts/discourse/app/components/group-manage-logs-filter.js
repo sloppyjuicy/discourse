@@ -1,25 +1,17 @@
 import Component from "@ember/component";
-import I18n from "I18n";
-import discourseComputed from "discourse-common/utils/decorators";
+import { tagName } from "@ember-decorators/component";
+import discourseComputed from "discourse/lib/decorators";
+import { i18n } from "discourse-i18n";
 
-export default Component.extend({
-  tagName: "",
-
+@tagName("")
+export default class GroupManageLogsFilter extends Component {
   @discourseComputed("type")
   label(type) {
-    return I18n.t(`groups.manage.logs.${type}`);
-  },
+    return i18n(`groups.manage.logs.${type}`);
+  }
 
   @discourseComputed("value", "type")
   filterText(value, type) {
-    return type === "action"
-      ? I18n.t(`group_histories.actions.${value}`)
-      : value;
-  },
-
-  actions: {
-    clearFilter(param) {
-      this.clearFilter(param);
-    },
-  },
-});
+    return type === "action" ? i18n(`group_histories.actions.${value}`) : value;
+  }
+}

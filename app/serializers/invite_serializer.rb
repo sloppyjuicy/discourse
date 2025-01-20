@@ -5,15 +5,16 @@ class InviteSerializer < ApplicationSerializer
              :invite_key,
              :link,
              :email,
+             :domain,
              :emailed,
+             :can_delete_invite,
              :max_redemptions_allowed,
              :redemption_count,
              :custom_message,
              :created_at,
              :updated_at,
              :expires_at,
-             :expired,
-             :warnings
+             :expired
 
   has_many :topics, embed: :object, serializer: BasicTopicSerializer
   has_many :groups, embed: :object, serializer: BasicGroupSerializer
@@ -30,6 +31,10 @@ class InviteSerializer < ApplicationSerializer
     object.emailed_status != Invite.emailed_status_types[:not_required]
   end
 
+  def can_delete_invite
+    scope.is_admin? || object.invited_by_id == scope.current_user.id
+  end
+
   def include_custom_message?
     email.present?
   end
@@ -44,13 +49,5 @@ class InviteSerializer < ApplicationSerializer
 
   def expired
     object.expired?
-  end
-
-  def warnings
-    object.warnings(scope)
-  end
-
-  def include_warnings?
-    object.warnings(scope).present?
   end
 end

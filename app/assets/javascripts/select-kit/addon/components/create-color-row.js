@@ -1,14 +1,12 @@
-import SelectKitRowComponent from "select-kit/components/select-kit/select-kit-row";
-import { escapeExpression } from "discourse/lib/utilities";
-import layout from "select-kit/templates/components/create-color-row";
 import { schedule } from "@ember/runloop";
+import { classNames } from "@ember-decorators/component";
+import { escapeExpression } from "discourse/lib/utilities";
+import SelectKitRowComponent from "select-kit/components/select-kit/select-kit-row";
 
-export default SelectKitRowComponent.extend({
-  layout,
-  classNames: ["create-color-row"],
-
+@classNames("create-color-row")
+export default class CreateColorRow extends SelectKitRowComponent {
   didReceiveAttrs() {
-    this._super(...arguments);
+    super.didReceiveAttrs(...arguments);
 
     schedule("afterRender", () => {
       const color = escapeExpression(this.rowValue);
@@ -16,5 +14,5 @@ export default SelectKitRowComponent.extend({
         ? color
         : `#${color}`;
     });
-  },
-});
+  }
+}

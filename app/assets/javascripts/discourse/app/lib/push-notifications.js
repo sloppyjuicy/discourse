@@ -1,5 +1,6 @@
-import KeyValueStore from "discourse/lib/key-value-store";
 import { ajax } from "discourse/lib/ajax";
+import { helperContext } from "discourse/lib/helpers";
+import KeyValueStore from "discourse/lib/key-value-store";
 
 export const keyValueStore = new KeyValueStore("discourse_push_notifications_");
 
@@ -17,54 +18,19 @@ function sendSubscriptionToServer(subscription, sendConfirmation) {
   });
 }
 
-function userAgentVersionChecker(agent, version, mobileView) {
-  const uaMatch = navigator.userAgent.match(
-    new RegExp(`${agent}\/(\\d+)\\.\\d`)
-  );
-  if (uaMatch && mobileView) {
-    return false;
-  }
-  if (!uaMatch || parseInt(uaMatch[1], 10) < version) {
-    return false;
-  }
-  return true;
-}
-
-function resetIdle() {
-  if (
-    "controller" in navigator.serviceWorker &&
-    navigator.serviceWorker.controller != null
-  ) {
-    navigator.serviceWorker.controller.postMessage({ lastAction: Date.now() });
-  }
-}
-
-function setupActivityListeners(appEvents) {
-  window.addEventListener("focus", resetIdle);
-
-  if (document) {
-    document.addEventListener("scroll", resetIdle);
-  }
-
-  appEvents.on("page:changed", resetIdle);
-}
-
-export function isPushNotificationsSupported(mobileView) {
+export function isPushNotificationsSupported() {
+  let caps = helperContext().capabilities;
   if (
     !(
       "serviceWorker" in navigator &&
       typeof ServiceWorkerRegistration !== "undefined" &&
       typeof Notification !== "undefined" &&
       "showNotification" in ServiceWorkerRegistration.prototype &&
-      "PushManager" in window
+      "PushManager" in window &&
+      !caps.isAppWebview &&
+      navigator.serviceWorker.controller &&
+      navigator.serviceWorker.controller.state === "activated"
     )
-  ) {
-    return false;
-  }
-
-  if (
-    !userAgentVersionChecker("Firefox", 44, mobileView) &&
-    !userAgentVersionChecker("Chrome", 50)
   ) {
     return false;
   }
@@ -72,17 +38,17 @@ export function isPushNotificationsSupported(mobileView) {
   return true;
 }
 
-export function isPushNotificationsEnabled(user, mobileView) {
+export function isPushNotificationsEnabled(user) {
   return (
     user &&
     !user.isInDoNotDisturb() &&
-    isPushNotificationsSupported(mobileView) &&
+    isPushNotificationsSupported() &&
     keyValueStore.getItem(userSubscriptionKey(user))
   );
 }
 
-export function register(user, mobileView, router, appEvents) {
-  if (!isPushNotificationsSupported(mobileView)) {
+export function register(user, router, appEvents) {
+  if (!isPushNotificationsSupported()) {
     return;
   }
   if (Notification.permission === "denied" || !user) {
@@ -98,7 +64,6 @@ export function register(user, mobileView, router, appEvents) {
           // Resync localStorage
           keyValueStore.setItem(userSubscriptionKey(user), "subscribed");
         }
-        setupActivityListeners(appEvents);
       })
       .catch((e) => {
         // eslint-disable-next-line no-console
@@ -108,43 +73,45 @@ export function register(user, mobileView, router, appEvents) {
 
   navigator.serviceWorker.addEventListener("message", (event) => {
     if ("url" in event.data) {
-      const url = event.data.url;
-      router.handleURL(url);
+      router.transitionTo(event.data.url);
+      appEvents.trigger("push-notification-opened", { url: event.data.url });
     }
   });
 }
 
-export function subscribe(callback, applicationServerKey, mobileView) {
-  if (!isPushNotificationsSupported(mobileView)) {
+export function subscribe(callback, applicationServerKey) {
+  if (!isPushNotificationsSupported()) {
     return;
   }
 
-  navigator.serviceWorker.ready.then((serviceWorkerRegistration) => {
-    serviceWorkerRegistration.pushManager
+  return navigator.serviceWorker.ready.then((serviceWorkerRegistration) => {
+    return serviceWorkerRegistration.pushManager
       .subscribe({
         userVisibleOnly: true,
-        applicationServerKey: new Uint8Array(applicationServerKey.split("|")), // eslint-disable-line no-undef
+        applicationServerKey: new Uint8Array(applicationServerKey.split("|")),
       })
       .then((subscription) => {
         sendSubscriptionToServer(subscription, true);
         if (callback) {
           callback();
         }
+        return true;
       })
       .catch((e) => {
         // eslint-disable-next-line no-console
         console.error(e);
+        return false;
       });
   });
 }
 
-export function unsubscribe(user, callback, mobileView) {
-  if (!isPushNotificationsSupported(mobileView)) {
+export function unsubscribe(user, callback) {
+  if (!isPushNotificationsSupported()) {
     return;
   }
 
   keyValueStore.setItem(userSubscriptionKey(user), "");
-  navigator.serviceWorker.ready.then((serviceWorkerRegistration) => {
+  return navigator.serviceWorker.ready.then((serviceWorkerRegistration) => {
     serviceWorkerRegistration.pushManager
       .getSubscription()
       .then((subscription) => {
@@ -167,5 +134,6 @@ export function unsubscribe(user, callback, mobileView) {
     if (callback) {
       callback();
     }
+    return true;
   });
 }

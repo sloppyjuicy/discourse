@@ -26,3 +26,6 @@ sw:
           title: "Ujumbe"
         suggested_topics:
           title: "Mada Zilizopendekezwa"
+        tooltips:
+          description: "Elezo"
+          header: "Kichwa"

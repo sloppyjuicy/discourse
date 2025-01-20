@@ -1,10 +1,8 @@
-import Controller from "@ember/controller";
-import PeriodComputationMixin from "admin/mixins/period-computation";
 import { computed } from "@ember/object";
-import discourseComputed from "discourse-common/utils/decorators";
-import getURL from "discourse-common/lib/get-url";
+import discourseComputed from "discourse/lib/decorators";
+import AdminDashboardTabController from "./admin-dashboard-tab";
 
-export default Controller.extend(PeriodComputationMixin, {
+export default class AdminDashboardModerationController extends AdminDashboardTabController {
   @discourseComputed
   flagsStatusOptions() {
     return {
@@ -13,17 +11,15 @@ export default Controller.extend(PeriodComputationMixin, {
         perPage: 10,
       },
     };
-  },
+  }
 
-  isModeratorsActivityVisible: computed(
-    "siteSettings.dashboard_hidden_reports",
-    function () {
-      return !(this.siteSettings.dashboard_hidden_reports || "")
-        .split("|")
-        .filter(Boolean)
-        .includes("moderators_activity");
-    }
-  ),
+  @computed("siteSettings.dashboard_hidden_reports")
+  get isModeratorsActivityVisible() {
+    return !(this.siteSettings.dashboard_hidden_reports || "")
+      .split("|")
+      .filter(Boolean)
+      .includes("moderators_activity");
+  }
 
   @discourseComputed
   userFlaggingRatioOptions() {
@@ -33,19 +29,21 @@ export default Controller.extend(PeriodComputationMixin, {
         perPage: 10,
       },
     };
-  },
+  }
 
-  @discourseComputed("startDate", "endDate")
-  filters(startDate, endDate) {
-    return { startDate, endDate };
-  },
+  @computed("startDate", "endDate")
+  get filters() {
+    return { startDate: this.startDate, endDate: this.endDate };
+  }
 
-  @discourseComputed("lastWeek", "endDate")
-  lastWeekfilters(startDate, endDate) {
-    return { startDate, endDate };
-  },
+  @discourseComputed("endDate")
+  lastWeekFilters(endDate) {
+    const lastWeek = moment()
+      .locale("en")
+      .utc()
+      .endOf("day")
+      .subtract(1, "week");
 
-  _reportsForPeriodURL(period) {
-    return getURL(`/admin/dashboard/moderation?period=${period}`);
-  },
-});
+    return { lastWeek, endDate };
+  }
+}

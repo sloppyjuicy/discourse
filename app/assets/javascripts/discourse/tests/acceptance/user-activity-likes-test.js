@@ -1,9 +1,11 @@
-import { acceptance, exists, query } from "../helpers/qunit-helpers";
-import { test } from "qunit";
 import { visit } from "@ember/test-helpers";
-import I18n from "I18n";
+import { test } from "qunit";
+import { i18n } from "discourse-i18n";
+import { acceptance } from "../helpers/qunit-helpers";
 
 acceptance("User Activity / Likes - empty state", function (needs) {
+  const currentUser = "eviltrout";
+  const anotherUser = "charlie";
   needs.user();
 
   needs.pretender((server, helper) => {
@@ -14,17 +16,19 @@ acceptance("User Activity / Likes - empty state", function (needs) {
     });
   });
 
-  test("When looking at own activity it renders the empty state panel", async function (assert) {
-    await visit("/u/eviltrout/activity/likes-given");
-    assert.ok(exists("div.empty-state"));
+  test("When looking at own likes page", async function (assert) {
+    await visit(`/u/${currentUser}/activity/likes-given`);
+    assert
+      .dom("div.empty-state span.empty-state-title")
+      .hasText(i18n("user_activity.no_likes_title"));
   });
 
-  test("When looking at another user activity it renders the 'No activity' message", async function (assert) {
-    await visit("/u/charlie/activity/likes-given");
-    assert.ok(exists("div.alert-info"));
-    assert.equal(
-      query("div.alert-info").innerText.trim(),
-      I18n.t("user_activity.no_likes_others")
-    );
+  test("When looking at another user's likes page", async function (assert) {
+    await visit(`/u/${anotherUser}/activity/likes-given`);
+    assert
+      .dom("div.empty-state span.empty-state-title")
+      .hasText(
+        i18n("user_activity.no_likes_title_others", { username: anotherUser })
+      );
   });
 });

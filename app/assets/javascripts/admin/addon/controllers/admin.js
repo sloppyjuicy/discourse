@@ -1,20 +1,26 @@
 import Controller from "@ember/controller";
+import { service } from "@ember/service";
 import { dasherize } from "@ember/string";
-import discourseComputed from "discourse-common/utils/decorators";
-import { inject as service } from "@ember/service";
+import discourseComputed from "discourse/lib/decorators";
 
-export default Controller.extend({
-  router: service(),
+export default class AdminController extends Controller {
+  @service router;
+  @service currentUser;
+
+  @discourseComputed("currentUser.use_admin_sidebar")
+  showAdminSidebar() {
+    return this.currentUser.use_admin_sidebar;
+  }
 
   @discourseComputed("siteSettings.enable_group_directory")
   showGroups(enableGroupDirectory) {
     return !enableGroupDirectory;
-  },
+  }
 
   @discourseComputed("siteSettings.enable_badges")
   showBadges(enableBadges) {
     return this.currentUser.get("admin") && enableBadges;
-  },
+  }
 
   @discourseComputed("router._router.currentPath")
   adminContentsClassName(currentPath) {
@@ -37,5 +43,5 @@ export default Controller.extend({
     }
 
     return cssClasses;
-  },
-});
+  }
+}

@@ -1,81 +1,91 @@
-import { action, computed } from "@ember/object";
 import Component from "@ember/component";
-import I18n from "I18n";
-import UtilsMixin from "select-kit/mixins/utils";
-import { guidFor } from "@ember/object/internals";
-import layout from "select-kit/templates/components/select-kit/select-kit-row";
-import { makeArray } from "discourse-common/lib/helpers";
+import { action, computed } from "@ember/object";
 import { reads } from "@ember/object/computed";
+import { guidFor } from "@ember/object/internals";
+import { dasherize } from "@ember/string";
+import {
+  attributeBindings,
+  classNameBindings,
+  classNames,
+  tagName,
+} from "@ember-decorators/component";
+import { makeArray } from "discourse/lib/helpers";
+import { i18n } from "discourse-i18n";
+import UtilsMixin from "select-kit/mixins/utils";
 
-export default Component.extend(UtilsMixin, {
-  layout,
-  classNames: ["select-kit-row"],
-  tagName: "li",
-  tabIndex: 0,
-  attributeBindings: [
-    "tabIndex",
-    "title",
-    "rowValue:data-value",
-    "rowName:data-name",
-    "role",
-    "ariaChecked:aria-checked",
-    "guid:data-guid",
-    "rowLang:lang",
-  ],
-  classNameBindings: [
-    "isHighlighted",
-    "isSelected",
-    "isNone",
-    "isNone:none",
-    "item.classNames",
-  ],
+@classNames("select-kit-row")
+@tagName("li")
+@attributeBindings(
+  "tabIndex",
+  "title",
+  "rowValue:data-value",
+  "rowName:data-name",
+  "index:data-index",
+  "role",
+  "ariaChecked:aria-checked",
+  "guid:data-guid",
+  "rowLang:lang"
+)
+@classNameBindings(
+  "isHighlighted",
+  "isSelected",
+  "isNone",
+  "isNone:none",
+  "item.classNames"
+)
+export default class SelectKitRow extends Component.extend(UtilsMixin) {
+  tabIndex = 0;
+  index = 0;
+  role = "menuitemradio";
 
-  role: "menuitemradio",
-
+  @reads("item.lang") lang;
   didInsertElement() {
-    this._super(...arguments);
+    super.didInsertElement(...arguments);
 
-    if (!this?.site?.mobileView) {
+    if (this.site.desktopView) {
       this.element.addEventListener("mouseenter", this.handleMouseEnter);
       this.element.addEventListener("focus", this.handleMouseEnter);
-      this.element.addEventListener("blur", this.handleBlur);
     }
-  },
+  }
 
   willDestroyElement() {
-    this._super(...arguments);
-    if (!this?.site?.mobileView && this.element) {
-      this.element.removeEventListener("mouseenter", this.handleBlur);
+    super.willDestroyElement(...arguments);
+
+    if (this.site.desktopView) {
+      this.element.removeEventListener("mouseenter", this.handleMouseEnter);
       this.element.removeEventListener("focus", this.handleMouseEnter);
-      this.element.removeEventListener("blur", this.handleMouseEnter);
     }
-  },
+  }
 
-  isNone: computed("rowValue", function () {
+  @computed("rowValue")
+  get isNone() {
     return this.rowValue === this.getValue(this.selectKit.noneItem);
-  }),
+  }
 
-  guid: computed("item", function () {
+  @computed("item")
+  get guid() {
     return guidFor(this.item);
-  }),
+  }
 
-  lang: reads("item.lang"),
-
-  ariaChecked: computed("isSelected", function () {
+  @computed("isSelected")
+  get ariaChecked() {
     return this.isSelected ? "true" : "false";
-  }),
+  }
 
-  title: computed("rowTitle", "item.title", "rowName", function () {
+  @computed("rowTitle", "item.title", "rowName")
+  get title() {
     return (
       this.rowTitle || this.getProperty(this.item, "title") || this.rowName
     );
-  }),
+  }
 
-  dasherizedTitle: computed("title", function () {
-    return (this.title || "").replace(".", "-").dasherize();
-  }),
+  @computed("title")
+  get dasherizedTitle() {
+    return dasherize((this.title || "").replace(".", "-"));
+  }
 
-  label: computed("rowLabel", "item.label", "title", "rowName", function () {
+  @computed("rowLabel", "item.label", "title", "rowName")
+  get label() {
     const label =
       this.rowLabel ||
       this.getProperty(this.item, "label") ||
@@ -87,13 +97,13 @@ export default Component.extend(UtilsMixin, {
       this.getName(this.selectKit.noneItem) !== this.rowName &&
       this.getName(this.selectKit.newItem) === this.rowName
     ) {
-      return I18n.t("select_kit.create", { content: label });
+      return i18n("select_kit.create", { content: label });
     }
     return label;
-  }),
+  }
 
   didReceiveAttrs() {
-    this._super(...arguments);
+    super.didReceiveAttrs(...arguments);
 
     this.setProperties({
       rowName: this.getName(this.item),
@@ -102,65 +112,54 @@ export default Component.extend(UtilsMixin, {
       rowTitle: this.getProperty(this.item, "titleProperty"),
       rowLang: this.getProperty(this.item, "langProperty"),
     });
-  },
+  }
 
-  icons: computed("item.{icon,icons}", function () {
+  @computed("item.{icon,icons}")
+  get icons() {
     const icon = makeArray(this.getProperty(this.item, "icon"));
     const icons = makeArray(this.getProperty(this.item, "icons"));
     return icon.concat(icons).filter(Boolean);
-  }),
+  }
 
-  highlightedValue: computed("selectKit.highlighted", function () {
+  @computed("selectKit.highlighted")
+  get highlightedValue() {
     return this.getValue(this.selectKit.highlighted);
-  }),
+  }
 
-  isHighlighted: computed("rowValue", "highlightedValue", function () {
+  @computed("rowValue", "highlightedValue")
+  get isHighlighted() {
     return this.rowValue === this.highlightedValue;
-  }),
+  }
 
-  isSelected: computed("rowValue", "value", function () {
+  @computed("rowValue", "value")
+  get isSelected() {
     return this.rowValue === this.value;
-  }),
+  }
 
   @action
   handleMouseEnter() {
     if (!this.isDestroying || !this.isDestroyed) {
-      this.element.focus({ preventScroll: true });
       this.selectKit.onHover(this.rowValue, this.item);
     }
     return false;
-  },
-
-  @action
-  handleBlur(event) {
-    if (
-      (!this.isDestroying || !this.isDestroyed) &&
-      event.relatedTarget &&
-      this.selectKit.mainElement()
-    ) {
-      if (!this.selectKit.mainElement().contains(event.relatedTarget)) {
-        this.selectKit.close(event);
-      }
-    }
-    return false;
-  },
+  }
 
   click(event) {
     event.preventDefault();
     event.stopPropagation();
     this.selectKit.select(this.rowValue, this.item);
     return false;
-  },
+  }
 
   mouseDown(event) {
     if (this.selectKit.options.preventHeaderFocus) {
       event.preventDefault();
     }
-  },
+  }
 
   focusIn(event) {
     event.stopImmediatePropagation();
-  },
+  }
 
   keyDown(event) {
     if (this.selectKit.isExpanded) {
@@ -190,6 +189,8 @@ export default Component.extend(UtilsMixin, {
       } else if (event.key === "Escape") {
         this.selectKit.close(event);
         this.selectKit.headerElement().focus();
+        event.preventDefault();
+        event.stopPropagation();
       } else {
         if (this.isValidInput(event.key)) {
           this.selectKit.set("filter", event.key);
@@ -200,5 +201,5 @@ export default Component.extend(UtilsMixin, {
         }
       }
     }
-  },
-});
+  }
+}

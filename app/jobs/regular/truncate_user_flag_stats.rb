@@ -1,14 +1,13 @@
 # frozen_string_literal: true
 
 class Jobs::TruncateUserFlagStats < ::Jobs::Base
-
   def self.truncate_to
     100
   end
 
   # To give users a chance to improve, we limit their flag stats to the last N flags
   def execute(args)
-    raise Discourse::InvalidParameters.new(:user_ids) unless args[:user_ids].present?
+    raise Discourse::InvalidParameters.new(:user_ids) if args[:user_ids].blank?
 
     args[:user_ids].each do |u|
       user_stat = UserStat.find_by(user_id: u)
@@ -17,8 +16,11 @@ class Jobs::TruncateUserFlagStats < ::Jobs::Base
       total = user_stat.flags_agreed + user_stat.flags_disagreed + user_stat.flags_ignored
       next if total < self.class.truncate_to
 
-      params = ReviewableScore.statuses.slice(:agreed, :disagreed, :ignored).
-        merge(user_id: u, truncate_to: self.class.truncate_to)
+      params =
+        ReviewableScore
+          .statuses
+          .slice(:agreed, :disagreed, :ignored)
+          .merge(user_id: u, truncate_to: self.class.truncate_to)
 
       result = DB.query(<<~SQL, params)
         SELECT SUM(CASE WHEN x.status = :agreed THEN 1 ELSE 0 END) AS agreed,
@@ -44,7 +46,5 @@ class Jobs::TruncateUserFlagStats < ::Jobs::Base
         flags_ignored: result[0].ignored || 0,
       )
     end
-
   end
-
 end

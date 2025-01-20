@@ -27,8 +27,6 @@ pt:
         icons:
           title: "Ícones"
           full_list: "Veja a lista completa dos Ícones do Font Awesome"
-        input_fields:
-          title: "Campos de Entrada"
         buttons:
           title: "Botões"
         dropdowns:
@@ -85,3 +83,9 @@ pt:
           title: "Ícones de Cabeçalho"
         spinners:
           title: "Spinners"
+        empty_state:
+          title: "Estado vazio"
+        tooltips:
+          description: "Descrição"
+          header: "Cabeçalho"
+          hover_to_see: "Passe o rato por cima para ver uma dica de ferramenta"

@@ -1,23 +1,25 @@
-import { cloak, uncloak } from "discourse/widgets/post-stream";
-import { next, scheduleOnce } from "@ember/runloop";
-import DiscourseURL from "discourse/lib/url";
+import { schedule, scheduleOnce } from "@ember/runloop";
+import { service } from "@ember/service";
 import MountWidget from "discourse/components/mount-widget";
-import discourseDebounce from "discourse-common/lib/debounce";
-import { isWorkaroundActive } from "discourse/lib/safari-hacks";
+import discourseDebounce from "discourse/lib/debounce";
+import { bind } from "discourse/lib/decorators";
+import domUtils from "discourse/lib/dom-utils";
 import offsetCalculator from "discourse/lib/offset-calculator";
-import { inject as service } from "@ember/service";
+import DiscourseURL from "discourse/lib/url";
+import { cloak, uncloak } from "discourse/widgets/post-stream";
 
 const DEBOUNCE_DELAY = 50;
 
-function findTopView($posts, viewportTop, postsWrapperTop, min, max) {
+function findTopView(posts, viewportTop, postsWrapperTop, min, max) {
   if (max < min) {
     return min;
   }
 
   while (max > min) {
     const mid = Math.floor((min + max) / 2);
-    const $post = $($posts[mid]);
-    const viewBottom = $post.offset().top - postsWrapperTop + $post.height();
+    const post = posts.item(mid);
+    const viewBottom =
+      domUtils.offset(post).top - postsWrapperTop + post.clientHeight;
 
     if (viewBottom > viewportTop) {
       max = mid - 1;
@@ -29,14 +31,15 @@ function findTopView($posts, viewportTop, postsWrapperTop, min, max) {
   return min;
 }
 
-export default MountWidget.extend({
-  screenTrack: service(),
-  widget: "post-stream",
-  _topVisible: null,
-  _bottomVisible: null,
-  _currentPost: null,
-  _currentVisible: null,
-  _currentPercent: null,
+export default class ScrollingPostStream extends MountWidget {
+  @service screenTrack;
+
+  widget = "post-stream";
+  _topVisible = null;
+  _bottomVisible = null;
+  _currentPostObj = null;
+  _currentVisible = null;
+  _currentPercent = null;
 
   buildArgs() {
     return this.getProperties(
@@ -53,31 +56,14 @@ export default MountWidget.extend({
       "lastReadPostNumber",
       "highestPostNumber"
     );
-  },
-
-  beforePatch() {
-    const $body = $(document);
-    this.prevHeight = $body.height();
-    this.prevScrollTop = $body.scrollTop();
-  },
-
-  afterPatch() {
-    const $body = $(document);
-    const height = $body.height();
-    const scrollTop = $body.scrollTop();
-
-    // This hack is for when swapping out many cloaked views at once
-    // when using keyboard navigation. It could suddenly move the scroll
-    if (this.prevHeight === height && scrollTop !== this.prevScrollTop) {
-      $body.scrollTop(this.prevScrollTop);
-    }
-  },
+  }
 
   scrolled() {
     if (this.isDestroyed || this.isDestroying) {
       return;
     }
-    if (isWorkaroundActive()) {
+
+    if (document.webkitFullscreenElement || document.fullscreenElement) {
       return;
     }
 
@@ -91,31 +77,30 @@ export default MountWidget.extend({
       return;
     }
 
-    const $w = $(window);
-    const windowHeight = window.innerHeight ? window.innerHeight : $w.height();
+    const windowHeight = window.innerHeight;
     const slack = Math.round(windowHeight * 5);
     const onscreen = [];
     const nearby = [];
-
-    const windowTop = $w.scrollTop();
-
-    const postsWrapperTop = $(".posts-wrapper").offset().top;
-    const $posts = $(
-      this.element.querySelectorAll(".onscreen-post, .cloaked-post")
+    const windowTop = document.scrollingElement.scrollTop;
+    const postsWrapperTop = domUtils.offset(
+      document.querySelector(".posts-wrapper")
+    ).top;
+    const postsNodes = this.element.querySelectorAll(
+      ".onscreen-post, .cloaked-post"
     );
+
     const viewportTop = windowTop - slack;
     const topView = findTopView(
-      $posts,
+      postsNodes,
       viewportTop,
       postsWrapperTop,
       0,
-      $posts.length - 1
+      postsNodes.length - 1
     );
 
     let windowBottom = windowTop + windowHeight;
     let viewportBottom = windowBottom + slack;
-
-    const bodyHeight = $("body").height();
+    const bodyHeight = document.body.clientHeight;
     if (windowBottom > bodyHeight) {
       windowBottom = bodyHeight;
     }
@@ -142,16 +127,15 @@ export default MountWidget.extend({
     let allAbove = true;
     let bottomView = topView;
     let lastBottom = 0;
-    while (bottomView < $posts.length) {
-      const post = $posts[bottomView];
-      const $post = $(post);
+    while (bottomView < postsNodes.length) {
+      const post = postsNodes.item(bottomView);
 
-      if (!$post) {
+      if (!post) {
         break;
       }
 
-      const viewTop = $post.offset().top;
-      const postHeight = $post.outerHeight(true);
+      const viewTop = domUtils.offset(post).top;
+      const postHeight = post.clientHeight;
       const viewBottom = Math.ceil(viewTop + postHeight);
 
       allAbove = allAbove && viewTop < topCheck;
@@ -193,29 +177,44 @@ export default MountWidget.extend({
       const first = posts.objectAt(onscreen[0]);
       if (this._topVisible !== first) {
         this._topVisible = first;
-        const $body = $("body");
-        const elem = $posts[onscreen[0]];
-        const elemId = elem.id;
-        const $elem = $(elem);
-        const elemPos = $elem.position();
-        const distToElement = elemPos ? $body.scrollTop() - elemPos.top : 0;
+        const elemId = postsNodes.item(onscreen[0]).id;
 
         const topRefresh = () => {
           refresh(() => {
-            const $refreshedElem = $(`#${elemId}`);
+            const refreshedElem = document.getElementById(elemId);
 
-            // Quickly going back might mean the element is destroyed
-            const position = $refreshedElem.position();
-            if (position && position.top) {
-              let whereY = position.top + distToElement;
-              $("html, body").scrollTop(whereY);
-
-              // This seems weird, but somewhat infrequently a rerender
-              // will cause the browser to scroll to the top of the document
-              // in Chrome. This makes sure the scroll works correctly if that
-              // happens.
-              next(() => $("html, body").scrollTop(whereY));
+            if (!refreshedElem) {
+              return;
             }
+
+            // The getOffsetTop function calculates the total offset distance of
+            // an element from the top of the document. Unlike element.offsetTop
+            // which only returns the offset relative to its nearest positioned
+            // ancestor, this function recursively accumulates the offsetTop
+            // of an element and all of its offset parents (ancestors).
+            // This ensures the total distance is measured from the very top of
+            // the document, accounting for any nested elements and their
+            // respective offsets.
+            const getOffsetTop = (element) => {
+              if (!element) {
+                return 0;
+              }
+              return element.offsetTop + getOffsetTop(element.offsetParent);
+            };
+
+            window.scrollTo({
+              top: getOffsetTop(refreshedElem) - offsetCalculator(),
+            });
+
+            // This seems weird, but somewhat infrequently a rerender
+            // will cause the browser to scroll to the top of the document
+            // in Chrome. This makes sure the scroll works correctly if that
+            // happens.
+            schedule("afterRender", () => {
+              window.scrollTo({
+                top: getOffsetTop(refreshedElem) - offsetCalculator(),
+              });
+            });
           });
         };
         this.topVisibleChanged({
@@ -230,11 +229,11 @@ export default MountWidget.extend({
         this.bottomVisibleChanged({ post: last, refresh });
       }
 
-      const changedPost = this._currentPost !== currentPost;
+      const currentPostObj = posts.objectAt(currentPost);
+      const changedPost = this._currentPostObj !== currentPostObj;
       if (changedPost) {
-        this._currentPost = currentPost;
-        const post = posts.objectAt(currentPost);
-        this.currentPostChanged({ post });
+        this._currentPostObj = currentPostObj;
+        this.currentPostChanged({ post: currentPostObj });
       }
 
       if (percent !== null) {
@@ -248,49 +247,48 @@ export default MountWidget.extend({
     } else {
       this._topVisible = null;
       this._bottomVisible = null;
-      this._currentPost = null;
+      this._currentPostObj = null;
       this._currentPercent = null;
     }
 
-    const onscreenPostNumbers = [];
-    const readPostNumbers = [];
+    const onscreenPostNumbers = new Set();
+    const readPostNumbers = new Set();
 
-    const prev = this._previouslyNearby;
-    const newPrev = {};
+    const newPrev = new Set();
     nearby.forEach((idx) => {
       const post = posts.objectAt(idx);
-      const postNumber = post.post_number;
 
-      delete prev[postNumber];
+      this._previouslyNearby.delete(post.post_number);
 
-      if (onscreen.indexOf(idx) !== -1) {
-        onscreenPostNumbers.push(postNumber);
+      if (onscreen.includes(idx)) {
+        onscreenPostNumbers.add(post.post_number);
         if (post.read) {
-          readPostNumbers.push(postNumber);
+          readPostNumbers.add(post.post_number);
         }
       }
-      newPrev[postNumber] = post;
+
+      newPrev.add(post.post_number, post);
       uncloak(post, this);
     });
 
-    Object.values(prev).forEach((node) => cloak(node, this));
+    Object.values(this._previouslyNearby).forEach((node) => cloak(node, this));
 
     this._previouslyNearby = newPrev;
     this.screenTrack.setOnscreen(onscreenPostNumbers, readPostNumbers);
-  },
+  }
 
   _scrollTriggered() {
     scheduleOnce("afterRender", this, this.scrolled);
-  },
+  }
 
   _posted(staged) {
     this.queueRerender(() => {
       if (staged) {
-        const postNumber = staged.get("post_number");
+        const postNumber = staged.post_number;
         DiscourseURL.jumpToPost(postNumber, { skipIfOnScreen: true });
       }
     });
-  },
+  }
 
   _refresh(args) {
     if (args) {
@@ -313,37 +311,39 @@ export default MountWidget.extend({
       }
     }
     this.queueRerender();
-  },
+    this._scrollTriggered();
+  }
 
+  @bind
   _debouncedScroll() {
     discourseDebounce(this, this._scrollTriggered, DEBOUNCE_DELAY);
-  },
+  }
 
   didInsertElement() {
-    this._super(...arguments);
-    const debouncedScroll = () =>
-      discourseDebounce(this, this._scrollTriggered, DEBOUNCE_DELAY);
-    this._previouslyNearby = {};
+    super.didInsertElement(...arguments);
+    this._previouslyNearby = new Set();
 
     this.appEvents.on("post-stream:refresh", this, "_debouncedScroll");
-    $(document).bind("touchmove.post-stream", debouncedScroll);
-    $(window).bind("scroll.post-stream", debouncedScroll);
+    const opts = {
+      passive: true,
+    };
+    document.addEventListener("touchmove", this._debouncedScroll, opts);
+    window.addEventListener("scroll", this._debouncedScroll, opts);
     this._scrollTriggered();
 
     this.appEvents.on("post-stream:posted", this, "_posted");
 
-    $(this.element).on(
-      "mouseenter.post-stream",
-      "button.widget-button",
-      (e) => {
-        $("button.widget-button").removeClass("d-hover");
-        $(e.target).addClass("d-hover");
-      }
+    this.element.addEventListener(
+      "mouseenter",
+      this._handleWidgetButtonHoverState,
+      true
     );
 
-    $(this.element).on("mouseleave.post-stream", "button.widget-button", () => {
-      $("button.widget-button").removeClass("d-hover");
-    });
+    this.element.addEventListener(
+      "mouseleave",
+      this._removeWidgetButtonHoverState,
+      true
+    );
 
     this.appEvents.on("post-stream:refresh", this, "_refresh");
 
@@ -353,16 +353,45 @@ export default MountWidget.extend({
         DiscourseURL.routeTo(this.location.pathname);
       }
     };
-  },
+  }
 
   willDestroyElement() {
-    this._super(...arguments);
-    $(document).unbind("touchmove.post-stream");
-    $(window).unbind("scroll.post-stream");
+    super.willDestroyElement(...arguments);
+
+    document.removeEventListener("touchmove", this._debouncedScroll);
+    window.removeEventListener("scroll", this._debouncedScroll);
     this.appEvents.off("post-stream:refresh", this, "_debouncedScroll");
-    $(this.element).off("mouseenter.post-stream");
-    $(this.element).off("mouseleave.post-stream");
+    this.element.removeEventListener(
+      "mouseenter",
+      this._handleWidgetButtonHoverState
+    );
+    this.element.removeEventListener(
+      "mouseleave",
+      this._removeWidgetButtonHoverState
+    );
     this.appEvents.off("post-stream:refresh", this, "_refresh");
     this.appEvents.off("post-stream:posted", this, "_posted");
-  },
-});
+  }
+
+  didUpdateAttrs() {
+    super.didUpdateAttrs(...arguments);
+    this._refresh({ force: true });
+  }
+
+  _handleWidgetButtonHoverState(event) {
+    if (event.target.classList.contains("widget-button")) {
+      document
+        .querySelectorAll("button.widget-button")
+        .forEach((widgetButton) => {
+          widgetButton.classList.remove("d-hover");
+        });
+      event.target.classList.add("d-hover");
+    }
+  }
+
+  _removeWidgetButtonHoverState() {
+    document.querySelectorAll("button.widget-button").forEach((button) => {
+      button.classList.remove("d-hover");
+    });
+  }
+}

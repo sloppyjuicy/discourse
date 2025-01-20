@@ -1,216 +1,296 @@
-import componentTest, {
-  setupRenderingTest,
-} from "discourse/tests/helpers/component-test";
-import {
-  discourseModule,
-  exists,
-  query,
-  queryAll,
-} from "discourse/tests/helpers/qunit-helpers";
-import I18n from "I18n";
-import hbs from "htmlbars-inline-precompile";
+import ClassicComponent from "@ember/component";
+import { click, render, triggerKeyEvent } from "@ember/test-helpers";
+import { hbs } from "ember-cli-htmlbars";
+import { module, test } from "qunit";
+import { withSilencedDeprecationsAsync } from "discourse/lib/deprecated";
+import { setupRenderingTest } from "discourse/tests/helpers/component-test";
+import I18n, { i18n } from "discourse-i18n";
 
-discourseModule("Integration | Component | d-button", function (hooks) {
+module("Integration | Component | d-button", function (hooks) {
   setupRenderingTest(hooks);
 
-  componentTest("icon only button", {
-    template: hbs`{{d-button icon="plus" tabindex="3"}}`,
+  test("icon only button", async function (assert) {
+    await render(hbs`<DButton @icon="plus" tabindex="3" />`);
 
-    test(assert) {
-      assert.ok(
-        exists("button.btn.btn-icon.no-text"),
-        "it has all the classes"
-      );
-      assert.ok(exists("button .d-icon.d-icon-plus"), "it has the icon");
-      assert.equal(
-        queryAll("button").attr("tabindex"),
-        "3",
-        "it has the tabindex"
-      );
-    },
+    assert.dom("button.btn.btn-icon.no-text").exists("has all the classes");
+    assert.dom("button .d-icon.d-icon-plus").exists("has the icon");
+    assert.dom("button").hasAttribute("tabindex", "3", "has the tabindex");
   });
 
-  componentTest("icon and text button", {
-    template: hbs`{{d-button icon="plus" label="topic.create"}}`,
+  test("icon and text button", async function (assert) {
+    await render(hbs`<DButton @icon="plus" @label="topic.create" />`);
 
-    test(assert) {
-      assert.ok(exists("button.btn.btn-icon-text"), "it has all the classes");
-      assert.ok(exists("button .d-icon.d-icon-plus"), "it has the icon");
-      assert.ok(exists("button span.d-button-label"), "it has the label");
-    },
+    assert.dom("button.btn.btn-icon-text").exists("has all the classes");
+    assert.dom("button .d-icon.d-icon-plus").exists("has the icon");
+    assert.dom("button span.d-button-label").exists("has the label");
   });
 
-  componentTest("text only button", {
-    template: hbs`{{d-button label="topic.create"}}`,
+  test("text only button", async function (assert) {
+    await render(hbs`<DButton @label="topic.create" />`);
 
-    test(assert) {
-      assert.ok(exists("button.btn.btn-text"), "it has all the classes");
-      assert.ok(exists("button span.d-button-label"), "it has the label");
-    },
+    assert.dom("button.btn.btn-text").exists("has all the classes");
+    assert.dom("button span.d-button-label").exists("has the label");
   });
 
-  componentTest("form attribute", {
-    template: hbs`{{d-button form="login-form"}}`,
+  test("form attribute", async function (assert) {
+    await render(hbs`<DButton @form="login-form" />`);
 
-    test(assert) {
-      assert.ok(exists("button[form=login-form]"), "it has the form attribute");
-    },
+    assert.dom("button[form=login-form]").exists("has the form attribute");
   });
 
-  componentTest("link-styled button", {
-    template: hbs`{{d-button display="link"}}`,
+  test("link-styled button", async function (assert) {
+    await render(hbs`<DButton @display="link" />`);
 
-    test(assert) {
-      assert.ok(
-        exists("button.btn-link:not(.btn)"),
-        "it has the right classes"
-      );
-    },
+    assert.dom("button.btn-link:not(.btn)").exists("has the right classes");
   });
 
-  componentTest("isLoading button", {
-    template: hbs`{{d-button isLoading=isLoading}}`,
+  test("isLoading button", async function (assert) {
+    this.set("isLoading", true);
 
-    beforeEach() {
-      this.set("isLoading", true);
-    },
+    await render(hbs`<DButton @isLoading={{this.isLoading}} />`);
 
-    test(assert) {
-      assert.ok(
-        exists("button.is-loading .loading-icon"),
-        "it has a spinner showing"
-      );
-      assert.ok(
-        exists("button[disabled]"),
-        "while loading the button is disabled"
-      );
+    assert
+      .dom("button.is-loading .loading-icon")
+      .exists("has a spinner showing");
+    assert.dom("button").isDisabled("while loading the button is disabled");
 
-      this.set("isLoading", false);
+    this.set("isLoading", false);
 
-      assert.notOk(
-        exists("button .loading-icon"),
-        "it doesn't have a spinner showing"
-      );
-      assert.ok(
-        exists("button:not([disabled])"),
-        "while not loading the button is enabled"
-      );
-    },
+    assert
+      .dom("button .loading-icon")
+      .doesNotExist("doesn't have a spinner showing");
+    assert.dom("button").isEnabled("while not loading the button is enabled");
   });
 
-  componentTest("disabled button", {
-    template: hbs`{{d-button disabled=disabled}}`,
+  test("button without isLoading attribute", async function (assert) {
+    await render(hbs`<DButton />`);
 
-    beforeEach() {
-      this.set("disabled", true);
-    },
-
-    test(assert) {
-      assert.ok(exists("button[disabled]"), "the button is disabled");
-
-      this.set("disabled", false);
-
-      assert.ok(exists("button:not([disabled])"), "the button is enabled");
-    },
+    assert
+      .dom("button.is-loading")
+      .doesNotExist("doesn't have class is-loading");
+    assert
+      .dom("button .loading-icon")
+      .doesNotExist("doesn't have a spinner showing");
+    assert.dom("button").isNotDisabled();
   });
 
-  componentTest("aria-label", {
-    template: hbs`{{d-button ariaLabel=ariaLabel translatedAriaLabel=translatedAriaLabel}}`,
+  test("isLoading button explicitly set to undefined state", async function (assert) {
+    this.set("isLoading");
 
-    beforeEach() {
-      I18n.translations[I18n.locale].js.test = { fooAriaLabel: "foo" };
-    },
+    await render(hbs`<DButton @isLoading={{this.isLoading}} />`);
 
-    test(assert) {
-      this.set("ariaLabel", "test.fooAriaLabel");
-
-      assert.equal(
-        query("button").getAttribute("aria-label"),
-        I18n.t("test.fooAriaLabel")
-      );
-
-      this.setProperties({
-        ariaLabel: null,
-        translatedAriaLabel: "bar",
-      });
-
-      assert.equal(query("button").getAttribute("aria-label"), "bar");
-    },
+    assert
+      .dom("button.is-loading")
+      .doesNotExist("doesn't have class is-loading");
+    assert
+      .dom("button .loading-icon")
+      .doesNotExist("doesn't have a spinner showing");
+    assert.dom("button").isNotDisabled();
   });
 
-  componentTest("title", {
-    template: hbs`{{d-button title=title translatedTitle=translatedTitle}}`,
+  test("disabled button", async function (assert) {
+    this.set("disabled", true);
 
-    beforeEach() {
-      I18n.translations[I18n.locale].js.test = { fooTitle: "foo" };
-    },
+    await render(hbs`<DButton @disabled={{this.disabled}} />`);
 
-    test(assert) {
-      this.set("title", "test.fooTitle");
-      assert.equal(
-        query("button").getAttribute("title"),
-        I18n.t("test.fooTitle")
-      );
+    assert.dom("button").isDisabled();
 
-      this.setProperties({
-        title: null,
-        translatedTitle: "bar",
-      });
-
-      assert.equal(query("button").getAttribute("title"), "bar");
-    },
+    this.set("disabled", false);
+    assert.dom("button").isEnabled();
   });
 
-  componentTest("label", {
-    template: hbs`{{d-button label=label translatedLabel=translatedLabel}}`,
+  test("aria-label", async function (assert) {
+    I18n.translations[I18n.locale].js.test = { fooAriaLabel: "foo" };
 
-    beforeEach() {
-      I18n.translations[I18n.locale].js.test = { fooLabel: "foo" };
-    },
+    await render(
+      hbs`<DButton @ariaLabel={{this.ariaLabel}} @translatedAriaLabel={{this.translatedAriaLabel}} />`
+    );
 
-    test(assert) {
-      this.set("label", "test.fooLabel");
+    this.set("ariaLabel", "test.fooAriaLabel");
 
-      assert.equal(
-        queryAll("button .d-button-label").text(),
-        I18n.t("test.fooLabel")
-      );
+    assert.dom("button").hasAria("label", i18n("test.fooAriaLabel"));
 
-      this.setProperties({
-        label: null,
-        translatedLabel: "bar",
-      });
+    this.setProperties({
+      ariaLabel: null,
+      translatedAriaLabel: "bar",
+    });
 
-      assert.equal(queryAll("button .d-button-label").text(), "bar");
-    },
+    assert.dom("button").hasAria("label", "bar");
   });
 
-  componentTest("aria-expanded", {
-    template: hbs`{{d-button ariaExpanded=ariaExpanded}}`,
+  test("title", async function (assert) {
+    I18n.translations[I18n.locale].js.test = { fooTitle: "foo" };
 
-    test(assert) {
-      assert.equal(query("button").ariaExpanded, null);
+    await render(
+      hbs`<DButton @title={{this.title}} @translatedTitle={{this.translatedTitle}} />`
+    );
 
-      this.set("ariaExpanded", true);
-      assert.equal(query("button").getAttribute("aria-expanded"), "true");
+    this.set("title", "test.fooTitle");
+    assert.dom("button").hasAttribute("title", i18n("test.fooTitle"));
 
-      this.set("ariaExpanded", false);
-      assert.equal(query("button").getAttribute("aria-expanded"), "false");
+    this.setProperties({
+      title: null,
+      translatedTitle: "bar",
+    });
 
-      this.set("ariaExpanded", "false");
-      assert.equal(query("button").getAttribute("aria-expanded"), null);
-
-      this.set("ariaExpanded", "true");
-      assert.equal(query("button").getAttribute("aria-expanded"), null);
-    },
+    assert.dom("button").hasAttribute("title", "bar");
   });
 
-  componentTest("aria-controls", {
-    template: hbs`{{d-button ariaControls=ariaControls}}`,
+  test("label", async function (assert) {
+    I18n.translations[I18n.locale].js.test = { fooLabel: "foo" };
 
-    test(assert) {
-      this.set("ariaControls", "foo-bar");
-      assert.equal(query("button").getAttribute("aria-controls"), "foo-bar");
-    },
+    await render(
+      hbs`<DButton @label={{this.label}} @translatedLabel={{this.translatedLabel}} />`
+    );
+
+    this.set("label", "test.fooLabel");
+
+    assert.dom("button .d-button-label").hasText(i18n("test.fooLabel"));
+
+    this.setProperties({
+      label: null,
+      translatedLabel: "bar",
+    });
+
+    assert.dom("button .d-button-label").hasText("bar");
+  });
+
+  test("aria-expanded", async function (assert) {
+    await render(hbs`<DButton @ariaExpanded={{this.ariaExpanded}} />`);
+
+    assert.dom("button").doesNotHaveAria("expanded");
+
+    this.set("ariaExpanded", true);
+    assert.dom("button").hasAria("expanded", "true");
+
+    this.set("ariaExpanded", false);
+    assert.dom("button").hasAria("expanded", "false");
+
+    this.set("ariaExpanded", "false");
+    assert.dom("button").doesNotHaveAria("expanded");
+
+    this.set("ariaExpanded", "true");
+    assert.dom("button").doesNotHaveAria("expanded");
+  });
+
+  test("aria-controls", async function (assert) {
+    await render(hbs`<DButton @ariaControls={{this.ariaControls}} />`);
+
+    this.set("ariaControls", "foo-bar");
+    assert.dom("button").hasAria("controls", "foo-bar");
+  });
+
+  test("onKeyDown callback", async function (assert) {
+    this.set("foo", null);
+    this.set("onKeyDown", () => {
+      this.set("foo", "bar");
+    });
+    this.set("action", () => {
+      this.set("foo", "baz");
+    });
+
+    await render(
+      hbs`<DButton @action={{this.action}} @onKeyDown={{this.onKeyDown}} />`
+    );
+
+    await triggerKeyEvent(".btn", "keydown", "Space");
+    assert.strictEqual(this.foo, "bar");
+
+    await triggerKeyEvent(".btn", "keydown", "Enter");
+    assert.strictEqual(this.foo, "bar");
+  });
+
+  test("press Enter", async function (assert) {
+    this.set("foo", null);
+    this.set("action", () => {
+      this.set("foo", "bar");
+    });
+
+    await render(hbs`<DButton @action={{this.action}} />`);
+
+    await triggerKeyEvent(".btn", "keydown", "Space");
+    assert.strictEqual(this.foo, null);
+
+    await triggerKeyEvent(".btn", "keydown", "Enter");
+    assert.strictEqual(this.foo, "bar");
+  });
+
+  test("@action function is triggered on click", async function (assert) {
+    this.set("foo", null);
+    this.set("action", () => {
+      this.set("foo", "bar");
+    });
+
+    await render(hbs`<DButton @action={{this.action}} />`);
+
+    await click(".btn");
+
+    assert.strictEqual(this.foo, "bar");
+  });
+
+  test("@action can sendAction when passed a string", async function (assert) {
+    this.set("foo", null);
+    this.set("legacyActionTriggered", () => this.set("foo", "bar"));
+
+    // eslint-disable-next-line ember/no-classic-classes
+    this.classicComponent = ClassicComponent.extend({
+      actions: {
+        myLegacyAction() {
+          this.legacyActionTriggered();
+        },
+      },
+      layout: hbs`<DButton @action="myLegacyAction" />`,
+    });
+
+    await withSilencedDeprecationsAsync(
+      "discourse.d-button-action-string",
+      async () => {
+        await render(
+          hbs`<this.classicComponent @legacyActionTriggered={{this.legacyActionTriggered}} />`
+        );
+
+        await click(".btn");
+      }
+    );
+
+    assert.strictEqual(this.foo, "bar");
+  });
+
+  test("Uses correct target with @action string when component called with block", async function (assert) {
+    this.set("foo", null);
+    this.set("legacyActionTriggered", () => this.set("foo", "bar"));
+
+    this.simpleWrapperComponent = class extends ClassicComponent {};
+
+    // eslint-disable-next-line ember/no-classic-classes
+    this.classicComponent = ClassicComponent.extend({
+      actions: {
+        myLegacyAction() {
+          this.legacyActionTriggered();
+        },
+      },
+      layout: hbs`<@simpleWrapperComponent><DButton @action="myLegacyAction" /></@simpleWrapperComponent>`,
+    });
+
+    await withSilencedDeprecationsAsync(
+      "discourse.d-button-action-string",
+      async () => {
+        await render(
+          hbs`<this.classicComponent @legacyActionTriggered={{this.legacyActionTriggered}} @simpleWrapperComponent={{this.simpleWrapperComponent}} />`
+        );
+
+        await click(".btn");
+      }
+    );
+
+    assert.strictEqual(this.foo, "bar");
+  });
+
+  test("ellipses", async function (assert) {
+    await render(
+      hbs`<DButton @translatedLabel="test label" @ellipsis={{true}} />`
+    );
+
+    assert.dom(".d-button-label").hasText("test label…");
   });
 });

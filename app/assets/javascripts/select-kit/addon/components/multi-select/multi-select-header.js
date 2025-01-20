@@ -1,23 +1,22 @@
-import SelectKitHeaderComponent from "select-kit/components/select-kit/select-kit-header";
-import layout from "select-kit/templates/components/multi-select/multi-select-header";
 import { computed } from "@ember/object";
 import { reads } from "@ember/object/computed";
+import {
+  attributeBindings,
+  classNames,
+  tagName,
+} from "@ember-decorators/component";
+import SelectKitHeaderComponent from "select-kit/components/select-kit/select-kit-header";
 
-export default SelectKitHeaderComponent.extend({
-  tagName: "summary",
-  classNames: ["multi-select-header"],
-  attributeBindings: ["ariaLabel:aria-label"],
-  layout,
+@tagName("summary")
+@classNames("multi-select-header")
+@attributeBindings("ariaLabel:aria-label")
+export default class MultiSelectHeader extends SelectKitHeaderComponent {
+  @reads("selectKit.options.caretUpIcon") caretUpIcon;
+  @reads("selectKit.options.caretDownIcon") caretDownIcon;
+  @reads("selectKit.options.headerAriaLabel") ariaLabel;
 
-  caretUpIcon: reads("selectKit.options.caretUpIcon"),
-  caretDownIcon: reads("selectKit.options.caretDownIcon"),
-  ariaLabel: reads("selectKit.options.headerAriaLabel"),
-  caretIcon: computed(
-    "selectKit.isExpanded",
-    "caretUpIcon",
-    "caretDownIcon",
-    function () {
-      return this.selectKit.isExpanded ? this.caretUpIcon : this.caretDownIcon;
-    }
-  ),
-});
+  @computed("selectKit.isExpanded", "caretUpIcon", "caretDownIcon")
+  get caretIcon() {
+    return this.selectKit.isExpanded ? this.caretUpIcon : this.caretDownIcon;
+  }
+}

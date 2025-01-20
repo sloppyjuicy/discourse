@@ -20,3 +20,6 @@ th:
           title: "โพสต์"
         suggested_topics:
           title: "กระทู้แนะนำ"
+        tooltips:
+          description: "รายละเอียด"
+          header: "Header"

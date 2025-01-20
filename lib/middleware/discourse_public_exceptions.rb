@@ -4,10 +4,21 @@
 # we need to handle certain exceptions here
 module Middleware
   class DiscoursePublicExceptions < ::ActionDispatch::PublicExceptions
+    # These middlewares will be re-run when the exception response is generated
+    EXCEPTION_RESPONSE_MIDDLEWARES = [
+      ContentSecurityPolicy::Middleware,
+      Middleware::CspScriptNonceInjector,
+    ]
 
-    def initialize(path)
-      super
-    end
+    INVALID_REQUEST_ERRORS =
+      Set.new(
+        [
+          Rack::QueryParser::InvalidParameterError,
+          ActionController::BadRequest,
+          ActionDispatch::Http::Parameters::ParseError,
+          ActionController::RoutingError,
+        ],
+      )
 
     def call(env)
       # this is so so gnarly
@@ -18,40 +29,57 @@ module Middleware
       exception = env["action_dispatch.exception"]
       response = ActionDispatch::Response.new
 
-      # Special handling for invalid params, in this case we can not re-dispatch
-      # the Request object has a "broken" .params which can not be accessed
-      exception = nil if Rack::QueryParser::InvalidParameterError === exception
-
-      # We also can not dispatch bad requests as no proper params
-      exception = nil if ActionController::BadRequest === exception
+      exception = nil if INVALID_REQUEST_ERRORS.include?(exception)
 
       if exception
         begin
           fake_controller = ApplicationController.new
-          fake_controller.response = response
+          fake_controller.set_response!(response)
           fake_controller.request = request = ActionDispatch::Request.new(env)
 
           # We can not re-dispatch bad mime types
           begin
             request.format
           rescue Mime::Type::InvalidMimeType
-            return [400, {}, ["Invalid MIME type"]]
+            return [
+              400,
+              { "Cache-Control" => "private, max-age=0, must-revalidate" },
+              ["Invalid MIME type"]
+            ]
+          end
+
+          # Or badly formatted multipart requests
+          begin
+            request.POST
+          rescue ActionController::BadRequest => error
+            if error.cause.is_a?(EOFError)
+              return [
+                400,
+                { "Cache-Control" => "private, max-age=0, must-revalidate" },
+                ["Invalid request"]
+              ]
+            else
+              raise
+            end
           end
 
           if ApplicationController.rescue_with_handler(exception, object: fake_controller)
             body = response.body
-            if String === body
-              body = [body]
-            end
-            return [response.status, response.headers, body]
+            body = [body] if String === body
+            rack_response = [response.status, response.headers, body]
+            app = lambda { |env| rack_response }
+            EXCEPTION_RESPONSE_MIDDLEWARES.each { |middleware| app = middleware.new(app) }
+            return app.call(env)
           end
         rescue => e
-          Discourse.warn_exception(e, message: "Failed to handle exception in exception app middleware")
+          return super if INVALID_REQUEST_ERRORS.include?(e.class)
+          Discourse.warn_exception(
+            e,
+            message: "Failed to handle exception in exception app middleware",
+          )
         end
-
       end
       super
     end
-
   end
 end

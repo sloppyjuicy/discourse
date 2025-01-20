@@ -1,109 +1,126 @@
-import EmberObject, { computed } from "@ember/object";
-import Category from "discourse/models/category";
-import I18n from "I18n";
-import MultiSelectComponent from "select-kit/components/multi-select";
-import { categoryBadgeHTML } from "discourse/helpers/category-link";
-import { makeArray } from "discourse-common/lib/helpers";
+import EmberObject, { action, computed } from "@ember/object";
 import { mapBy } from "@ember/object/computed";
+import { classNames } from "@ember-decorators/component";
+import { makeArray } from "discourse/lib/helpers";
+import Category from "discourse/models/category";
+import CategoryRow from "select-kit/components/category-row";
+import MultiSelectComponent from "select-kit/components/multi-select";
+import { pluginApiIdentifiers, selectKitOptions } from "./select-kit";
 
-export default MultiSelectComponent.extend({
-  pluginApiIdentifiers: ["category-selector"],
-  classNames: ["category-selector"],
-  categories: null,
-  blockedCategories: null,
+@classNames("category-selector")
+@selectKitOptions({
+  filterable: true,
+  allowAny: false,
+  allowUncategorized: true,
+  displayCategoryDescription: false,
+  selectedChoiceComponent: "selected-choice-category",
+})
+@pluginApiIdentifiers(["category-selector"])
+export default class CategorySelector extends MultiSelectComponent {
+  categories = null;
+  blockedCategories = null;
 
-  selectKitOptions: {
-    filterable: true,
-    allowAny: false,
-    allowUncategorized: "allowUncategorized",
-    displayCategoryDescription: false,
-    selectedChoiceComponent: "selected-choice-category",
-  },
-
+  @mapBy("categories", "id") value;
   init() {
-    this._super(...arguments);
+    super.init(...arguments);
 
-    if (!this.categories) {
-      this.set("categories", []);
-    }
     if (!this.blockedCategories) {
       this.set("blockedCategories", []);
     }
-  },
+  }
 
-  content: computed("categories.[]", "blockedCategories.[]", function () {
-    const blockedCategories = makeArray(this.blockedCategories);
+  @computed("categories.[]", "blockedCategories.[]")
+  get content() {
     return Category.list().filter((category) => {
+      if (category.isUncategorizedCategory) {
+        if (this.options?.allowUncategorized !== undefined) {
+          return this.options.allowUncategorized;
+        }
+
+        return this.selectKit.options.allowUncategorized;
+      }
+
       return (
         this.categories.includes(category) ||
-        !blockedCategories.includes(category)
+        !this.blockedCategories.includes(category)
       );
     });
-  }),
-
-  value: mapBy("categories", "id"),
+  }
 
   modifyComponentForRow() {
-    return "category-row";
-  },
+    return CategoryRow;
+  }
 
-  search(filter) {
-    const result = this._super(filter);
-    if (result.length === 1) {
-      const subcategoryIds = new Set([result[0].id]);
-      for (let i = 0; i < this.siteSettings.max_category_nesting; ++i) {
-        subcategoryIds.forEach((categoryId) => {
-          this.content.forEach((category) => {
-            if (category.parent_category_id === categoryId) {
-              subcategoryIds.add(category.id);
-            }
-          });
-        });
-      }
+  async search(filter) {
+    let categories;
+    if (this.site.lazy_load_categories) {
+      const rejectCategoryIds = new Set([
+        ...this.categories.map((c) => c.id),
+        ...this.blockedCategories.map((c) => c.id),
+      ]);
 
-      if (subcategoryIds.size > 1) {
-        result.push(
-          EmberObject.create({
-            multicategory: [...subcategoryIds],
-            category: result[0],
-            title: I18n.t("category_row.plus_subcategories_title", {
-              name: result[0].name,
-              count: subcategoryIds.size - 1,
-            }),
-            label: categoryBadgeHTML(result[0], {
-              link: false,
-              recursive: true,
-              plusSubcategories: subcategoryIds.size - 1,
-            }).htmlSafe(),
-          })
-        );
-      }
-    }
-
-    return result;
-  },
-
-  select(value, item) {
-    if (item.multicategory) {
-      const items = item.multicategory.map((id) =>
-        Category.findById(parseInt(id, 10))
-      );
-
-      const newValues = makeArray(this.value).concat(items.map((i) => i.id));
-      const newContent = makeArray(this.selectedContent).concat(items);
-
-      this.selectKit.change(newValues, newContent);
+      categories = await Category.asyncSearch(filter, {
+        includeUncategorized:
+          this.options?.allowUncategorized !== undefined
+            ? this.options.allowUncategorized
+            : this.selectKit.options.allowUncategorized,
+        rejectCategoryIds: Array.from(rejectCategoryIds),
+      });
     } else {
-      this._super(value, item);
+      categories = super.search(filter);
     }
-  },
 
-  actions: {
-    onChange(values) {
-      this.attrs.onChange(
-        values.map((v) => Category.findById(v)).filter(Boolean)
+    // If there is a single match or an exact match and it has subcategories,
+    // add a row for selecting all subcategories
+    if (
+      (categories.length === 1 ||
+        (categories.length > 0 &&
+          categories[0].name.localeCompare(filter) === 0)) &&
+      categories[0].subcategory_count > 0
+    ) {
+      categories.splice(
+        1,
+        0,
+        EmberObject.create({
+          // This is just a hack to ensure the IDs are unique, but ensure
+          // that parseInt still returns a valid ID in order to generate the
+          // label
+          id: `${categories[0].id}+subcategories`,
+          category: categories[0],
+        })
       );
-      return false;
-    },
-  },
-});
+    }
+
+    return categories;
+  }
+
+  async select(value, item) {
+    // item is usually a category, but if the "category" property is set, then
+    // it is the special row for selecting all subcategories
+    if (item.category) {
+      if (this.site.lazy_load_categories) {
+        // Descendants may not be loaded if lazy loading is enabled. Searching
+        // for subcategories will make sure these are loaded
+        for (let page = 1, categories = [null]; categories.length > 0; page++) {
+          categories = await Category.asyncSearch("", {
+            parentCategoryId: item.category.id,
+            page,
+          });
+        }
+      }
+
+      this.selectKit.change(
+        makeArray(this.value).concat(item.category.descendants.mapBy("id")),
+        makeArray(this.selectedContent).concat(item.category.descendants)
+      );
+    } else {
+      super.select(value, item);
+    }
+  }
+
+  @action
+  _onChange(values) {
+    this.onChange(values.map((v) => Category.findById(v)).filter(Boolean));
+    return false;
+  }
+}

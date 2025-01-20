@@ -1,143 +1,154 @@
 import Controller from "@ember/controller";
-import EmberObject from "@ember/object";
-import I18n from "I18n";
-import { ajax } from "discourse/lib/ajax";
-import bootbox from "bootbox";
-import { cookAsync } from "discourse/lib/text";
-import discourseComputed from "discourse-common/utils/decorators";
-import { isEmpty } from "@ember/utils";
-import { popupAjaxError } from "discourse/lib/ajax-error";
+import EmberObject, { action } from "@ember/object";
 import { readOnly } from "@ember/object/computed";
-import showModal from "discourse/lib/show-modal";
+import { service } from "@ember/service";
+import { isEmpty } from "@ember/utils";
+import FeatureTopicOnProfileModal from "discourse/components/modal/feature-topic-on-profile";
+import { ajax } from "discourse/lib/ajax";
+import { popupAjaxError } from "discourse/lib/ajax-error";
+import discourseComputed from "discourse/lib/decorators";
+import { i18n } from "discourse-i18n";
 
-export default Controller.extend({
-  init() {
-    this._super(...arguments);
-    this.saveAttrNames = [
-      "bio_raw",
-      "website",
-      "location",
-      "custom_fields",
-      "user_fields",
-      "profile_background_upload_url",
-      "card_background_upload_url",
-      "date_of_birth",
-      "timezone",
-      "default_calendar",
-    ];
+export default class ProfileController extends Controller {
+  @service dialog;
+  @service modal;
 
-    this.calendarOptions = [
-      { name: I18n.t("download_calendar.google"), value: "google" },
-      { name: I18n.t("download_calendar.ics"), value: "ics" },
-    ];
-  },
+  subpageTitle = i18n("user.preferences_nav.profile");
+
+  @readOnly("model.can_change_bio") canChangeBio;
+  @readOnly("model.can_change_location") canChangeLocation;
+  @readOnly("model.can_change_website") canChangeWebsite;
+  @readOnly("model.can_upload_profile_header") canUploadProfileHeader;
+  @readOnly("model.can_upload_user_card_background")
+  canUploadUserCardBackground;
+
+  saveAttrNames = [
+    "bio_raw",
+    "website",
+    "location",
+    "custom_fields",
+    "user_fields",
+    "profile_background_upload_url",
+    "card_background_upload_url",
+    "date_of_birth",
+    "timezone",
+    "default_calendar",
+  ];
+
+  calendarOptions = [
+    { name: i18n("download_calendar.google"), value: "google" },
+    { name: i18n("download_calendar.ics"), value: "ics" },
+  ];
 
   @discourseComputed("model.user_fields.@each.value")
   userFields() {
-    let siteUserFields = this.site.get("user_fields");
-    if (!isEmpty(siteUserFields)) {
-      const userFields = this.get("model.user_fields");
-
-      // Staff can edit fields that are not `editable`
-      if (!this.get("currentUser.staff")) {
-        siteUserFields = siteUserFields.filterBy("editable", true);
-      }
-      return siteUserFields.sortBy("position").map(function (field) {
-        const value = userFields
-          ? userFields[field.get("id").toString()]
-          : null;
-        return EmberObject.create({ value, field });
-      });
+    let siteUserFields = this.site.user_fields;
+    if (isEmpty(siteUserFields)) {
+      return;
     }
-  },
 
-  @discourseComputed("model.default_calendar")
+    if (this.showEnforcedRequiredFieldsNotice) {
+      return this._missingRequiredFields(
+        this.site.user_fields,
+        this.model.user_fields
+      );
+    }
+
+    // Staff can edit fields that are not `editable`
+    if (!this.currentUser.staff) {
+      siteUserFields = siteUserFields.filterBy("editable", true);
+    }
+
+    return siteUserFields.sortBy("position").map((field) => {
+      const value = this.model.user_fields?.[field.id.toString()];
+      return EmberObject.create({ field, value });
+    });
+  }
+
+  @discourseComputed("currentUser.needs_required_fields_check")
+  showEnforcedRequiredFieldsNotice(needsRequiredFieldsCheck) {
+    return needsRequiredFieldsCheck;
+  }
+
+  @discourseComputed("model.user_option.default_calendar")
   canChangeDefaultCalendar(defaultCalendar) {
     return defaultCalendar !== "none_selected";
-  },
+  }
 
-  canChangeBio: readOnly("model.can_change_bio"),
+  @action
+  async showFeaturedTopicModal() {
+    await this.modal.show(FeatureTopicOnProfileModal, {
+      model: {
+        user: this.model,
+        setFeaturedTopic: (v) => this.set("model.featured_topic", v),
+      },
+    });
+    document.querySelector(".feature-topic-on-profile-btn")?.focus();
+  }
 
-  canChangeLocation: readOnly("model.can_change_location"),
+  _missingRequiredFields(siteFields, userFields) {
+    return siteFields
+      .filter(
+        (siteField) =>
+          siteField.requirement === "for_all_users" &&
+          isEmpty(userFields[siteField.id])
+      )
+      .map((field) => EmberObject.create({ field, value: "" }));
+  }
 
-  canChangeWebsite: readOnly("model.can_change_website"),
-
-  canUploadProfileHeader: readOnly("model.can_upload_profile_header"),
-
-  canUploadUserCardBackground: readOnly(
-    "model.can_upload_user_card_background"
-  ),
-
-  actions: {
-    showFeaturedTopicModal() {
-      showModal("feature-topic-on-profile", {
-        model: this.model,
-        title: "user.feature_topic_on_profile.title",
-      });
-    },
-
-    clearFeaturedTopicFromProfile() {
-      bootbox.confirm(
-        I18n.t("user.feature_topic_on_profile.clear.warning"),
-        (result) => {
-          if (result) {
-            ajax(`/u/${this.model.username}/clear-featured-topic`, {
-              type: "PUT",
-            })
-              .then(() => {
-                this.model.set("featured_topic", null);
-              })
-              .catch(popupAjaxError);
-          }
-        }
-      );
-    },
-
-    useCurrentTimezone() {
-      this.model.set("user_option.timezone", moment.tz.guess());
-    },
-
-    _updateUserFields() {
-      const model = this.model,
-        userFields = this.userFields;
-
-      if (!isEmpty(userFields)) {
-        const modelFields = model.get("user_fields");
-        if (!isEmpty(modelFields)) {
-          userFields.forEach(function (uf) {
-            const value = uf.get("value");
-            modelFields[uf.get("field.id").toString()] = isEmpty(value)
-              ? null
-              : value;
-          });
-        }
-      }
-    },
-
-    save() {
-      this.set("saved", false);
-      const model = this.model;
-
-      // Update the user fields
-      this.send("_updateUserFields");
-
-      return model
-        .save(this.saveAttrNames)
-        .then(() => {
-          // update the timezone in memory so we can use the new
-          // one if we change routes without reloading the user
-          if (this.currentUser.id === this.model.id) {
-            this.currentUser.changeTimezone(this.model.user_option.timezone);
-          }
-
-          cookAsync(model.get("bio_raw"))
-            .then(() => {
-              model.set("bio_cooked");
-              this.set("saved", true);
-            })
-            .catch(popupAjaxError);
+  @action
+  clearFeaturedTopicFromProfile() {
+    this.dialog.yesNoConfirm({
+      message: i18n("user.feature_topic_on_profile.clear.warning"),
+      didConfirm: () => {
+        return ajax(`/u/${this.model.username}/clear-featured-topic`, {
+          type: "PUT",
         })
-        .catch(popupAjaxError);
-    },
-  },
-});
+          .then(() => {
+            this.model.set("featured_topic", null);
+          })
+          .catch(popupAjaxError);
+      },
+    });
+  }
+
+  @action
+  useCurrentTimezone() {
+    this.model.set("user_option.timezone", moment.tz.guess(true));
+  }
+
+  @action
+  _updateUserFields() {
+    const model = this.model,
+      userFields = this.userFields;
+
+    if (!isEmpty(userFields)) {
+      const modelFields = model.get("user_fields");
+      if (!isEmpty(modelFields)) {
+        userFields.forEach(function (uf) {
+          const value = uf.get("value");
+          modelFields[uf.get("field.id").toString()] = isEmpty(value)
+            ? null
+            : value;
+        });
+      }
+    }
+  }
+
+  @action
+  save() {
+    this.set("saved", false);
+
+    // Update the user fields
+    this.send("_updateUserFields");
+
+    return this.model
+      .save(this.saveAttrNames)
+      .then(({ user }) => this.model.set("bio_cooked", user.bio_cooked))
+      .catch(popupAjaxError)
+      .finally(() => {
+        this.currentUser.set("needs_required_fields_check", false);
+        this.set("saved", true);
+      });
+  }
+}

@@ -1,41 +1,45 @@
-import SelectKitComponent from "select-kit/components/select-kit";
 import { computed } from "@ember/object";
-import { isPresent } from "@ember/utils";
 import { next } from "@ember/runloop";
-import layout from "select-kit/templates/components/multi-select";
-import { makeArray } from "discourse-common/lib/helpers";
+import { isPresent } from "@ember/utils";
+import { classNames } from "@ember-decorators/component";
+import { makeArray } from "discourse/lib/helpers";
+import SelectKitComponent, {
+  pluginApiIdentifiers,
+  selectKitOptions,
+} from "select-kit/components/select-kit";
 
-export default SelectKitComponent.extend({
-  pluginApiIdentifiers: ["multi-select"],
-  layout,
-  classNames: ["multi-select"],
-  multiSelect: true,
+@classNames("multi-select")
+@selectKitOptions({
+  none: "select_kit.default_header_text",
+  clearable: true,
+  filterable: true,
+  filterIcon: null,
+  closeOnChange: false,
+  autoInsertNoneItem: false,
+  headerComponent: "multi-select/multi-select-header",
+  filterComponent: "multi-select/multi-select-filter",
+  autoFilterable: true,
+  caretDownIcon: "caretIcon",
+  caretUpIcon: "caretIcon",
+  useHeaderFilter: false,
+})
+@pluginApiIdentifiers(["multi-select"])
+export default class MultiSelect extends SelectKitComponent {
+  multiSelect = true;
 
-  selectKitOptions: {
-    none: "select_kit.default_header_text",
-    clearable: true,
-    filterable: true,
-    filterIcon: null,
-    closeOnChange: false,
-    autoInsertNoneItem: false,
-    headerComponent: "multi-select/multi-select-header",
-    autoFilterable: true,
-    caretDownIcon: "caretIcon",
-    caretUpIcon: "caretIcon",
-  },
-
-  caretIcon: computed("value.[]", function () {
+  @computed("value.[]")
+  get caretIcon() {
     const maximum = this.selectKit.options.maximum;
     return maximum && makeArray(this.value).length >= parseInt(maximum, 10)
       ? null
       : "plus";
-  }),
+  }
 
   search(filter) {
-    return this._super(filter).filter(
-      (content) => !makeArray(this.selectedContent).includes(content)
-    );
-  },
+    return super
+      .search(filter)
+      .filter((content) => !makeArray(this.selectedContent).includes(content));
+  }
 
   append(values) {
     const existingItems = values
@@ -60,7 +64,7 @@ export default SelectKitComponent.extend({
     );
 
     this.selectKit.change(newValues, newContent);
-  },
+  }
 
   deselect(item) {
     this.clearErrors();
@@ -73,7 +77,7 @@ export default SelectKitComponent.extend({
       this.valueProperty ? newContent.mapBy(this.valueProperty) : newContent,
       newContent
     );
-  },
+  }
 
   select(value, item) {
     if (this.selectKit.hasSelection && this.selectKit.options.maximum === 1) {
@@ -122,9 +126,10 @@ export default SelectKitComponent.extend({
           : makeArray(this.defaultItem(value, value))
       );
     }
-  },
+  }
 
-  selectedContent: computed("value.[]", "content.[]", function () {
+  @computed("value.[]", "content.[]", "selectKit.noneItem")
+  get selectedContent() {
     const value = makeArray(this.value).map((v) =>
       this.selectKit.options.castInteger && this._isNumeric(v) ? Number(v) : v
     );
@@ -152,7 +157,7 @@ export default SelectKitComponent.extend({
     }
 
     return null;
-  }),
+  }
 
   _onKeydown(event) {
     if (
@@ -187,5 +192,5 @@ export default SelectKitComponent.extend({
     }
 
     return true;
-  },
-});
+  }
+}

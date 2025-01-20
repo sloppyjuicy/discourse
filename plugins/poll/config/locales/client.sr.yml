@@ -10,7 +10,7 @@ sr:
       voters:
         one: "glasač"
         few: "glasača"
-        other: "гласача"
+        other: "glsača"
       total_votes:
         one: "ukupno glasova"
         few: "ukupno glasova"
@@ -27,30 +27,14 @@ sr:
           title: "Rezultati će biti prikazani nakon <strong>zatvaranja</strong>."
         staff:
           title: "Rezultati će biti prikazani samo članovima <strong>osoblja</strong> ."
-      multiple:
-        help:
-          at_least_min_options:
-            one: "Odaberite najmanje <strong>%{count}</strong> opciju."
-            few: "Odaberite najmanje <strong>%{count}</strong> opcije."
-            other: "Odaberite najmanje <strong>%{count}</strong> opcija."
-          up_to_max_options:
-            one: "Odaberite najviše <strong>%{count}</strong> opciju."
-            few: "Odaberite najviše <strong>%{count}</strong> opcije."
-            other: "Odaberite najviše <strong>%{count}</strong> opcija."
-          x_options:
-            one: "Odaberite <strong>%{count}</strong> opciju."
-            few: "Odaberite <strong>%{count}</strong> opcije."
-            other: "Odaberite <strong>%{count}</strong> opcija."
-          between_min_and_max_options: "Odaberite između <strong>%{min}</strong> i <strong>%{max}</strong> opcije."
       cast-votes:
         title: "Daj svoj glas"
         label: "Glasaj sada!"
       show-results:
         title: "Prikaži rezultate ankete"
-        label: "Prikaži rezultate"
+        label: "Rezultati"
       hide-results:
         title: "Nazad ka vašim glasovima"
-        label: "Prikaži glas"
       group-results:
         title: "Grupiraj glasove prema korisničkom polju"
         label: "Prikaži raspodelu"
@@ -74,6 +58,10 @@ sr:
         breakdown: "Detalji"
         percentage: "Procenat"
         count: "Broj"
+      ranked_choice:
+        none: "Ništa"
+      options:
+        label: "Opcije"
       error_while_toggling_status: "Žao nam je, došlo je do greške pri prikazivanju statusa ove ankete."
       error_while_casting_votes: "Žao nam je, došlo je do greške prilikom glasanja."
       error_while_fetching_voters: "Žao nam je, došlo je do greške prilikom prikazivanja glasača."
@@ -100,7 +88,7 @@ sr:
           closed: Kada je glasanje zatvoreno
           staff: Samo članovi osoblja
         poll_groups:
-          label: Ограничите гласање на ове групе
+          label: Ograničite glasanje na ove grupe
         poll_chart_type:
           label: Графикон резултата
           bar: Dijagram
@@ -112,7 +100,7 @@ sr:
         poll_public:
           label: Prikaži ko je glasao
         poll_title:
-          label: Naslov (opcionalno)
+          label: Naslov (opciono)
         poll_options:
           label: Опције (по једна у реду)
           add: Додај опцију

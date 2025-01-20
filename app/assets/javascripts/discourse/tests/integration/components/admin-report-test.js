@@ -1,190 +1,130 @@
-import componentTest, {
-  setupRenderingTest,
-} from "discourse/tests/helpers/component-test";
-import {
-  count,
-  discourseModule,
-  exists,
-  queryAll,
-} from "discourse/tests/helpers/qunit-helpers";
-import { click } from "@ember/test-helpers";
-import hbs from "htmlbars-inline-precompile";
-import pretender from "discourse/tests/helpers/create-pretender";
+import { click, render } from "@ember/test-helpers";
+import { hbs } from "ember-cli-htmlbars";
+import { module, test } from "qunit";
+import { setupRenderingTest } from "discourse/tests/helpers/component-test";
+import pretender, { response } from "discourse/tests/helpers/create-pretender";
 
-discourseModule("Integration | Component | admin-report", function (hooks) {
+module("Integration | Component | admin-report", function (hooks) {
   setupRenderingTest(hooks);
 
-  componentTest("default", {
-    template: hbs`{{admin-report dataSourceName='signups'}}`,
+  test("default", async function (assert) {
+    await render(hbs`<AdminReport @dataSourceName="signups" />`);
 
-    async test(assert) {
-      assert.ok(exists(".admin-report.signups"));
-
-      assert.ok(exists(".admin-report.signups", "it defaults to table mode"));
-
-      assert.equal(
-        queryAll(".header .item.report").text().trim(),
-        "Signups",
-        "it has a title"
-      );
-
-      assert.equal(
-        queryAll(".header .info").attr("data-tooltip"),
+    assert.dom(".admin-report.signups").exists();
+    assert.dom(".admin-report-table").exists("defaults to table mode");
+    assert
+      .dom(".d-page-subheader .d-page-subheader__title")
+      .hasText("Signups", "has a title");
+    assert
+      .dom(".d-page-subheader .d-page-subheader__description")
+      .hasText(
         "New account registrations for this period",
-        "it has a description"
+        "has a description"
       );
 
-      assert.equal(
-        queryAll(".admin-report-table thead tr th:first-child .title")
-          .text()
-          .trim(),
-        "Day",
-        "it has col headers"
-      );
+    assert
+      .dom(".admin-report-table thead tr th:first-child .title")
+      .hasText("Day", "has col headers");
 
-      assert.equal(
-        queryAll(".admin-report-table thead tr th:nth-child(2) .title")
-          .text()
-          .trim(),
-        "Count",
-        "it has col headers"
-      );
+    assert
+      .dom(".admin-report-table thead tr th:nth-child(2) .title")
+      .hasText("Count", "has col headers");
 
-      assert.equal(
-        queryAll(".admin-report-table tbody tr:nth-child(1) td:nth-child(1)")
-          .text()
-          .trim(),
-        "June 16, 2018",
-        "it has rows"
-      );
+    assert
+      .dom(".admin-report-table tbody tr:nth-child(1) td:nth-child(1)")
+      .hasText("June 16, 2018", "has rows");
 
-      assert.equal(
-        queryAll(".admin-report-table tbody tr:nth-child(1) td:nth-child(2)")
-          .text()
-          .trim(),
-        "12",
-        "it has rows"
-      );
+    assert
+      .dom(".admin-report-table tbody tr:nth-child(1) td:nth-child(2)")
+      .hasText("12", "has rows");
 
-      assert.ok(exists(".total-row"), "it has totals");
+    assert.dom(".total-row").exists("has totals");
 
-      await click(".admin-report-table-header.y .sort-btn");
+    await click(".admin-report-table-header.y .sort-btn");
 
-      assert.equal(
-        queryAll(".admin-report-table tbody tr:nth-child(1) td:nth-child(2)")
-          .text()
-          .trim(),
-        "7",
-        "it can sort rows"
-      );
-    },
+    assert
+      .dom(".admin-report-table tbody tr:nth-child(1) td:nth-child(2)")
+      .hasText("7", "can sort rows");
   });
 
-  componentTest("options", {
-    template: hbs`{{admin-report dataSourceName='signups' reportOptions=options}}`,
+  test("options", async function (assert) {
+    this.set("options", {
+      table: {
+        perPage: 4,
+        total: false,
+      },
+    });
 
-    beforeEach() {
-      this.set("options", {
-        table: {
-          perPage: 4,
-          total: false,
-        },
-      });
-    },
+    await render(
+      hbs`<AdminReport @dataSourceName="signups" @reportOptions={{this.options}} />`
+    );
 
-    test(assert) {
-      assert.ok(exists(".pagination"), "it paginates the results");
-      assert.equal(
-        count(".pagination button"),
-        3,
-        "it creates the correct number of pages"
-      );
+    assert.dom(".pagination").exists("paginates the results");
+    assert
+      .dom(".pagination button")
+      .exists({ count: 3 }, "creates the correct number of pages");
 
-      assert.notOk(exists(".totals-sample-table"), "it hides totals");
-    },
+    assert.dom(".totals-sample-table").doesNotExist("hides totals");
   });
 
-  componentTest("switch modes", {
-    template: hbs`{{admin-report dataSourceName='signups' showFilteringUI=true}}`,
+  test("switch modes", async function (assert) {
+    await render(
+      hbs`<AdminReport @dataSourceName="signups" @showFilteringUI={{true}} />`
+    );
 
-    async test(assert) {
-      await click(".mode-btn.chart");
+    await click(".mode-btn.chart");
 
-      assert.notOk(exists(".admin-report-table"), "it removes the table");
-      assert.ok(exists(".admin-report-chart"), "it shows the chart");
-    },
+    assert.dom(".admin-report-table").doesNotExist("removes the table");
+    assert.dom(".admin-report-chart").exists("shows the chart");
   });
 
-  componentTest("timeout", {
-    template: hbs`{{admin-report dataSourceName='signups_timeout'}}`,
+  test("timeout", async function (assert) {
+    await render(hbs`<AdminReport @dataSourceName="signups_timeout" />`);
 
-    test(assert) {
-      assert.ok(exists(".alert-error.timeout"), "it displays a timeout error");
-    },
+    assert.dom(".alert-error.timeout").exists("displays a timeout error");
   });
 
-  componentTest("no data", {
-    template: hbs`{{admin-report dataSourceName='posts'}}`,
+  test("no data", async function (assert) {
+    await render(hbs`<AdminReport @dataSourceName="posts" />`);
 
-    test(assert) {
-      assert.ok(exists(".no-data"), "it displays a no data alert");
-    },
+    assert.dom(".no-data").exists("displays a no data alert");
   });
 
-  componentTest("exception", {
-    template: hbs`{{admin-report dataSourceName='signups_exception'}}`,
+  test("exception", async function (assert) {
+    await render(hbs`<AdminReport @dataSourceName="signups_exception" />`);
 
-    test(assert) {
-      assert.ok(exists(".alert-error.exception"), "it displays an error");
-    },
+    assert.dom(".alert-error.exception").exists("displays an error");
   });
 
-  componentTest("rate limited", {
-    beforeEach() {
-      pretender.get("/admin/reports/bulk", () => {
-        return [
-          429,
-          { "Content-Type": "application/json" },
-          {
-            errors: [
-              "You’ve performed this action too many times. Please wait 10 seconds before trying again.",
-            ],
-            error_type: "rate_limit",
-            extras: { wait_seconds: 10 },
-          },
-        ];
-      });
-    },
+  test("rate limited", async function (assert) {
+    pretender.get("/admin/reports/bulk", () =>
+      response(429, {
+        errors: [
+          "You’ve performed this action too many times. Please wait 10 seconds before trying again.",
+        ],
+        error_type: "rate_limit",
+        extras: { wait_seconds: 10 },
+      })
+    );
 
-    template: hbs`{{admin-report dataSourceName='signups_rate_limited'}}`,
+    await render(hbs`<AdminReport @dataSourceName="signups_rate_limited" />`);
 
-    test(assert) {
-      assert.ok(
-        exists(".alert-error.rate-limited"),
-        "it displays a rate limited error"
-      );
-    },
+    assert
+      .dom(".alert-error.rate-limited")
+      .exists("displays a rate limited error");
   });
 
-  componentTest("post edits", {
-    template: hbs`{{admin-report dataSourceName='post_edits'}}`,
+  test("post edits", async function (assert) {
+    await render(hbs`<AdminReport @dataSourceName="post_edits" />`);
 
-    test(assert) {
-      assert.ok(
-        exists(".admin-report.post-edits"),
-        "it displays the post edits report"
-      );
-    },
+    assert
+      .dom(".admin-report.post-edits")
+      .exists("displays the post edits report");
   });
 
-  componentTest("not found", {
-    template: hbs`{{admin-report dataSourceName='not_found'}}`,
+  test("not found", async function (assert) {
+    await render(hbs`<AdminReport @dataSourceName="not_found" />`);
 
-    test(assert) {
-      assert.ok(
-        exists(".alert-error.not-found"),
-        "it displays a not found error"
-      );
-    },
+    assert.dom(".alert-error.not-found").exists("displays a not found error");
   });
 });

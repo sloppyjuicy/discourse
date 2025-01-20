@@ -2,8 +2,10 @@
 // To style group content differently, use the existing classes with a .group parent class.
 // For example: .group .user-secondary-navigation
 
-span.mention-group {
-  color: var(--primary);
+@use "sass:math";
+
+.container.group {
+  background: var(--d-content-background);
 }
 
 .group-details-container {
@@ -27,15 +29,27 @@ span.mention-group {
   display: flex;
   flex-wrap: wrap;
   width: 100%;
+  gap: 0.5em 0;
 
-  input + .group-members-manage {
-    margin-left: auto;
+  .bulk-select + input {
+    margin-left: 0.5em;
   }
 
-  .group-username-filter {
-    margin: 0 0 5px 0;
-    vertical-align: middle;
+  input {
+    margin: 0 auto 0 0;
   }
+
+  .bulk-select-buttons-wrap {
+    margin-right: 0.5em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+  }
+}
+
+.group-members-manage {
+  display: flex;
+  gap: 0.5em;
 }
 
 .group-info {
@@ -48,18 +62,18 @@ span.mention-group {
   }
 
   .group-info-name {
-    font-size: $font-up-3;
+    font-size: var(--font-up-3);
     font-weight: bold;
     color: var(--primary);
   }
 
   .group-info-full-name {
-    font-size: $font-up-2;
+    font-size: var(--font-up-2);
     color: var(--primary-high-or-secondary-low);
   }
 
   $size: 50px;
-  $icon-size: $size / 1.8;
+  $icon-size: math.div($size, 1.8);
 
   .avatar-flair-image {
     width: $size;
@@ -120,58 +134,65 @@ table.group-manage-logs {
   }
 }
 
-table.group-members {
-  width: 100%;
-  table-layout: fixed;
+.group-members {
+  grid-template-columns: 3fr repeat(3, minmax(min-content, 1fr));
 
-  th {
-    text-align: center;
-
-    &.bulk-select {
-      height: 30px;
-      width: 30px;
-    }
-
-    &.bulk-select-buttons {
-      text-align: left;
-      width: 20%;
-      .bulk-select-buttons-wrap {
-        display: inline-flex;
-        .btn {
-          margin-right: 0.5em;
-        }
+  &--can-manage {
+    grid-template-columns: 3fr repeat(4, minmax(min-content, 1fr)) 3em;
+    @container (max-width: 47em) {
+      // positioning the member settings button within the same cell
+      // and avoiding overlap with padding-right on user-info
+      .group-member,
+      .member-settings {
+        grid-row-start: 1;
+        grid-column-start: 1;
+        grid-column-end: -1;
+      }
+      .member-settings {
+        margin-left: auto;
+      }
+      .user-info {
+        padding-right: 3.5em;
       }
     }
+  }
 
-    &.username {
-      text-align: left;
-      width: 30%;
-    }
+  &.group-members__requests {
+    grid-template-columns: 3fr repeat(3, minmax(max-content, 1fr));
+  }
 
-    &.bulk-select-buttons + .username {
-      width: 10%;
-    }
+  .directory-table__value {
+    font-size: var(--font-0);
+    color: var(--primary);
+  }
 
-    &.group-members-actions {
-      width: 5%;
+  .group-accept-deny-buttons {
+    gap: 0.5em;
+  }
+
+  [class*="group-request-reason__"] {
+    justify-content: start;
+  }
+
+  .group-request-reason__content {
+    .directory-table__value {
+      white-space: normal;
+      max-width: 30em;
     }
   }
 
-  td {
-    color: var(--primary-medium);
-    padding: 0.8em 0;
-    text-align: center;
-
-    &.avatar {
-      text-align: left;
+  @container (max-width: 47em) {
+    .directory-table__cell {
+      grid-column-start: 1;
+      grid-column-end: -1;
     }
-  }
 
-  .user-info {
-    display: block;
+    .group-accept-deny-buttons {
+      justify-content: start;
+    }
 
-    .avatar-flair {
-      color: var(--primary);
+    .directory-table__cell.group-owner {
+      order: 2;
     }
   }
 }
@@ -248,26 +269,41 @@ table.group-category-permissions {
   }
 }
 
-.group-smtp-email-settings,
-.group-imap-email-settings {
-  .groups-form {
-    display: grid;
-    grid-template-columns: 1fr 3fr;
-    margin-bottom: 0;
+.group-smtp-prefill-options {
+  ul {
+    display: inline;
+    margin: 0;
 
-    &.groups-form-imap {
-      grid-template-columns: 1fr 1fr 2fr;
+    li {
+      display: inline-block;
+
+      &:before {
+        content: "|";
+      }
+
+      &:first-child:before {
+        content: "";
+      }
     }
   }
+}
 
+.group-smtp-email-settings,
+.group-imap-email-settings {
   background-color: var(--primary-very-low);
   padding: 1em;
   margin: 1em 0;
   border: 1px solid var(--primary-low);
 
-  .group-imap-mailboxes {
-    .combo-box {
-      width: 50%;
+  .groups-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13em, 1fr));
+    margin-bottom: 0;
+    gap: 0 1em;
+
+    details,
+    .ember-text-field {
+      width: 100%;
     }
   }
 }

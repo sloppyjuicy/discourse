@@ -1,16 +1,15 @@
 import DiscourseRoute from "discourse/routes/discourse";
-import I18n from "I18n";
+import { i18n } from "discourse-i18n";
 
-export default DiscourseRoute.extend({
-  showFooter: true,
-
+export default class GroupActivityTopics extends DiscourseRoute {
   titleToken() {
-    return I18n.t(`groups.topics`);
-  },
+    return i18n(`groups.topics`);
+  }
 
-  model() {
+  model(params = {}) {
     return this.store.findFiltered("topicList", {
       filter: `topics/groups/${this.modelFor("group").get("name")}`,
+      params,
     });
-  },
-});
+  }
+}

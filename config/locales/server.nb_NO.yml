@@ -18,7 +18,7 @@ nb_NO:
       no_day: "%Y %B"
   date:
     month_names:
-    - null
+    -
     - januar
     - februar
     - mars
@@ -50,8 +50,13 @@ nb_NO:
   anonymous: "Anonym"
   remove_posts_deleted_by_author: "Slettet av forfatter"
   redirect_warning: "Vi kunne ikke verifisere at lenken du valgte faktisk var publisert på forumet. Hvis du likevel ønsker å fortsette, velg lenken under."
+  topic_tag_changed:
+    added: "Lagt til %{added}"
   inline_oneboxer:
     topic_page_title_post_number_by_user: "#%{post_number} av %{username}"
+  components:
+    enabled_filter: "Aktivert"
+    disabled_filter: "Deaktivert"
   themes:
     other_error: "Noe gikk galt under oppdateringen av drakten"
     import_error:
@@ -63,17 +68,14 @@ nb_NO:
     settings_errors:
       invalid_yaml: "YAML koden er ikke gyldig."
       name_too_long: "En eller flere innstillinger har for langt navn. Maksimal lengde er 255 tegn"
-      default_value_missing: "Innstilling `%{name}` har ingen standardverdi"
+      default_value_missing: "Innstilling `%{name}` har ingen standardverdi."
       default_not_match_type: "Innstilling `%{name}` har en type standardverdi som ikke stemmer med den definerte typen for innstillingen."
-      default_out_range: "Innstilling `%{name}` sin standardverdi er utenfor de tillatte grenseverdiene."
       enum_value_not_valid: "Den valgte verdien er ikke en av de oppførte valgmulighetene."
-      number_value_not_valid: "Ny verdi er utenfor de tillatte grenseverdiene."
-      number_value_not_valid_min_max: "Den må være mellom %{min} og %{max}."
-      number_value_not_valid_min: "Den må være større enn eller lik %{min}."
-      number_value_not_valid_max: "Den må være mindre enn eller lik %{max}."
-      string_value_not_valid: "Lengden på ny verdi er ikke innenfor grensen."
-      string_value_not_valid_min: "Den må være minst %{min} tegn lang."
-      string_value_not_valid_max: "Den må være maksimalt %{max} tegn lang."
+      number_value_not_valid_min_max: "Verdien må være mellom %{min} og %{max}."
+      objects:
+        required: "Må være til stede"
+        not_valid_integer_value: "må være ett heltall"
+        string_value_not_valid_url: "må være en gyldig URL"
   emails:
     incoming:
       default_subject: "Emnet trenger en tittel"
@@ -103,7 +105,6 @@ nb_NO:
     format: ! "%{attribute} %{message}"
     format_with_full_message: "<b>%{attribute}</b>: %{message}"
     messages:
-      too_long_validation: "er begrenset til %{max} tegn; du brukte %{length}."
       invalid_boolean: "Ugyldig boolsk verdi."
       taken: "er allerede tatt"
       accepted: må bli godkjent
@@ -150,14 +151,10 @@ nb_NO:
     embed:
       load_from_remote: "Det oppstod et problem med innlastingen av innlegget."
     site_settings:
-      invalid_choice:
-        one: "Du spesifiserte det ugyldige valget %{name}"
-        other: "Du spesifiserte de ugyldige valgene %{name}"
       default_categories_already_selected: "Du kan ikke velge en annen kategori brukt i en annen liste."
       s3_upload_bucket_is_required: "Du kan ikke aktivere opplasting til S3 hvis ikke du har satt innstillingen 's3_upload_bucket'."
     conflicting_google_user_id: 'Google Account ID for denne kontoen har endret seg; staben må manuelt godkjenne endringen av sikkerhetshensyn. Vennligst kontakt staben og pek dem til <br><a href="https://meta.discourse.org/t/76575">https://meta.discourse.org/t/76575</a>'
   invite:
-    user_exists: "Det er ikke nødvendig å invitere <b>%{email}</b>, de <a href='%{base_path}/u/%{username}/summary'>har allerede en konto!</a>"
     disabled_errors:
       invalid_access: "Du har ingen tilgang til denne resurssen."
   bulk_invite:
@@ -196,7 +193,6 @@ nb_NO:
     more_replies:
       one: "%{count} svar til"
       other: "%{count} svar til"
-    loading: "Laster inn diskusjon…"
     permalink: "Permalink"
     imported_from: "Dette er en relatert diskusjon ved siden av det originale innlegget ved %{link}"
     in_reply_to: "▶ %{username}"
@@ -221,7 +217,6 @@ nb_NO:
   too_many_links:
     one: "Beklager, nye brukere kan bare legge til én lenke i et innlegg."
     other: "Beklager, nye brukere kan bare legge til %{count} lenker i et innlegg."
-  contains_blocked_word: "Innlegget ditt inneholder et ord som ikke er tillatt: %{word}"
   spamming_host: "Beklager, du kan ikke lenke til det domenet."
   user_is_suspended: "Utestengte brukere kan ikke skrive innlegg."
   topic_not_found: "Noe gikk galt. Kanskje emnet ble lukket eller slettet mens du leste det?"
@@ -266,6 +261,7 @@ nb_NO:
     reminders:
       at_desktop: "Neste gang jeg er på datamaskinen min"
       later_today: "Senere i dag"
+      next_business_day: "Neste virkedag"
       tomorrow: "I morgen"
       next_week: "Neste uke"
       next_month: "Neste måned"
@@ -338,6 +334,10 @@ nb_NO:
         raw: "Body"
       user_profile:
         bio_raw: "Om meg"
+      user:
+        password: "Passord"
+      user_password:
+        password: "Passord"
     errors:
       models:
         topic:
@@ -360,7 +360,16 @@ nb_NO:
               same_as_current: "er det samme som nåværende passord."
               unique_characters: "har for mange gjentatte tegn. Benytt et sikrere passord."
             ip_address:
-              signup_not_allowed: "Registrering er ikke tillatt fra denne kontoen."
+              blocked: "Nye registreringer er ikke tillatt fra IP-adressen din."
+              max_new_accounts_per_registration_ip: "Nye registreringer er ikke tillatt fra IP-adressen din (maksimalt antall nådd). Ta kontakt med et medlem av staben."
+        user_password:
+          attributes:
+            password:
+              common: "er ett av de 10000 mest vanlige passordene. Benytt et sikrere passord."
+              same_as_username: "er det somme som brukernavnet ditt. Benytt et sikrere passord."
+              same_as_email: "er det samme som din e-mail. Benytt et sikrere passord."
+              same_as_current: "er det samme som nåværende passord."
+              unique_characters: "har for mange gjentatte tegn. Benytt et sikrere passord."
         user_email:
           attributes:
             user_id:
@@ -384,40 +393,17 @@ nb_NO:
           attributes:
             execute_at:
               in_the_past: "må være i fremtiden."
-        translation_overrides:
-          attributes:
-            value:
-              invalid_interpolation_keys: 'De følgende interpolasjonsnøklene er ugyldige: "%{keys}"'
         watched_word:
           attributes:
             word:
               too_many: "For mange ord for den handlingen"
       <<: *errors
   uncategorized_category_name: "Ukategorisert"
-  vip_category_name: "Salong"
-  vip_category_description: "En kategori tilgjengelig for brukere på tillitsnivå 3 og høyere."
+  general_category_name: "Generelt"
   meta_category_name: "Tilbakemeldinger"
   meta_category_description: "Diskusjon om dette nettstedet, hvordan det er organisert, hvordan det fungerer og hvordan vi kan forbedre det."
   staff_category_name: "Stab"
   staff_category_description: "Privat kategori for diskusjoner blant staben. Emner er kun synlige for administratorer og moderatorer."
-  discourse_welcome_topic:
-    title: "Velkommen til Discourse"
-    body: |2
-
-      Det første avsnittet av dette festede emnet vil være synlig som en velkomstmelding til alle nye besøkende på hjemmesiden. Det er viktig!
-
-      **Rediger dette** til en kort beskrivelse av samfunnet ditt:
-
-      - Hvem er det ment for?
-      - Hva kan de finner her?
-      - Hvorfor skal de besøke stedet?
-      - Hvor kan de lese mer (lenker, ressurser, etc)?
-
-      <img src="%{base_path}/images/welcome/discourse-edit-post-animated.gif" width="508" height="106">
-
-      Vi anbefaler at du stenger dette emnet ved hjelp av Admin :wrench: knappen (oppe til høyre og i bunnen), slik at svar ikke hoper seg opp på en kunngjøring som denne.
-  lounge_welcome:
-    title: "Velkommen til salongen"
   category:
     topic_prefix: "Om kategorien %{category} "
     post_template: "%{replace_paragraph}\n\nBruk de følgende avsnittene for en lengre beskrivelse, eller for å formulere retningslinjer eller regler for kategorien:\n\n- Hvorfor skal folk bruke denne kategorien? Hva er den ment for?\n\n- Hvordan skiller den seg fra de andre kategoriene vi allerede har?\n\n- Hva skal emner i denne kategorien generelt sett inneholde?\n\n- Trenger vi denne kategorien? Kan vi slå den sammen med en annen kategori eller underkategori?\n"
@@ -530,31 +516,25 @@ nb_NO:
         one: "nesten %{count} år siden"
         other: "nesten %{count} år siden"
   password_reset:
-    no_token: "Beklager, den lenken for å endre passord er for gammel. Velg logg inn-knappen bruk 'Jeg glemte passordet mitt' for å motta en ny lenke."
-    choose_new: "Velg et nytt passord"
-    choose: "Velg et passord"
-    update: "Oppdater passord"
-    save: "Sett passord"
     title: "Tilbakestill passord"
     success: "Du har endret passordet og er nå logget inn."
     success_unapproved: "Du har endret ditt passord."
   email_login:
-    invalid_token: "Beklager, denne lenken for innlogging via e-post er for gammel. Bruk 'Logg Inn' knappen og deretter 'Jeg har glemt passordet' for å motta en oppdatert lenke."
     title: "E-post innlogging"
+  user_auth_tokens:
+    device:
+      iphone: "iPhone"
+    os:
+      android: "Android"
   change_email:
-    confirmed: "E-postaddressen din er blitt oppdatert."
-    please_continue: "Fortsett til %{site_name}"
     error: "Det oppsto en feil ved endring av din e-postadresse. Kanskje addressen allerede er i bruk?"
     error_staged: "En feil oppstod ved endring av e-postadressen din. Den nye adressen er allerede i bruk av en arrangert bruker."
     already_done: "Beklager, denne godkjenningslenken er ikke lenger gyldig. Kanskje e-postadressen din allerede er byttet?"
+    confirm: "Bekreft"
   associated_accounts:
     revoke_failed: "Klarte ikke å oppheve kontotilknytningen til %{provider_name}."
   activation:
-    action: "Klikk her for å aktivere din konto"
     already_done: "Beklager, denne bekreftelseslenken er ikke lenger gyldig. Kanskje er kontoen din allerede aktivert?"
-    please_continue: "Din nye konto er registrert; du vil bli videresendt til hjemmesiden. "
-    continue_button: "Fortsett til %{site_name}"
-    welcome_to: "Velkommen til %{site_name}!"
     approval_required: "En moderator må manuelt godkjenne kontoen din før du får tilgang til forumet. Du vil motta en e-post når kontoen din er godkjent!"
     missing_session: "Vi klarer ikke å se om kontoen din ble laget, vennligst sjekk om cookies/kapsler er aktivert i nettleseren."
     activated: "Beklager, denne kontoen er allerede aktivert."
@@ -579,6 +559,9 @@ nb_NO:
       email_body: "%{link}\n\n%{message}"
     inappropriate:
       title: "Upassende"
+    illegal:
+      email_title: 'Et innlegg i "%{title}" krever oppfølging av staben'
+      email_body: "%{link}\n\n%{message}"
     notify_user:
       title: "Send en melding til @%{username}"
       description: "Jeg ønsker å snakke med denne personen direkte og personlig om innlegget."
@@ -599,12 +582,6 @@ nb_NO:
       title: "Lik"
       description: "Liker dette innlegget"
       short_description: "Lik dette innlegget"
-  user_activity:
-    no_bookmarks:
-      self: "Du har ingen bokmerkede innlegg; bokmerker lar deg raskt slå opp spesifike innlegg."
-      others: "Ingen bokmerker."
-    no_drafts:
-      self: "Du har ingen utkast; når du begynner å forfatte et svar på et emne vil det automatisk lagres som et nytt utkast."
   topic_flag_types:
     spam:
       title: "Spam"
@@ -619,6 +596,9 @@ nb_NO:
       long_form: "Markert for mederering"
       short_description: "Krever handling fra staben av en annen grunn"
       email_title: 'Emnet "%{title}" krever oppmerksomhet fra en moderator'
+      email_body: "%{link}\n\n%{message}"
+    illegal:
+      email_title: 'Et innlegg i "%{title}" krever oppfølging av staben'
       email_body: "%{link}\n\n%{message}"
   flagging:
     you_must_edit: '<p>Innlegget ditt ble flagget av samfunnet. Vennligst <a href="%{path}">sjekk meldingene dine</a>.</p>'
@@ -658,6 +638,8 @@ nb_NO:
     description: '"%{application_name}" ber om følgende tilgang til kontoen din:'
     otp_confirmation:
       confirm_title: Fortsett til %{site_name}
+      logging_in_as: Logger inn som %{username}
+      confirm_button: Fullfør innlogging
     no_trust_level: "Beklager, du har ikke det nødvendige tillitsnivået for tilgang til API for brukere"
     generic_error: "Beklager, vi kan ikke utstede API nøkler for brukere, denne funksjonen kan være deaktivert av administratoren"
     scopes:
@@ -683,6 +665,7 @@ nb_NO:
     user_flagging_ratio:
       labels:
         user: Bruker
+        score: Poeng
     moderators_activity:
       labels:
         moderator: Moderator
@@ -725,6 +708,15 @@ nb_NO:
         editor: Tekstbehandler
         author: Forfatter
         edit_reason: Begrunnelse
+    consolidated_api_requests:
+      xaxis:
+        api: "API"
+        user_api: "Bruker-API"
+      yaxis: "Dag"
+    consolidated_page_views_browser_detection:
+      yaxis: "Dag"
+    site_traffic:
+      yaxis: "Dag"
     dau_by_mau:
       title: "DAB/MAB"
       xaxis: "Dag"
@@ -849,6 +841,9 @@ nb_NO:
       title: "Sidevisninger"
       xaxis: "Dag"
       yaxis: "Totalt antall sidevisninger"
+    page_view_legacy_total_reqs:
+      xaxis: "Dag"
+      yaxis: "Totalt antall sidevisninger"
     page_view_logged_in_mobile_reqs:
       title: "Sidevisninger av innloggede"
       xaxis: "Dag"
@@ -857,6 +852,10 @@ nb_NO:
       title: "Anonyme Sidevisninger"
       xaxis: "Dag"
       yaxis: "Mobile Anonyme Sidevisninger"
+    page_view_anon_browser_reqs:
+      xaxis: "Dag"
+    page_view_logged_in_browser_reqs:
+      xaxis: "Dag"
     http_background_reqs:
       title: "Bakgrunn"
       xaxis: "Dag"
@@ -897,6 +896,8 @@ nb_NO:
       labels:
         user_agent: "Brukeragent"
         page_views: "Sidevisninger"
+    web_hook_events_daily_aggregate:
+      xaxis: "Dag"
     suspicious_logins:
       labels:
         user: Bruker
@@ -909,39 +910,49 @@ nb_NO:
       labels:
         filename: Filnavn
         author: Forfatter
+    top_users_by_likes_received:
+      labels:
+        user: Bruker
+        qtt_like: Likes mottatt
+    top_users_by_likes_received_from_inferior_trust_level:
+      labels:
+        user: Bruker
+        qtt_like: Likes mottatt
+    top_users_by_likes_received_from_a_variety_of_people:
+      labels:
+        user: Bruker
+        qtt_like: Likes mottatt
+    topic_view_stats:
+      labels:
+        topic: Emne
+        logged_in_views: Innlogget
+        anon_views: Anonym
+        total_views: Total
   dashboard:
-    rails_env_warning: "Serveren din kjører i %{env] modus."
-    host_names_warning: "Din config/database.yml-fil bruker forvalgt lokalvert-vertsnavn. Oppdater det til å bruke din sides vertsnavn."
-    sidekiq_warning: 'Sidekiq kjører ikke. Mange oppgaver, som å sende e-post, kjøres i bakgrunnen av sidekiq. Vennligst verifiser at minst én sidekiq-prosess kjører. <a href="https://github.com/mperham/sidekiq" target="_blank">Lær mer om Sidekiq her</a>.'
-    queue_size_warning: "Antallet jobber som står i kø er %{queue_size}, som er høyt. Dette kan være en indikasjon på at Sidekiq-prosessen(e) har et problem, eller det kan tenkes du bare trenger flere samtidige Sidekiq-arbeidere."
-    memory_warning: "Serveren din kjører med mindre enn 1 GB med minne. Minst 1 GB RAM er anbefalt."
-    subfolder_ends_in_slash: "Oppsettet av undermappe er feil; variablen DISCOURSE_RELATIVE_URL_ROOT slutter med en skråstrek."
-    email_polling_errored_recently:
-      one: "Henting av e-post har generert en feil de siste 24 timene. Se i <a href='%{base_path}/logs' target='_blank'>loggene</a> for mer detaljer."
-      other: "Henting av e-post har generert %{count} feil de siste 24 timene. Se i <a href='%{base_path}/logs' target='_blank'>loggene</a> for mer detaljer."
-    missing_mailgun_api_key: "Serveren er konfigurert til å sende e-post via Mailgun men du har ikke satt API-nøkkelen som brukes til å verifisere webhook meldinger."
-    poll_pop3_timeout: "Tilkoblingen til POP3 serveren får timeout. Vi får ikke hentet innkommende e-post. Vennligst sjekk <a href='%{base_path}/admin/site_settings/category/email'>instillingene for POP3</a> eller leverandøren av posttjenesten."
-    poll_pop3_auth_error: "Tilkoblingen til POP3 serveren feiler på grunn av problemer med autentisering. Vennligst sjekk <a href='%{base_path}/admin/site_settings/category/email'>POP3 instillingene</a>. "
-    force_https_warning: "Nettstedet ditt bruker SSL. Men `<a href='%{base_path}/admin/site_settings/category/all_results?filter=force_https'>force_https</a>` er ikke aktivert enda i instillingene."
-    out_of_date_themes: "Oppdateringer er tilgjengelig for følgende drakter:"
+    problem:
+      host_names: "Din config/database.yml-fil bruker forvalgt lokalvert-vertsnavn. Oppdater det til å bruke din sides vertsnavn."
+      queue_size: "Antallet jobber som står i kø er %{queue_size}, som er høyt. Dette kan være en indikasjon på at Sidekiq-prosessen(e) har et problem, eller det kan tenkes du bare trenger flere samtidige Sidekiq-arbeidere."
+      ram: "Serveren din kjører med mindre enn 1 GB med minne. Minst 1 GB RAM er anbefalt."
+      subfolder_ends_in_slash: "Oppsettet av undermappe er feil; variablen DISCOURSE_RELATIVE_URL_ROOT slutter med en skråstrek."
+      email_polling_errored_recently:
+        one: "Henting av e-post har generert en feil de siste 24 timene. Se i <a href='%{base_path}/logs' target='_blank'>loggene</a> for mer detaljer."
+        other: "Henting av e-post har generert %{count} feil de siste 24 timene. Se i <a href='%{base_path}/logs' target='_blank'>loggene</a> for mer detaljer."
+      missing_mailgun_api_key: "Serveren er konfigurert til å sende e-post via Mailgun men du har ikke satt API-nøkkelen som brukes til å verifisere webhook meldinger."
+      poll_pop3_timeout: "Tilkoblingen til POP3 serveren får timeout. Vi får ikke hentet innkommende e-post. Vennligst sjekk <a href='%{base_path}/admin/site_settings/category/email'>instillingene for POP3</a> eller leverandøren av posttjenesten."
+      poll_pop3_auth_error: "Tilkoblingen til POP3 serveren feiler på grunn av problemer med autentisering. Vennligst sjekk <a href='%{base_path}/admin/site_settings/category/email'>POP3 instillingene</a>. "
+      force_https: "Nettstedet ditt bruker SSL. Men `<a href='%{base_path}/admin/site_settings/category/all_results?filter=force_https'>force_https</a>` er ikke aktivert enda i instillingene."
   site_settings:
     disabled: "deaktivert"
     censored_words: "Ord som automatisk vil bli erstattet med &#9632;&#9632;&#9632;&#9632;"
     delete_old_hidden_posts: "Slett automatisk skjulte innlegg som har vært skjult i mer enn 30 dager."
     allow_user_locale: "Tillat brukere å velge eget språk"
     support_mixed_text_direction: "Tillat blanding av skriftspråk som bruker venstre-til-høyre og høyre-til-venstre."
-    min_post_length: "Minimum tillatt lengde for innlegg i tegn"
-    min_first_post_length: "Minimum tillatt lengde på for teksten i første innlegg"
-    min_personal_message_post_length: "Minste lengde i antall tegn for en melding"
     max_post_length: "Maksimum tillatt lengde for innlegg i tegn"
-    topic_featured_link_enabled: "Tillat publisering av lenker som emner."
     show_topic_featured_link_in_digest: "Vis den fremhevede lenken fra et emne i e-postsammendrag."
     min_topic_title_length: "Minimum tillatt lengde for tittel i tegn"
     max_topic_title_length: "Maksimum tillatt lengde for innlegg i tegn"
     min_personal_message_title_length: "Minste lengde i antall tegn for en meldingstittel"
-    max_emojis_in_title: "Maksimalt antall emojier i en emnetittel"
     min_search_term_length: "Minimum lengde på søkeord i tegn"
-    search_tokenize_chinese_japanese_korean: "Tving søk til å tokenisere Kinesisk/Japansk/Koreansk selv på nettsteder uten KJK"
     search_prefer_recent_posts: "Hvis søking er tregt på et stort forum, vil dette valget forsøke å søke i en index av de nyeste innleggene først"
     search_recent_posts_size: "Hvor mange innlegg som beholdes i indeksen"
     log_search_queries: "Logg søkeord som benyttes av brukerne"
@@ -951,10 +962,7 @@ nb_NO:
     allow_duplicate_topic_titles: "Tillat flere emner med identisk tittel."
     unique_posts_mins: "Hvor mange minutter før en bruker kan lage et innlegg med det samme innholdet igjen"
     educate_until_posts: "Når brukeren begynner å skrive sine første (n) innlegg, vis pop-up med opplæringspanelet for nye brukere i redigeringspanelet."
-    title: "Navnet på denne siden, slik du vil ha det i title-taggen."
-    site_description: "Beskriv siden med en setning, vil brukes i beskrivelses-merkelappen."
     crawl_images: "Hent bilder fra ekstern URL for å sette inn korrekt høyde og bredde."
-    download_remote_images_to_local: "Konverter eksterne bilder ved å laste de ned lokalt, dette forhindrer ødelagte bilder."
     download_remote_images_threshold: "Minimum ledig diskplass for å kunne laste ned eksterne bilder (i prosent)"
     disabled_image_download_domains: "Eksterne bilder vil aldri bli lastet ned fra disse domenene (pipe-separert liste)."
     editing_grace_period: "(n) sekunder etter publisering vil redigering ikke opprette en ny versjon i redigeringsloggen."
@@ -963,8 +971,6 @@ nb_NO:
     staff_edit_locks_post: "Innlegg vil bli sperret for redigering av brukere hvis de har vært redigert av staben "
     edit_history_visible_to_public: "La alle se tidligere versjoner av et redigert innlegg. Hvis det er slått av, kan kun staben se det."
     delete_removed_posts_after: "Innlegg som blir fjernet av forfatter blir automatisk slettet etter (n) timer. Sett til 0 og innleggene blir slettet øyeblikkelig."
-    max_image_width: "Maksimal thumbnail bredde for bilder i et innlegg"
-    max_image_height: "Maksimal thumbnail høyde for bilder i et innlegg"
     fixed_category_positions: "Hvis denne er valgt kan du manuelt bestemme rekkefølgen i listen over kategorier. Ellers vil kategoriene sorteres automatisk basert på aktivitet."
     fixed_category_positions_on_create: "Hvis denne er valgt vil den fastsatte rekkefølgen på kategorier også gjelde for dialogboksen når man lager nye emner (krever fixed_category_positions)."
     add_rel_nofollow_to_user_content: 'Legg til rel nofollow på alle lenker som publiseres av brukere, bortsett fra interne lenker (inkludert foreldredomener). Hvis du endrer denne, må du rebake alle innlegg med: "rake posts:rebake"'
@@ -973,34 +979,25 @@ nb_NO:
     show_pinned_excerpt_mobile: "Vis utdrag fra festede emner i mobil visning."
     show_pinned_excerpt_desktop: "Vis utdrag fra festede emner i desktop visning."
     post_onebox_maxlength: "Maksimal lengde på et onebox Discourse innlegg i antall tegn."
-    blocked_onebox_domains: "En liste over domener som aldri vil bli forsøkt oneboxet."
     allowed_inline_onebox_domains: "En liste over domener hvor onebox brukes i miniatyrstørrelse hvis lenken ikke har en tittel"
-    max_oneboxes_per_post: "Maksimalt antall oneboxer i hvert innlegg."
     notification_email: "Adressen som skal brukes som avsender: på alle viktige system e-poster. Domenet som spesifiseres her må ha SPF, DKIM og reverse PTR record satt korrekt for at e-post skal nå frem."
     email_custom_headers: "En liste over tilpassede e-posthoder med pipe-tegn mellom hvert element"
     force_https: "Tving dette nettstedet til å bare tillate HTTPS. ADVARSEL: Du må IKKE aktivere dette valget før du har verifisert at HTTPS er riktig satt opp og fungerer absolutt alle steder! Har du sjekket CDN, alle sosiale loginmetoder og eventuelle eksterne ressurser for å sikre at de også er kompatible med HTTPS?"
     summary_score_threshold: "Minste score for at et innlegg skal inkluderes i 'Sammendrag for Emnet'"
     summary_percent_filter: "Når en bruker klikker 'Summér Dette Emnet', vis topp % av innlegg"
-    num_users_to_silence_new_user: "Hvis en ny brukers innlegg flagges som spam num_spam_flags_to_silence_new_user ganger av dette antallet brukere, skjul den nye brukerens innlegg og stans fremtidige innlegg. 0 for å deaktivere."
     num_tl3_flags_to_silence_new_user: "Hvis en ny brukers innlegg flagges av num_tl3_users_to_silence_new_user forskjellige brukere med tillitsnivå 3, skjul alle den nye brukerens innlegg og stans fremtidige innlegg. 0 for å deaktivere."
     num_tl3_users_to_silence_new_user: "Hvis en ny brukers innlegg flagges num_tl3_flags_to_silence_new_user ganger fra dette antallet brukere med tillitsnivå 3, skjul alle den nye brukerens innlegg og stans fremtidige innlegg. 0 for å deaktivere."
     notify_mods_when_user_silenced: "Hvis en bruker har blitt automatisk dempet, send en melding til alle moderatorene."
-    must_approve_users: "Stab må godkjenne alle nye brukere før de får lov til å ta i bruk siden."
     send_welcome_message: "Send alle nye brukere en velkomstmelding med en rask startveileder."
     topics_per_period_in_top_summary: "Antall emner som vises i standard oppsummering av mest populære emner."
     email_token_valid_hours: "Glemt passord / aktiver konto tokens er gyldig for (n) timer."
-    enable_badges: "Aktiver badge system"
     log_out_strict: "Ved utlogging, logg ut av ALLE enheter som er pålogget"
     invite_expiry_days: "Hvor lenge en bruker invitasjons nøkkel er gyldig i dager"
-    min_password_length: "Minimums passordslengde."
-    min_admin_password_length: "Minimums passordslengde for administrator."
-    google_oauth2_client_id: "Klient-ID tilhørende din Google-søknad."
     rate_limit_create_post: "Etter et innlegg må ny brukere vente (n) sekunder før de kan skrive et nytt"
     rate_limit_new_user_create_post: "Etter et innlegg må ny brukere vente (n) sekunder før de kan skrive et nytt"
     max_likes_per_day: "Maximum antall likes per bruker per dag"
     max_invites_per_day: "Maksimalt antall invitasjoner en bruker kan sende hver dag."
     max_logins_per_ip_per_hour: "Maksimalt antall innlogginger som tillates for hver IP-adresse per time."
-    selectable_avatars: "Liste over avatarer brukere kan velge mellom."
     allow_staff_to_upload_any_file_in_pm: "Tillat medlemmer av staben å laste opp hvilken som helst fil i private samtaler"
     newuser_max_links: "Hvor mange linker en ny bruker kan legge til i et innlegg."
     dark_mode_none: "Ingen"
@@ -1018,33 +1015,29 @@ nb_NO:
     digest_min_excerpt_length: "Minimal lengde på utdrag av innlegg i e-post-oppsummeringen, i antall tegn."
     suppress_digest_email_after_days: "Utelat oppsummerings-eposter for brukere ikke sett på nettstedet siden mer enn (n) dager."
     digest_suppress_categories: "Utelat disse kategoriene i oppsummerings-eposter"
-    disable_digest_emails: "Deaktiver oppsummerings-eposter for alle brukere."
     allow_profile_backgrounds: "Gi brukere mulighet til å laste opp profilbakgrunner."
     enable_mobile_theme: "Mobilenheter bruker et mobilvennlig drakt, med muligheten til å gå til den fulle siden. Deaktiver dette hvis du ønsker å bruke et tilpasset stilark."
     dominating_topic_minimum_percent: "Hvor mange innlegg en bruker kan lage innenfor en topic før de blir påminnet om dominering av en topic."
     automatically_unpin_topics: "Automatisk fjern feste for emner når brukeren når bunnen."
-    embed_truncate: "Forkort de innebygde innleggene."
     embed_post_limit: "Maksimalt antall innlegg som skal bygges inn."
     embed_username_required: "Brukernavn kreves for opprettelse av emne."
-    enable_emoji: "Aktiver emoji."
-    emoji_set: "Hvordan vil du ha din emoji?"
     default_email_digest_frequency: "Forvalgt innstilling for hvor ofte brukere mottar oppsummerings-e-poster"
     default_include_tl0_in_digests: "Inkluder innlegg fra nye brukere i oppsummerings-e-poster som forvalg. Brukere kan endre dette i innstillingene sine."
     default_email_mailing_list_mode_frequency: "Brukere som slår på e-postlistemodus, vil motta e-poster så ofte som forvalg"
     default_email_previous_replies: "Inkluder tidligere svar i e-poster som forvalg."
+    default_other_skip_new_user_tips: "Hopp over nye brukeropplæringstips og merker."
     default_topics_automatic_unpin: "La det være forvalgt innstilling å fjerne feste for emner automatisk når brukeren når bunnen."
     default_categories_watching: "Liste med kategorier som følges som forvalg"
     default_categories_tracking: "Liste med kategorier som overvåkes som forvalg"
     default_categories_muted: "Liste med kategorier som er dempet som forvalg"
     default_categories_watching_first_post: "Liste over kategorier hvor det er forvalgt innstilling at det første innlegget i hvert nye emne følges."
+    watched_precedence_over_muted: "Varsle meg om emner i kategorier eller tagger jeg ser på, som også tilhører en jeg har dempet"
     errors:
       invalid_email: "Ugyldig e-mail adresse"
       invalid_username: "Ingen bruker med det brukernavnet."
       invalid_integer_min_max: "Verdien må være mellom %{min} og %{max}."
       invalid_integer: "Verdien må være et heltall."
       invalid_string: "Ugyldig verdi"
-      invalid_string_min: "Må være minst %{min} tegn."
-      invalid_string_max: "Må ikke være mer enn %{max} tegn."
       min_username_length_range: "Du kan ikke sette minimum høyere enn maksimum."
       max_username_length_range: "Du kan ikke sette maksimum under minimum."
   search:
@@ -1084,6 +1077,12 @@ nb_NO:
     autoclosed_disabled: "Dette emnet er nå åpent. Nye svar er tillatt."
     autoclosed_disabled_lastpost: "Dette emnet er nå åpent. Nye svar er tillatt."
   login:
+    security_key_description: "Når du har din fysiske sikkerhetsnøkkel klargjort trykk på autentiseringen med sikkerhetsnøkkelknappen nedenfor."
+    security_key_alternative: "Prøv en annen måte"
+    security_key_authenticate: "Autentiser med sikkerhetsnøkkel"
+    security_key_not_allowed_error: "Autentiseringsprosessen for sikkerhetsnøkkelen ble enten tidsavbrutt eller kansellert."
+    security_key_no_matching_credential_error: "Ingen samsvarende opplysninger ble funnet på den angitte sikkerhetsnøkkelen."
+    security_key_support_missing_error: "Gjeldende enhet eller nettleser støtter ikke bruk av sikkerhetsnøkler. Vennligst bruk en annen metode."
     not_approved: "Kontoen din har ikke blitt godkjent ennå. Du vil få beskjed via e-post når du er klar til å logge inn."
     incorrect_username_email_or_password: "Feil brukernavn, email eller passord"
     wait_approval: "Takk for at du registrerte deg. Vi vil varsle deg når din konto er blitt godkjent."
@@ -1096,22 +1095,19 @@ nb_NO:
     new_registrations_disabled: "Nye kontoregistreringer tillates ikke per nå."
     password_too_long: "Passord er begrenset til 200 tegn."
     reserved_username: "Det brukernavnet tillates ikke."
-    missing_user_field: "Du har ikke fylt ut alle brukerfeltene."
+    second_factor_title: "To-faktor autentisering"
     second_factor_backup_description: "Vennligst skriv en av reservekodene dine:"
+    second_factor_toggle:
+      backup_code: "Bruk en sikkerhetskode i stedet"
   admin:
     email:
       sent_test: "sendt!"
   user:
     username:
-      short: "må være på minst %{min} tegn"
-      long: "kan ikke være mer enn %{max} tegn"
       unique: "må være unik"
       blank: "Må være til stede"
     email:
       blocked: "er ikke tillatt."
-    ip_address:
-      blocked: "Nye registreringer er ikke tillatt fra IP-adressen din."
-      max_new_accounts_per_registration_ip: "Nye registreringer er ikke tillatt fra IP-adressen din (maksimalt antall nådd). Ta kontakt med et medlem av staben."
   flags_dispositions:
     agreed: "Takk for at du sier ifra. Vi er enig at det er et problem her og vi ser på saken."
     disagreed: "Takk for at du sier ifra. Vi skal se på det. "
@@ -1141,8 +1137,9 @@ nb_NO:
   subject_pm: "[privat samtale]"
   user_notifications:
     previous_discussion: "Tidligere svar"
-    unsubscribe:
-      title: "Avmeld"
+    more_pm_participants:
+      one: "%{participants} og %{count} annen"
+      other: "%{participants} og %{count} andre"
     user_invited_to_private_message_pm_group:
       title: "Bruker inviterte gruppe til privat samtale"
     user_invited_to_private_message_pm:
@@ -1170,36 +1167,35 @@ nb_NO:
       title: "Konto sperret"
       subject_template: "[%{email_prefix}] Kontoen din er blitt sperret"
     digest:
-      why: "Dette har skjedd på %{site_link} siden ditt forrige besøk %{last_seen_at}"
       since_last_visit: "Siden siste besøk"
       new_topics: "Nye emner"
       unread_notifications: "Uleste varslinger."
       liked_received: "Likes mottatt"
       new_users: "Nye brukere"
       popular_topics: "Populære emner"
-      follow_topic: "Følg dette emnet"
       join_the_discussion: "Les mer"
       popular_posts: "Populære innlegg"
       more_new: "Nytt for deg"
       click_here: "trykk her"
-      preheader: "En kort oppsummering siden ditt siste besøk på %{last_seen_at}"
     forgot_password:
       title: "Glemt passord"
     set_password:
       title: "Sett passord"
+    post_approved:
+      title: "Ditt innlegg ble godkjent"
   page_not_found:
+    page_title: "Side Ikke funnet"
     title: "Oisann! Den siden finnes ikke eller er privat."
     popular_topics: "Populært"
     recent_topics: "Nylig"
     see_more: "Mer"
     search_title: "Søk i denne siden"
     search_button: "Søk"
-  deleted: "slettet"
-  image: "bilde"
   upload:
     edit_reason: "Last ned lokal kopi av bilder"
     unauthorized: "Beklager, filen du prøver å legge til er ikke autorisert\n(authorized extensions: %{authorized_extensions})."
     pasted_image_filename: "Limt inn bilde"
+    size_zero_failure: "Beklager, det ser ut til at noe har gått galt, filen du prøver å laste opp er 0 byte. Vennligst prøv igjen."
     images:
       size_not_found: "Beklager, vi kunne ikke fastslå størrelsen på bildet ditt. Kanskje bildet ditt er blitt ødelagt?"
   skipped_email_log:
@@ -1224,92 +1220,11 @@ nb_NO:
     rate_limit_error: "Innlegg kan lastes ned en gang om dagen, prøv igjen i morgen."
   guidelines_topic:
     title: "O-S-S/retningslinjer"
+    guidelines_title: "Retningslinjer"
   tos_topic:
     title: "Bruksvilkår"
   privacy_topic:
     title: "Personvernserklæring"
-    body: |
-      <a name="samle"></a>
-
-      ## [Hvilke opplysninger samler vi?](#samle)
-
-      Vi samler opplysninger fra deg når du registrerer deg på nettstedet vårt, og vi samler data når du deltar på forumet ved å lese, skrive og evaluere innholdet som deles her.
-
-      Når du registrerer deg på nettstedet vårt, kan du bli bedt om å oppgi navnet og e-postadressen din. Imidlertid kan du besøke nettstedet vårt uten å registrere deg. E-postadressen din vil bli bekreftet med en e-post som inneholder en unik lenke. Hvis siden den lenker til, blir besøkt, vet vi at du har kontroll over e-postadressen.
-
-      Når du registrerer deg og skriver innlegg, registrerer vi IP-adressen som innlegget stammer fra. Vi kan også oppbevare logger som inkluderer IP-adressen til alle forespørslene sendt til tjeneren vår.
-
-      <a name="bruk"></a>
-
-      ## [Hva bruker vi opplysningene dine til?](#bruk)
-
-      Alle opplysningene vi samler fra deg, kan bli brukt på en av følgende måter:
-
-      * For å gjøre opplevelsen din mer personlig. Opplysningene dine hjelper oss å svare bedre på dine individuelle behov.
-      * For å forbedre nettstedet vårt. Vi jobber konstant for å forbedre nettstedets tilbud basert på opplysningene og tilbakemeldingene vi mottar fra deg.
-      * For å forbedre vår kundeservice. Dine opplysninger hjelper oss å svare mer effektivt på dine forespørsler sendt til kundeservice eller behov om støtte.
-      * For å sende periodiske e-poster. E-postadressen du oppgir, kan bli brukt til å sende deg informasjon, påminnelser som du ber om ved endringer av emner eller ved svar til brukernavnet ditt, til henvendelser, og/eller andre forspørsler eller andre spørsmål.
-
-      <a name="sikre"></a>
-
-      ## [Hvordan sikrer vi opplysningene?](#sikre)
-
-      Vi gjennomfører flere sikkerhetstiltak for å holde personopplysningene dine sikre når du skriver inn, lagrer eller henter dem.
-
-      <a name="datalagring"></a>
-
-      ## [Hva er retningslinjene deres for lagring av data?](#datalagring)
-
-      Vi vil forsøke i god tro å:
-
-      * Ikke oppbevare tjener-logger som inneholder IP-adressen til alle forespørslene til denne tjeneren i lenger enn i 90 dager.
-      * Ikke oppbevare IP-adressene forbundet med registrerte brukere og deres innlegg lenger enn i 5 år.
-
-      <a name="informasjonskapsler"></a>
-
-      ## [Bruker vi informasjonskapsler?](#informasjonskapsler)
-
-      Ja. Informasjonskapsler er små filer som et nettsted eller dets tjenesteleverandør overfører til harddisken på datamaskinen din gjennom nettleseren din (dersom du tillater det). Disse informasjonskapslene gjør det mulig for nettstedet å gjenkjenne nettleseren din og, dersom du har en konto, knytte nettleseren til den.
-
-      Vi bruker informasjonskapsler for å forstå og lagre preferansene dine for fremtidige besøk og for å samle aggregatdata om trafikk på og samhandling med nettstedet slik at vi kan tilby bedre opplevelser og verktøy på nettstedet i fremtiden. Vi kan inngå avtaler med tredjeparts tjenesteleverandører for å bistå oss i å forstå besøkerne våres bedre. Disse tjenesteleverandørene har ikke lov til å bruke opplysningene samlet på våres vegne unntatt til å hjelpe oss å gjennomføre og forbedre anliggendet vårt.
-
-      <a name="gi-videre"></a>
-
-      ## [Gir vi noen opplysninger videre til andre parter?](#gi-videre)
-
-      Vi verken selger, handler med eller overfører på noen annen måte til andre parter dine identifiserbare personopplysninger. Dette inkluderer ikke tredjeparter som har vår tillit og bistår oss i å drive nettstedet, utføre våre anliggender eller yter tjenester til deg, så lenge disse partene samtykker til å behandle disse opplysningene fortrolig. Vi kan også frigi opplysningene dine dersom vi tror at å frigi dem er hensiktsmessig for å overholde loven, håndheve nettstedet retningslinjer eller beskytte våre og andres rettigheter. Imidlertid kan opplysninger som ikke er personlig identifiserbare, bli delt med andre parter for markedsføring, reklame eller annet bruk.
-
-      <a name="tredjepart"></a>
-
-      ## [Tredjeparts lenker](#tredjepart)
-
-      Av og til, etter skjønn, kan vil inkludere eller tilby tredjeparts produkter eller tjenester på nettstedet vårt. Disse tredjeparts nettstedene har separate og selvstendige personvernerklæringer. Vi bærer derfor intet ansvar eller forpliktelser for innholdet eller aktivitetene til disse nettstedene det lenkes til. Ikke mindre prøver vi å bevare vår eget nettsteds integritet og ønsker enhver tilbakemelding om disse nettstedene velkomne.
-
-      <a name="coppa"></a>
-
-      ## [Overensstemmelse med Children's Online Privacy Protection Act](#coppa)
-
-      Nettstedet, produktene og tjenestene våre er rettet mot folk som er minst 13 år gamle. Dersom denne tjeneren er i USA, og du er under 13 år i henhold til kravene i COPPA ([Children's Online Privacy Protection Act](https://en.wikipedia.org/wiki/Children%27s_Online_Privacy_Protection_Act)), ikke bruk dette nettstedet.
-
-      <a name="nett"></a>
-
-      ## [Personvernerklæring bare for nettet](#nett)
-
-      Denne nett-personvernerklæringen gjelder bare for informasjon samlet gjennom nettstedet vårt og ikke for opplysninger samlet når en er frakoblet.
-
-      <a name="samtykke"></a>
-
-      ## [Ditt samtykke](#samtykke)
-
-      Vet å bruke nettstedet vårt samtykker du til nettstedets personvernerklæring.
-
-      <a name="endringer"></a>
-
-      ## [Changes to our Privacy Policy](#endringer)
-
-      Dersom vi beslutter å endre personvernerklæringen vår, vil vi publisere disse endringene på denne siden.
-
-      Dette dokumentet er lisensiert under CC-BY-SA. De ble sist oppdatert 31. mai 2013.
   badges:
     editor:
       name: Tekstbehandler
@@ -1393,7 +1308,6 @@ nb_NO:
     register:
       button: "Registrer"
       title: "Registrer administratorkonto"
-      help: "registrer en ny konto for å komme igang"
     confirm_email:
       title: "Bekreft din e-postadresse"
     resend_email:
@@ -1401,34 +1315,18 @@ nb_NO:
       message: "<p>Vi har sendt aktiverings-eposten på nytt til <b>%{email}</b>"
   safe_mode:
     title: "Start sikkerhetsmodus"
-    description: "Sikkerhetsmodus lar deg teste nettstedet ditt uten at tillegg eller tilpasninger lastes."
   wizard:
     title: "Discourse-oppsett"
     step:
-      forum_title:
-        title: "Navn"
-      introduction:
-        title: "Introduksjon"
       privacy:
-        title: "Tilgang"
         fields:
-          privacy:
+          login_required:
+            label: "Synlighet"
             choices:
-              open:
+              public:
                 label: "Offentlig"
-              restricted:
+              private:
                 label: "Privat"
-      contact:
-        fields:
-          contact_email:
-            label: "E-post"
-            placeholder: "navn@example.com"
-          contact_url:
-            label: "Nettside"
-          site_contact:
-            label: "Automatiserte meldinger"
-      corporate:
-        title: "Organisasjon"
       styling:
         fields:
           styling_preview:
@@ -1436,26 +1334,10 @@ nb_NO:
           homepage_style:
             choices:
               latest:
-                label: "Siste emner"
-              categories_only:
-                label: "Kun kategorier"
-              categories_with_featured_topics:
-                label: "Kategorier med fremhevede emner"
-              categories_and_latest_topics:
-                label: "Kategorier og siste emner"
-              categories_and_top_topics:
-                label: "Kategorier og toppemner"
-      logos:
-        title: "Logoer"
-        fields:
-          logo:
-            label: "Primær logo"
-      icons:
-        title: "Ikoner"
-        fields:
-          large_icon:
-            label: "Stort ikon"
-  joined: "Medlem fra"
+                label: "Siste"
+  onebox:
+    github:
+      closed: "lukket"
   discourse_push_notifications:
     popup:
       mentioned: '%{username} nevnte deg i "%{topic}" - %{site_title}'
@@ -1463,35 +1345,43 @@ nb_NO:
       quoted: '%{username} siterte deg i "%{topic}" - %{site_title}'
       replied: '%{username} svarte deg i "%{topic}" - %{site_title}'
       posted: '%{username} skrev noe i "%{topic}" - %{site_title}'
+      private_message: '%{username} sendte deg en personlig melding i "%{topic}" - %{site_title}'
       linked: '%{username} lenket til innlegget ditt i "%{topic}" - %{site_title}'
+      watching_first_post: '%{username} opprettet et nytt emne "%{topic}" - %{site_title}'
       confirm_title: "Varslinger aktivert - %{site_title}"
       confirm_body: "Suksess! Varslinger er nå aktivert."
+      custom: "Varsling fra %{username} på %{site_title}"
+  staff_action_logs:
+    unknown: "ukjent"
   reviewables:
+    priorities:
+      low: "Lav"
+      medium: "Middels"
+      high: "Høy"
     sensitivity:
       disabled: "Deaktivert"
+      low: "Lav"
+      medium: "Middels"
+      high: "Høy"
     actions:
-      agree_and_keep:
-        title: "Behold innlegg"
-        description: "Samtykk med flagg og behold innlegget uendret."
+      agree:
+        title: "Ja"
       agree_and_suspend:
-        title: "Steng ute bruker"
         description: "Si deg enig med rapportering og steng ute bruker. "
       agree_and_silence:
-        title: "Demp bruker"
         description: "Si deg enig med rapportering og demp bruker. "
       agree_and_restore:
         description: "Gjenopprett innlegget slik at alle brukere kan se det."
-      agree_and_hide:
-        title: "Skjul innlegg"
-        description: "Gjem dette innlegget og send en melding til brukeren automatisk med en forespørsel om gjøre endringer."
       delete_single:
         title: "Slett"
       disagree_and_restore:
         description: "Gjenopprett innlegget slik at alle brukere kan se det."
       disagree:
-        title: "Si deg uenig"
+        title: "Nei"
       ignore:
         title: "Ignorer"
+      ignore_and_do_nothing:
+        title: "ikke gjør noe"
       approve:
         title: "Godkjenn"
       reject_user:

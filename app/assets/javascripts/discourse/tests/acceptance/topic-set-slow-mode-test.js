@@ -1,12 +1,13 @@
+import { click, visit } from "@ember/test-helpers";
+import { test } from "qunit";
 import {
   acceptance,
   fakeTime,
+  loggedInUser,
   queryAll,
   updateCurrentUser,
 } from "discourse/tests/helpers/qunit-helpers";
-import { click, visit } from "@ember/test-helpers";
-import { test } from "qunit";
-import I18n from "I18n";
+import { i18n } from "discourse-i18n";
 
 acceptance("Topic - Set Slow Mode", function (needs) {
   let clock = null;
@@ -28,7 +29,7 @@ acceptance("Topic - Set Slow Mode", function (needs) {
   });
 
   needs.hooks.beforeEach(() => {
-    const timezone = moment.tz.guess();
+    const timezone = loggedInUser().user_option.timezone;
     clock = fakeTime("2100-05-03T08:00:00", timezone, true); // Monday morning
   });
 
@@ -51,16 +52,14 @@ acceptance("Topic - Set Slow Mode", function (needs) {
     );
 
     const expected = [
-      I18n.t("topic.auto_update_input.later_today"),
-      I18n.t("topic.auto_update_input.tomorrow"),
-      I18n.t("topic.auto_update_input.next_week"),
-      I18n.t("topic.auto_update_input.two_weeks"),
-      I18n.t("topic.auto_update_input.next_month"),
-      I18n.t("topic.auto_update_input.two_months"),
-      I18n.t("topic.auto_update_input.three_months"),
-      I18n.t("topic.auto_update_input.four_months"),
-      I18n.t("topic.auto_update_input.six_months"),
-      I18n.t("topic.auto_update_input.pick_date_and_time"),
+      i18n("time_shortcut.later_today"),
+      i18n("time_shortcut.tomorrow"),
+      i18n("time_shortcut.two_days"),
+      i18n("time_shortcut.next_week"),
+      i18n("time_shortcut.two_weeks"),
+      i18n("time_shortcut.next_month"),
+      i18n("time_shortcut.two_months"),
+      i18n("time_shortcut.custom"),
     ];
 
     assert.deepEqual(options, expected, "options are correct");

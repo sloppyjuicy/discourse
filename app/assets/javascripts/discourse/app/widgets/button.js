@@ -1,8 +1,9 @@
-import DiscourseURL from "discourse/lib/url";
-import I18n from "I18n";
-import { createWidget } from "discourse/widgets/widget";
+import $ from "jquery";
 import { h } from "virtual-dom";
-import { iconNode } from "discourse-common/lib/icon-library";
+import { iconNode } from "discourse/lib/icon-library";
+import DiscourseURL from "discourse/lib/url";
+import { createWidget } from "discourse/widgets/widget";
+import { i18n } from "discourse-i18n";
 
 export const ButtonClass = {
   tagName: "button.widget-button.btn",
@@ -10,7 +11,7 @@ export const ButtonClass = {
   buildClasses(attrs) {
     let className = this.attrs.className || "";
 
-    let hasText = attrs.label || attrs.contents;
+    let hasText = attrs.translatedLabel || attrs.label || attrs.contents;
 
     if (!hasText) {
       className += " no-text";
@@ -34,7 +35,7 @@ export const ButtonClass = {
     let title = attrs.translatedTitle;
 
     if (!title && attrs.title) {
-      title = I18n.t(attrs.title, attrs.titleOptions);
+      title = i18n(attrs.title, attrs.titleOptions);
     }
 
     if (title) {
@@ -43,6 +44,26 @@ export const ButtonClass = {
 
     if (attrs.role) {
       attributes["role"] = attrs.role;
+    }
+
+    if (attrs.translatedAriaLabel) {
+      attributes["aria-label"] = attrs.translatedAriaLabel;
+    }
+
+    if (attrs.ariaExpanded) {
+      attributes["aria-expanded"] = attrs.ariaExpanded;
+    }
+
+    if (attrs.ariaControls) {
+      attributes["aria-controls"] = attrs.ariaControls;
+    }
+
+    if (attrs.ariaPressed) {
+      attributes["aria-pressed"] = attrs.ariaPressed;
+    }
+
+    if (attrs.ariaLive) {
+      attributes["aria-live"] = attrs.ariaLive;
     }
 
     if (attrs.tabAttrs) {
@@ -78,12 +99,16 @@ export const ButtonClass = {
   html(attrs) {
     const contents = [];
     const left = !attrs.iconRight;
+
     if (attrs.icon && left) {
       contents.push(this._buildIcon(attrs));
     }
+    if (attrs.emoji && left) {
+      contents.push(this.attach("emoji", { name: attrs.emoji }));
+    }
     if (attrs.label) {
       contents.push(
-        h("span.d-button-label", I18n.t(attrs.label, attrs.labelOptions))
+        h("span.d-button-label", i18n(attrs.label, attrs.labelOptions))
       );
     }
     if (attrs.translatedLabel) {
@@ -97,6 +122,9 @@ export const ButtonClass = {
     }
     if (attrs.contents) {
       contents.push(attrs.contents);
+    }
+    if (attrs.emoji && !left) {
+      contents.push(this.attach("emoji", { name: attrs.emoji }));
     }
     if (attrs.icon && !left) {
       contents.push(this._buildIcon(attrs));
@@ -131,7 +159,7 @@ export default createWidget("button", ButtonClass);
 
 createWidget(
   "flat-button",
-  jQuery.extend(ButtonClass, {
+  Object.assign(ButtonClass, {
     tagName: "button.widget-button.btn-flat",
   })
 );

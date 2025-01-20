@@ -3,26 +3,27 @@
 class About
   class CategoryMods
     include ActiveModel::Serialization
-    attr_reader :category_id, :moderators
+    attr_reader :category, :moderators
 
-    def initialize(category_id, moderators)
-      @category_id = category_id
+    def initialize(category, moderators)
+      @category = category
       @moderators = moderators
+    end
+
+    def parent_category
+      category.parent_category
     end
   end
 
   include ActiveModel::Serialization
   include StatsCacheable
 
-  attr_accessor :moderators,
-                :admins
-
   def self.stats_cache_key
-    'about-stats'
+    "about-stats"
   end
 
   def self.fetch_stats
-    About.new.stats
+    Stat.api_stats
   end
 
   def initialize(user = nil)
@@ -49,47 +50,44 @@ class About
     SiteSetting.site_description
   end
 
+  def extended_site_description
+    SiteSetting.extended_site_description_cooked
+  end
+
+  def banner_image
+    url = SiteSetting.about_banner_image&.url
+    return if url.blank?
+    GlobalPath.full_cdn_url(url)
+  end
+
+  def site_creation_date
+    Discourse.site_creation_date
+  end
+
   def moderators
-    @moderators ||= User.where(moderator: true, admin: false)
-      .human_users
-      .order("last_seen_at DESC")
+    @moderators ||=
+      apply_excluded_groups(
+        User.where(moderator: true, admin: false).human_users.order(last_seen_at: :desc),
+      )
   end
 
   def admins
-    @admins ||= User.where(admin: true)
-      .human_users
-      .order("last_seen_at DESC")
+    @admins ||=
+      DiscoursePluginRegistry.apply_modifier(
+        :about_admins,
+        apply_excluded_groups(User.where(admin: true).human_users.order(last_seen_at: :desc)),
+      )
   end
 
   def stats
-    @stats ||= {
-      topic_count: Topic.listable_topics.count,
-      topics_last_day: Topic.listable_topics.where('created_at > ?', 1.days.ago).count,
-      topics_7_days: Topic.listable_topics.where('created_at > ?', 7.days.ago).count,
-      topics_30_days: Topic.listable_topics.where('created_at > ?', 30.days.ago).count,
-      post_count: Post.count,
-      posts_last_day: Post.where('created_at > ?', 1.days.ago).count,
-      posts_7_days: Post.where('created_at > ?', 7.days.ago).count,
-      posts_30_days: Post.where('created_at > ?', 30.days.ago).count,
-      user_count: User.real.count,
-      users_last_day: User.real.where('created_at > ?', 1.days.ago).count,
-      users_7_days: User.real.where('created_at > ?', 7.days.ago).count,
-      users_30_days: User.real.where('created_at > ?', 30.days.ago).count,
-      active_users_last_day: User.where('last_seen_at > ?', 1.days.ago).count,
-      active_users_7_days: User.where('last_seen_at > ?', 7.days.ago).count,
-      active_users_30_days: User.where('last_seen_at > ?', 30.days.ago).count,
-      like_count: UserAction.where(action_type: UserAction::LIKE).count,
-      likes_last_day: UserAction.where(action_type: UserAction::LIKE).where("created_at > ?", 1.days.ago).count,
-      likes_7_days: UserAction.where(action_type: UserAction::LIKE).where("created_at > ?", 7.days.ago).count,
-      likes_30_days: UserAction.where(action_type: UserAction::LIKE).where("created_at > ?", 30.days.ago).count
-    }
+    @stats ||= About.fetch_cached_stats
   end
 
   def category_moderators
     allowed_cats = Guardian.new(@user).allowed_category_ids
     return [] if allowed_cats.blank?
 
-    cats_with_mods = Category.where.not(reviewable_by_group_id: nil).pluck(:id)
+    cats_with_mods = Category.joins(:category_moderation_groups).distinct.pluck(:id)
 
     category_ids = cats_with_mods & allowed_cats
     return [] if category_ids.blank?
@@ -97,22 +95,38 @@ class About
     per_cat_limit = category_mods_limit / category_ids.size
     per_cat_limit = 1 if per_cat_limit < 1
 
-    results = DB.query(<<~SQL, category_ids: category_ids)
-        SELECT c.id category_id
-             , (ARRAY_AGG(u.id ORDER BY u.last_seen_at DESC))[:#{per_cat_limit}] user_ids
-          FROM categories c
-          JOIN group_users gu ON gu.group_id = c.reviewable_by_group_id
-          JOIN users u ON u.id = gu.user_id
-         WHERE c.id IN (:category_ids)
-      GROUP BY c.id
-      ORDER BY c.position
+    results = DB.query(<<~SQL, category_ids:)
+      WITH moderator_users AS (
+        SELECT
+          cmg.category_id AS category_id,
+          u.id AS user_id,
+          u.last_seen_at,
+          ROW_NUMBER() OVER (PARTITION BY cmg.category_id, u.id ORDER BY u.last_seen_at DESC) as rn
+        FROM category_moderation_groups cmg
+        INNER JOIN group_users gu
+          ON cmg.group_id = gu.group_id
+        INNER JOIN users u
+          ON gu.user_id = u.id
+        WHERE cmg.category_id IN (:category_ids)
+      )
+      SELECT id AS category_id, user_ids
+      FROM categories
+      INNER JOIN (
+        SELECT
+          category_id,
+          (ARRAY_AGG(user_id ORDER BY last_seen_at DESC))[:#{per_cat_limit}] AS user_ids
+        FROM moderator_users
+        WHERE rn = 1
+        GROUP BY category_id
+      ) X
+      ON X.category_id = id
+      ORDER BY position
     SQL
 
+    cats = Category.where(id: results.map(&:category_id)).index_by(&:id)
     mods = User.where(id: results.map(&:user_ids).flatten.uniq).index_by(&:id)
 
-    results.map do |row|
-      CategoryMods.new(row.category_id, mods.values_at(*row.user_ids))
-    end
+    results.map { |row| CategoryMods.new(cats[row.category_id], mods.values_at(*row.user_ids)) }
   end
 
   def category_mods_limit
@@ -121,5 +135,19 @@ class About
 
   def category_mods_limit=(number)
     @category_mods_limit = number
+  end
+
+  private
+
+  def apply_excluded_groups(query)
+    group_ids = SiteSetting.about_page_hidden_groups_map
+    return query if group_ids.blank?
+
+    query.joins(
+      DB.sql_fragment(
+        "LEFT JOIN group_users ON group_id IN (:group_ids) AND user_id = users.id",
+        group_ids:,
+      ),
+    ).where("group_users.id": nil)
   end
 end

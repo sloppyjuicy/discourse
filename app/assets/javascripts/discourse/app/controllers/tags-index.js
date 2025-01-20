@@ -1,25 +1,36 @@
-import { alias, notEmpty } from "@ember/object/computed";
 import Controller from "@ember/controller";
-import I18n from "I18n";
+import { action } from "@ember/object";
+import { alias, notEmpty } from "@ember/object/computed";
+import { service } from "@ember/service";
+import TagUpload from "discourse/components/modal/tag-upload";
 import { ajax } from "discourse/lib/ajax";
-import bootbox from "bootbox";
-import discourseComputed from "discourse-common/utils/decorators";
 import { popupAjaxError } from "discourse/lib/ajax-error";
-import showModal from "discourse/lib/show-modal";
+import discourseComputed from "discourse/lib/decorators";
+import { i18n } from "discourse-i18n";
 
-export default Controller.extend({
-  sortedByCount: true,
-  sortedByName: false,
+export default class TagsIndexController extends Controller {
+  @service dialog;
+  @service modal;
 
-  canAdminTags: alias("currentUser.staff"),
-  groupedByCategory: notEmpty("model.extras.categories"),
-  groupedByTagGroup: notEmpty("model.extras.tag_groups"),
+  sortedByCount = true;
+  sortedByName = false;
+
+  @alias("siteSettings.tags_sort_alphabetically") sortAlphabetically;
+  @alias("currentUser.staff") canAdminTags;
+  @notEmpty("model.extras.categories") groupedByCategory;
+  @notEmpty("model.extras.tag_groups") groupedByTagGroup;
 
   init() {
-    this._super(...arguments);
+    super.init(...arguments);
 
-    this.sortProperties = ["totalCount:desc", "id"];
-  },
+    const isAlphaSort = this.sortAlphabetically;
+
+    this.setProperties({
+      sortedByCount: isAlphaSort ? false : true,
+      sortedByName: isAlphaSort ? true : false,
+      sortProperties: isAlphaSort ? ["id"] : ["totalCount:desc", "id"],
+    });
+  }
 
   @discourseComputed("groupedByCategory", "groupedByTagGroup")
   otherTagsTitleKey(groupedByCategory, groupedByTagGroup) {
@@ -28,7 +39,7 @@ export default Controller.extend({
     } else {
       return "tagging.other_tags";
     }
-  },
+  }
 
   @discourseComputed
   actionsMapping() {
@@ -37,72 +48,73 @@ export default Controller.extend({
       uploadTags: () => this.send("showUploader"),
       deleteUnusedTags: () => this.send("deleteUnused"),
     };
-  },
+  }
 
-  actions: {
-    sortByCount() {
-      this.setProperties({
-        sortProperties: ["totalCount:desc", "id"],
-        sortedByCount: true,
-        sortedByName: false,
-      });
-    },
+  @action
+  sortByCount(event) {
+    event?.preventDefault();
+    this.setProperties({
+      sortProperties: ["totalCount:desc", "id"],
+      sortedByCount: true,
+      sortedByName: false,
+    });
+  }
 
-    sortById() {
-      this.setProperties({
-        sortProperties: ["id"],
-        sortedByCount: false,
-        sortedByName: true,
-      });
-    },
+  @action
+  sortById(event) {
+    event?.preventDefault();
+    this.setProperties({
+      sortProperties: ["id"],
+      sortedByCount: false,
+      sortedByName: true,
+    });
+  }
 
-    showUploader() {
-      showModal("tag-upload");
-    },
+  @action
+  showUploader() {
+    this.modal.show(TagUpload);
+  }
 
-    deleteUnused() {
-      ajax("/tags/unused", { type: "GET" })
-        .then((result) => {
-          const displayN = 20;
-          const tags = result["tags"];
+  @action
+  deleteUnused() {
+    ajax("/tags/unused", { type: "GET" })
+      .then((result) => {
+        const displayN = 20;
+        const tags = result["tags"];
 
-          if (tags.length === 0) {
-            bootbox.alert(I18n.t("tagging.delete_no_unused_tags"));
-            return;
-          }
+        if (tags.length === 0) {
+          this.dialog.alert(i18n("tagging.delete_no_unused_tags"));
+          return;
+        }
 
-          const joinedTags = tags
-            .slice(0, displayN)
-            .join(I18n.t("tagging.tag_list_joiner"));
-          const more = Math.max(0, tags.length - displayN);
+        const joinedTags = tags
+          .slice(0, displayN)
+          .join(i18n("tagging.tag_list_joiner"));
+        const more = Math.max(0, tags.length - displayN);
 
-          const tagsString =
-            more === 0
-              ? joinedTags
-              : I18n.t("tagging.delete_unused_confirmation_more_tags", {
-                  count: more,
-                  tags: joinedTags,
-                });
+        const tagsString =
+          more === 0
+            ? joinedTags
+            : i18n("tagging.delete_unused_confirmation_more_tags", {
+                count: more,
+                tags: joinedTags,
+              });
 
-          const string = I18n.t("tagging.delete_unused_confirmation", {
-            count: tags.length,
-            tags: tagsString,
-          });
+        const message = i18n("tagging.delete_unused_confirmation", {
+          count: tags.length,
+          tags: tagsString,
+        });
 
-          bootbox.confirm(
-            string,
-            I18n.t("tagging.cancel_delete_unused"),
-            I18n.t("tagging.delete_unused"),
-            (proceed) => {
-              if (proceed) {
-                ajax("/tags/unused", { type: "DELETE" })
-                  .then(() => this.send("triggerRefresh"))
-                  .catch(popupAjaxError);
-              }
-            }
-          );
-        })
-        .catch(popupAjaxError);
-    },
-  },
-});
+        this.dialog.deleteConfirm({
+          message,
+          confirmButtonLabel: "tagging.delete_unused",
+          didConfirm: () => {
+            return ajax("/tags/unused", { type: "DELETE" })
+              .then(() => this.send("triggerRefresh"))
+              .catch(popupAjaxError);
+          },
+        });
+      })
+      .catch(popupAjaxError);
+  }
+}

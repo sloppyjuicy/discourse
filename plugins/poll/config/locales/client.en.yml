@@ -7,6 +7,9 @@ en:
       total_votes:
         one: "total vote"
         other: "total votes"
+      votes:
+        one: "%{count} vote"
+        other: "%{count} votes"
 
       average_rating: "Average rating: <strong>%{average}</strong>."
 
@@ -22,19 +25,21 @@ en:
           title: "Results will be shown once <strong>closed</strong>."
         staff:
           title: "Results are only shown to <strong>staff</strong> members."
-
+        tabs:
+          votes: "Votes"
+          outcome: "Outcome"
       multiple:
         help:
           at_least_min_options:
-            one: "Choose at least <strong>%{count}</strong> option."
-            other: "Choose at least <strong>%{count}</strong> options."
+            one: "Choose at least <strong>%{count} option</strong>."
+            other: "Choose at least <strong>%{count} options</strong>."
           up_to_max_options:
-            one: "Choose up to <strong>%{count}</strong> option."
-            other: "Choose up to <strong>%{count}</strong> options."
+            one: "Choose up to <strong>%{count} option</strong>."
+            other: "Choose up to <strong>%{count} options</strong>."
           x_options:
-            one: "Choose <strong>%{count}</strong> option."
-            other: "Choose <strong>%{count}</strong> options."
-          between_min_and_max_options: "Choose between <strong>%{min}</strong> and <strong>%{max}</strong> options."
+            one: "Choose <strong>%{count} option</strong>."
+            other: "Choose <strong>%{count} options</strong>."
+          between_min_and_max_options: "Choose between <strong>%{min} and %{max} options</strong>."
 
       cast-votes:
         title: "Cast your votes"
@@ -42,15 +47,23 @@ en:
 
       show-results:
         title: "Display the poll results"
-        label: "Show results"
+        label: "Results"
+
+      show-tally:
+        title: "Show voting results by number of votes"
+        label: "Display tally"
+
+      show-percentage:
+        title: "Show voting results as percentage"
+        label: "Display as percentage"
 
       remove-vote:
         title: "Remove your vote"
-        label: "Remove vote"
+        label: "Undo vote"
 
       hide-results:
         title: "Back to your votes"
-        label: "Show vote"
+        label: "Vote"
 
       group-results:
         title: "Group votes by user field"
@@ -81,6 +94,29 @@ en:
         percentage: "Percentage"
         count: "Count"
 
+      ranked_choice:
+        title:
+          rounds: "Rounds"
+          outcome: "Result"
+        none: "None"
+        majority: "Majority"
+        eliminated: "Eliminated"
+        round: "Round"
+        winner:
+          one: "Winner was %{winner} after one round."
+          other: "Winner was %{winner} after %{count} rounds."
+        tied:
+          one: "Tied after one round between the following candidates:"
+          other: "Tied after %{count} rounds between the following candidates:"
+
+      options:
+        label: "Options"
+        ranked_choice:
+          abstain: "Abstain"
+          highest_priority: "(highest priority)"
+          lowest_priority: "(lowest priority)"
+          login: "Login to vote!"
+
       error_while_toggling_status: "Sorry, there was an error toggling the status of this poll."
       error_while_casting_votes: "Sorry, there was an error casting your votes."
       error_while_fetching_voters: "Sorry, there was an error displaying the voters."
@@ -100,6 +136,7 @@ en:
           label: Type
           regular: Single Choice
           multiple: Multiple Choice
+          ranked_choice: Ranked Choice
           number: Number Rating
         poll_result:
           label: Show Results...

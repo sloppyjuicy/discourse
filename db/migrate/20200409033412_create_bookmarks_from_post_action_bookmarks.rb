@@ -2,15 +2,27 @@
 
 class CreateBookmarksFromPostActionBookmarks < ActiveRecord::Migration[6.0]
   def up
-    SiteSetting.enable_bookmarks_with_reminders = true
+    bookmarks_with_reminders_val =
+      DB.query_single(
+        "SELECT value FROM site_settings WHERE name = 'enable_bookmarks_with_reminders'",
+      )
+
+    if bookmarks_with_reminders_val.present?
+      DB.exec("UPDATE site_settings SET value = 't' WHERE name = 'enable_bookmarks_with_reminders'")
+    else
+      # data_type 5 is boolean
+      DB.exec(<<~SQL)
+        INSERT INTO site_settings(name, value, data_type, created_at, updated_at)
+        VALUES('enable_bookmarks_with_reminders', 't', 5, NOW(), NOW())
+      SQL
+    end
 
     bookmarks_to_create = []
     loop do
       # post action type id 1 is :bookmark. we do not need to OFFSET here for
       # paging because the WHERE bookmarks.id IS NULL clause handles this effectively,
       # because we do not get bookmarks back that have already been inserted
-      post_action_bookmarks = DB.query(
-        <<~SQL, type_id: 1
+      post_action_bookmarks = DB.query(<<~SQL, type_id: 1)
         SELECT post_actions.id, post_actions.post_id, posts.topic_id, post_actions.user_id
         FROM post_actions
         INNER JOIN posts ON posts.id = post_actions.post_id
@@ -20,7 +32,6 @@ class CreateBookmarksFromPostActionBookmarks < ActiveRecord::Migration[6.0]
         WHERE bookmarks.id IS NULL AND post_action_type_id = :type_id AND post_actions.deleted_at IS NULL AND posts.deleted_at IS NULL
         LIMIT 2000
         SQL
-      )
       break if post_action_bookmarks.count.zero?
 
       post_action_bookmarks.each do |pab|
@@ -48,12 +59,10 @@ class CreateBookmarksFromPostActionBookmarks < ActiveRecord::Migration[6.0]
     # the above LEFT JOIN but best to be safe knowing this
     # won't blow up
     #
-    DB.exec(
-      <<~SQL
+    DB.exec(<<~SQL)
       INSERT INTO bookmarks (topic_id, post_id, user_id, created_at, updated_at)
       VALUES #{bookmarks_to_create.join(",\n")}
       ON CONFLICT DO NOTHING
       SQL
-    )
   end
 end

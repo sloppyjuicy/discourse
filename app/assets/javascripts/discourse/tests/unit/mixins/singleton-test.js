@@ -1,20 +1,23 @@
-import { module, test } from "qunit";
 import EmberObject from "@ember/object";
+import { setupTest } from "ember-qunit";
+import { module, test } from "qunit";
 import Singleton from "discourse/mixins/singleton";
 
-module("Unit | Mixin | singleton", function () {
+module("Unit | Mixin | singleton", function (hooks) {
+  setupTest(hooks);
+
   test("current", function (assert) {
-    let DummyModel = EmberObject.extend({});
+    let DummyModel = class extends EmberObject {};
     DummyModel.reopenClass(Singleton);
 
     let current = DummyModel.current();
     assert.present(current, "current returns the current instance");
-    assert.equal(
+    assert.strictEqual(
       current,
       DummyModel.current(),
       "calling it again returns the same instance"
     );
-    assert.notEqual(
+    assert.notStrictEqual(
       current,
       DummyModel.create({}),
       "we can create other instances that are not the same as current"
@@ -22,7 +25,7 @@ module("Unit | Mixin | singleton", function () {
   });
 
   test("currentProp reading", function (assert) {
-    let DummyModel = EmberObject.extend({});
+    let DummyModel = class extends EmberObject {};
     DummyModel.reopenClass(Singleton);
     let current = DummyModel.current();
 
@@ -31,7 +34,7 @@ module("Unit | Mixin | singleton", function () {
       "by default attributes are blank"
     );
     current.set("evil", "trout");
-    assert.equal(
+    assert.strictEqual(
       DummyModel.currentProp("evil"),
       "trout",
       "after changing the instance, the value is set"
@@ -39,7 +42,7 @@ module("Unit | Mixin | singleton", function () {
   });
 
   test("currentProp writing", function (assert) {
-    let DummyModel = EmberObject.extend({});
+    let DummyModel = class extends EmberObject {};
     DummyModel.reopenClass(Singleton);
 
     assert.blank(
@@ -47,22 +50,22 @@ module("Unit | Mixin | singleton", function () {
       "by default attributes are blank"
     );
     let result = DummyModel.currentProp("adventure", "time");
-    assert.equal(result, "time", "it returns the new value");
-    assert.equal(
+    assert.strictEqual(result, "time", "it returns the new value");
+    assert.strictEqual(
       DummyModel.currentProp("adventure"),
       "time",
       "after calling currentProp the value is set"
     );
 
     DummyModel.currentProp("count", 0);
-    assert.equal(
+    assert.strictEqual(
       DummyModel.currentProp("count"),
       0,
       "we can set the value to 0"
     );
 
     DummyModel.currentProp("adventure", null);
-    assert.equal(
+    assert.strictEqual(
       DummyModel.currentProp("adventure"),
       null,
       "we can set the value to null"
@@ -70,14 +73,14 @@ module("Unit | Mixin | singleton", function () {
   });
 
   test("createCurrent", function (assert) {
-    let Shoe = EmberObject.extend({});
+    let Shoe = class extends EmberObject {};
     Shoe.reopenClass(Singleton, {
       createCurrent: function () {
         return Shoe.create({ toes: 5 });
       },
     });
 
-    assert.equal(
+    assert.strictEqual(
       Shoe.currentProp("toes"),
       5,
       "it created the class using `createCurrent`"
@@ -85,7 +88,7 @@ module("Unit | Mixin | singleton", function () {
   });
 
   test("createCurrent that returns null", function (assert) {
-    let Missing = EmberObject.extend({});
+    let Missing = class extends EmberObject {};
     Missing.reopenClass(Singleton, {
       createCurrent: function () {
         return null;

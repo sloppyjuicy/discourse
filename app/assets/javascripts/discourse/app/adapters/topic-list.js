@@ -1,43 +1,48 @@
-import PreloadStore from "discourse/lib/preload-store";
 import RestAdapter from "discourse/adapters/rest";
 import { ajax } from "discourse/lib/ajax";
-import getURL from "discourse-common/lib/get-url";
+import PreloadStore from "discourse/lib/preload-store";
+import Topic from "discourse/models/topic";
 
-export function finderFor(filter, params) {
-  return function () {
-    let url = getURL("/") + filter + ".json";
+export default class TopicListAdapter extends RestAdapter {
+  find(store, type, { filter, params }) {
+    return PreloadStore.getAndRemove("topic_list", () => {
+      let url = `/${filter}.json`;
 
-    if (params) {
-      const keys = Object.keys(params),
-        encoded = [];
+      if (params) {
+        const urlSearchParams = new URLSearchParams();
 
-      keys.forEach(function (p) {
-        const value = encodeURI(params[p]);
-        if (typeof value !== "undefined") {
-          encoded.push(p + "=" + value);
+        for (const [key, value] of Object.entries(params)) {
+          if (typeof value === "undefined") {
+            continue;
+          }
+
+          if (Array.isArray(value)) {
+            for (const arrayValue of value) {
+              urlSearchParams.append(`${key}[]`, arrayValue);
+            }
+          } else {
+            urlSearchParams.set(key, value);
+          }
         }
-      });
 
-      if (encoded.length > 0) {
-        url += "?" + encoded.join("&");
+        const queryString = urlSearchParams.toString();
+
+        if (queryString) {
+          url += `?${queryString}`;
+        }
       }
-    }
-    return ajax(url);
-  };
-}
 
-export default RestAdapter.extend({
-  find(store, type, findArgs) {
-    const filter = findArgs.filter;
-    const params = findArgs.params;
-
-    return PreloadStore.getAndRemove(
-      "topic_list_" + filter,
-      finderFor(filter, params)
-    ).then(function (result) {
+      return ajax(url);
+    }).then((result) => {
       result.filter = filter;
       result.params = params;
       return result;
     });
-  },
-});
+  }
+
+  async applyTransformations(results) {
+    for (const topicList of results) {
+      await Topic.applyTransformations(topicList.topics);
+    }
+  }
+}

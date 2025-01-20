@@ -1,19 +1,23 @@
 import Controller from "@ember/controller";
-import EmberObject from "@ember/object";
-import I18n from "I18n";
-import discourseComputed from "discourse-common/utils/decorators";
-import showModal from "discourse/lib/show-modal";
+import EmberObject, { action } from "@ember/object";
+import { service } from "@ember/service";
+import discourseComputed from "discourse/lib/decorators";
+import { i18n } from "discourse-i18n";
+import ColorSchemeSelectBaseModal from "admin/components/modal/color-scheme-select-base";
 
-export default Controller.extend({
+export default class AdminCustomizeColorsController extends Controller {
+  @service router;
+  @service modal;
+
   @discourseComputed("model.@each.id")
   baseColorScheme() {
     return this.model.findBy("is_base", true);
-  },
+  }
 
   @discourseComputed("model.@each.id")
   baseColorSchemes() {
     return this.model.filterBy("is_base", true);
-  },
+  }
 
   @discourseComputed("baseColorScheme")
   baseColors(baseColorScheme) {
@@ -22,28 +26,30 @@ export default Controller.extend({
       baseColorsHash.set(color.get("name"), color);
     });
     return baseColorsHash;
-  },
+  }
 
-  actions: {
-    newColorSchemeWithBase(baseKey) {
-      const base = this.baseColorSchemes.findBy("base_scheme_id", baseKey);
-      const newColorScheme = base.copy();
-      newColorScheme.setProperties({
-        name: I18n.t("admin.customize.colors.new_name"),
-        base_scheme_id: base.get("base_scheme_id"),
-      });
-      newColorScheme.save().then(() => {
-        this.model.pushObject(newColorScheme);
-        newColorScheme.set("savingStatus", null);
-        this.replaceRoute("adminCustomize.colors.show", newColorScheme);
-      });
-    },
+  @action
+  newColorSchemeWithBase(baseKey) {
+    const base = this.baseColorSchemes.findBy("base_scheme_id", baseKey);
+    const newColorScheme = base.copy();
+    newColorScheme.setProperties({
+      name: i18n("admin.customize.colors.new_name"),
+      base_scheme_id: base.get("base_scheme_id"),
+    });
+    newColorScheme.save().then(() => {
+      this.model.pushObject(newColorScheme);
+      newColorScheme.set("savingStatus", null);
+      this.router.replaceWith("adminCustomize.colors.show", newColorScheme);
+    });
+  }
 
-    newColorScheme() {
-      showModal("admin-color-scheme-select-base", {
-        model: this.baseColorSchemes,
-        admin: true,
-      });
-    },
-  },
-});
+  @action
+  newColorScheme() {
+    this.modal.show(ColorSchemeSelectBaseModal, {
+      model: {
+        baseColorSchemes: this.baseColorSchemes,
+        newColorSchemeWithBase: this.newColorSchemeWithBase,
+      },
+    });
+  }
+}

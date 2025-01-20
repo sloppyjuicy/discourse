@@ -1,24 +1,39 @@
 import Component from "@ember/component";
-import discourseComputed from "discourse-common/utils/decorators";
+import { classNameBindings } from "@ember-decorators/component";
+import discourseComputed from "discourse/lib/decorators";
+import { isWebauthnSupported } from "discourse/lib/webauthn";
 import { findAll } from "discourse/models/login-method";
 
-export default Component.extend({
-  elementId: "login-buttons",
-  classNameBindings: ["hidden"],
+@classNameBindings("hidden", "multiple")
+export default class LoginButtons extends Component {
+  elementId = "login-buttons";
 
-  @discourseComputed("buttons.length", "showLoginWithEmailLink")
-  hidden(buttonsCount, showLoginWithEmailLink) {
-    return buttonsCount === 0 && !showLoginWithEmailLink;
-  },
+  @discourseComputed(
+    "buttons.length",
+    "showLoginWithEmailLink",
+    "showPasskeysButton"
+  )
+  hidden(buttonsCount, showLoginWithEmailLink, showPasskeysButton) {
+    return buttonsCount === 0 && !showLoginWithEmailLink && !showPasskeysButton;
+  }
+
+  @discourseComputed("buttons.length")
+  multiple(buttonsCount) {
+    return buttonsCount > 1;
+  }
 
   @discourseComputed
   buttons() {
     return findAll();
-  },
+  }
 
-  actions: {
-    externalLogin(provider) {
-      this.externalLogin(provider);
-    },
-  },
-});
+  @discourseComputed
+  showPasskeysButton() {
+    return (
+      this.siteSettings.enable_local_logins &&
+      this.siteSettings.enable_passkeys &&
+      this.context === "login" &&
+      isWebauthnSupported()
+    );
+  }
+}

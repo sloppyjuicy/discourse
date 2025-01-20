@@ -1,8 +1,12 @@
 # frozen_string_literal: true
 
 class UserAuthenticator
-
-  def initialize(user, session, authenticator_finder: Users::OmniauthCallbacksController, require_password: true)
+  def initialize(
+    user,
+    session,
+    authenticator_finder: Users::OmniauthCallbacksController,
+    require_password: true
+  )
     @user = user
     @session = session
     if session&.dig(:authentication) && session[:authentication].is_a?(Hash)
@@ -32,7 +36,10 @@ class UserAuthenticator
       authenticator.after_create_account(@user, @auth_result)
       confirm_email
     end
-    @session[:authentication] = @auth_result = nil if @session&.dig(:authentication)
+    if @session&.dig(:authentication)
+      @session[:authentication] = @auth_result = nil
+      @session[:authenticated_with_oauth] = true
+    end
   end
 
   def email_valid?
@@ -49,10 +56,7 @@ class UserAuthenticator
   private
 
   def confirm_email
-    if authenticated?
-      EmailToken.confirm(@user.email_tokens.first.token)
-      @user.set_automatic_groups
-    end
+    @user.activate if authenticated?
   end
 
   def authenticator
@@ -64,5 +68,4 @@ class UserAuthenticator
   def authenticator_name
     @auth_result&.authenticator_name
   end
-
 end

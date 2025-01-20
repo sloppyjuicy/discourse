@@ -1,5 +1,6 @@
-import I18n from "I18n";
-import discourseDebounce from "discourse-common/lib/debounce";
+import { Promise } from "rsvp";
+import discourseDebounce from "discourse/lib/debounce";
+import { i18n } from "discourse-i18n";
 
 let _cache = {};
 
@@ -79,7 +80,7 @@ function retrieveCachedUrl(
       context.strokeRect(0, 0, canvas.width, canvas.height);
 
       let fontSize = 25;
-      const text = I18n.t("image_removed");
+      const text = i18n("image_removed");
 
       // Fill text size to fit the canvas
       let textSize;
@@ -111,11 +112,12 @@ function getAttributeBasedUrl(dataAttribute, cachedUpload, siteSettings) {
     return cachedUpload.url;
   }
 
-  // attachments should use the full /secure-media-uploads/ URL
-  // in this case for permission checks
+  // attachments should use the full /secure-media-uploads/ or
+  // /secure-uploads/ URL in this case for permission checks
   if (
-    siteSettings.secure_media &&
-    cachedUpload.url.indexOf("secure-media-uploads") > -1
+    siteSettings.secure_uploads &&
+    (cachedUpload.url.includes("secure-media-uploads") ||
+      cachedUpload.url.includes("secure-uploads"))
   ) {
     return cachedUpload.url;
   }
@@ -156,28 +158,77 @@ function _loadCachedShortUrls(uploadElements, siteSettings, opts) {
         });
 
         break;
+      case "DIV":
+        if (siteSettings.enable_diffhtml_preview === true) {
+          retrieveCachedUrl(upload, siteSettings, "orig-src", opts, (url) => {
+            const videoHTML = `
+              <video width="100%" height="100%" preload="metadata" controls style="">
+                <source src="${url}">
+              </video>`;
+            upload.insertAdjacentHTML("beforeend", videoHTML);
+            upload.classList.add("video-container");
+          });
+        } else {
+          retrieveCachedUrl(
+            upload,
+            siteSettings,
+            "orig-src-id",
+            opts,
+            (url) => {
+              upload.style.backgroundImage = `url('${url}')`;
+
+              const placeholderIcon = upload.querySelector(
+                ".placeholder-icon.video"
+              );
+              placeholderIcon.style.backgroundColor = "rgba(0, 0, 0, 0.3)";
+            }
+          );
+        }
+        break;
     }
   });
+}
+
+let queueUrls;
+let queuePromise;
+let queueResolve;
+
+function queuePop(ajax) {
+  lookupUncachedUploadUrls(queueUrls, ajax).then(queueResolve);
+  queueUrls = queueResolve = null;
 }
 
 function _loadShortUrls(uploads, ajax, siteSettings, opts) {
   let urls = [...uploads].map((upload) => {
     return (
       upload.getAttribute("data-orig-src") ||
-      upload.getAttribute("data-orig-href")
+      upload.getAttribute("data-orig-href") ||
+      upload.getAttribute("data-orig-src-id") ||
+      upload.getAttribute("data-orig-src")
     );
   });
 
-  return lookupUncachedUploadUrls(urls, ajax).then(() =>
-    _loadCachedShortUrls(uploads, siteSettings, opts)
-  );
+  if (!queueUrls) {
+    queueUrls = [...urls];
+    queuePromise = new Promise((resolve) => {
+      queueResolve = resolve;
+    });
+
+    discourseDebounce(null, queuePop, ajax, 450);
+  } else {
+    queueUrls.push(...urls);
+  }
+
+  return queuePromise.then(() => {
+    _loadCachedShortUrls(uploads, siteSettings, opts);
+  });
 }
 
 const SHORT_URL_ATTRIBUTES =
-  "img[data-orig-src], a[data-orig-href], source[data-orig-src]";
+  "img[data-orig-src], a[data-orig-href], source[data-orig-src], div[data-orig-src-id], div[data-orig-src]";
 
 export function resolveCachedShortUrls(siteSettings, scope, opts) {
-  let shortUploadElements = scope.querySelectorAll(SHORT_URL_ATTRIBUTES);
+  const shortUploadElements = scope.querySelectorAll(SHORT_URL_ATTRIBUTES);
 
   if (shortUploadElements.length > 0) {
     _loadCachedShortUrls(shortUploadElements, siteSettings, opts);
@@ -185,24 +236,11 @@ export function resolveCachedShortUrls(siteSettings, scope, opts) {
 }
 
 export function resolveAllShortUrls(ajax, siteSettings, scope, opts) {
-  let shortUploadElements = scope.querySelectorAll(SHORT_URL_ATTRIBUTES);
+  resolveCachedShortUrls(siteSettings, scope, opts);
+
+  const shortUploadElements = scope.querySelectorAll(SHORT_URL_ATTRIBUTES);
 
   if (shortUploadElements.length > 0) {
-    _loadCachedShortUrls(shortUploadElements, siteSettings, opts);
-
-    shortUploadElements = scope.querySelectorAll(SHORT_URL_ATTRIBUTES);
-    if (shortUploadElements.length > 0) {
-      // this is carefully batched so we can do a leading debounce (trigger right away)
-      return discourseDebounce(
-        null,
-        _loadShortUrls,
-        shortUploadElements,
-        ajax,
-        siteSettings,
-        opts,
-        450,
-        true
-      );
-    }
+    return _loadShortUrls(shortUploadElements, ajax, siteSettings, opts);
   }
 }

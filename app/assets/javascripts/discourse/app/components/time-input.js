@@ -1,6 +1,8 @@
-import { action, computed } from "@ember/object";
 import Component from "@ember/component";
+import { action, computed } from "@ember/object";
+import { htmlSafe } from "@ember/template";
 import { isPresent } from "@ember/utils";
+import { classNames } from "@ember-decorators/component";
 
 function convertMinutes(num) {
   return { hours: Math.floor(num / 60), minutes: num % 60 };
@@ -31,17 +33,14 @@ function convertMinutesToDurationString(n) {
   return output;
 }
 
-export default Component.extend({
-  classNames: ["d-time-input"],
-
-  hours: null,
-
-  minutes: null,
-
-  relativeDate: null,
+@classNames("d-time-input")
+export default class TimeInput extends Component {
+  hours = null;
+  minutes = null;
+  relativeDate = null;
 
   didReceiveAttrs() {
-    this._super(...arguments);
+    super.didReceiveAttrs(...arguments);
 
     if (isPresent(this.date)) {
       this.setProperties({
@@ -52,20 +51,21 @@ export default Component.extend({
 
     if (
       !isPresent(this.date) &&
-      !isPresent(this.attrs.hours) &&
-      !isPresent(this.attrs.minutes)
+      !isPresent(this.hours) &&
+      !isPresent(this.minutes)
     ) {
       this.setProperties({
         hours: null,
         minutes: null,
       });
     }
-  },
+  }
 
-  minimumTime: computed("relativeDate", "date", function () {
+  @computed("relativeDate", "date")
+  get minimumTime() {
     if (this.relativeDate) {
       if (this.date) {
-        if (this.date.diff(this.relativeDate, "minutes") > 1440) {
+        if (!this.date.isSame(this.relativeDate, "day")) {
           return 0;
         } else {
           return this.relativeDate.hours() * 60 + this.relativeDate.minutes();
@@ -74,9 +74,10 @@ export default Component.extend({
         return this.relativeDate.hours() * 60 + this.relativeDate.minutes();
       }
     }
-  }),
+  }
 
-  timeOptions: computed("minimumTime", "hours", "minutes", function () {
+  @computed("minimumTime", "hours", "minutes")
+  get timeOptions() {
     let options = [];
 
     const start = this.minimumTime
@@ -88,20 +89,19 @@ export default Component.extend({
     // theres 1440 minutes in a day
     // and 1440 / 15 = 96
     let i = 0;
-    while (i < 96) {
+    let option = start;
+    options.push(option);
+    while (i < 95) {
       // while diff with minimumTime is less than one hour
       // use 15 minutes steps and then 30 minutes
-      const minutes = this.minimumTime ? (i <= 4 ? 15 : 30) : 15;
-      const option = start + i * minutes;
-
+      const minutes = this.minimumTime ? (i <= 3 ? 15 : 30) : 15;
+      option = option + minutes;
       // when start is higher than 0 we will reach 1440 minutes
-      // before the 96 iterations
+      // before the 95 iterations
       if (option > 1440) {
         break;
       }
-
       options.push(option);
-
       i++;
     }
 
@@ -111,38 +111,46 @@ export default Component.extend({
 
     options = options.sort((a, b) => a - b);
 
-    return options.map((option) => {
-      let name = convertMinutesToString(option);
+    return options.map((opt) => {
+      let name = convertMinutesToString(opt);
       let label;
 
-      if (this.minimumTime) {
-        const diff = option - this.minimumTime;
-        label = `${name} <small>(${convertMinutesToDurationString(
-          diff
-        )})</small>`.htmlSafe();
+      if (this.date && this.relativeDate) {
+        const diff = this.date
+          .clone()
+          .startOf("day")
+          .add(opt, "minutes")
+          .diff(this.relativeDate, "minutes");
+
+        if (diff < 1440) {
+          label = htmlSafe(
+            `${name} <small>(${convertMinutesToDurationString(diff)})</small>`
+          );
+        }
       }
 
       return {
-        id: option,
+        id: opt,
         name,
         label,
         title: name,
       };
     });
-  }),
+  }
 
-  time: computed("minimumTime", "hours", "minutes", function () {
+  @computed("minimumTime", "hours", "minutes")
+  get time() {
     if (isPresent(this.hours) && isPresent(this.minutes)) {
       return parseInt(this.hours, 10) * 60 + parseInt(this.minutes, 10);
     }
-  }),
+  }
 
   @action
   onFocusIn(value, event) {
     if (value && event.target) {
       event.target.select();
     }
-  },
+  }
 
   @action
   onChangeTime(time) {
@@ -175,5 +183,5 @@ export default Component.extend({
         });
       }
     }
-  },
-});
+  }
+}

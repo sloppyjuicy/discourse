@@ -1,7 +1,9 @@
 import Component from "@ember/component";
 import { schedule } from "@ember/runloop";
-export default Component.extend({
-  showInput: false,
+import $ from "jquery";
+
+export default class LinkToInput extends Component {
+  showInput = false;
 
   click() {
     this.onClick();
@@ -11,5 +13,5 @@ export default Component.extend({
     });
 
     return false;
-  },
-});
+  }
+}

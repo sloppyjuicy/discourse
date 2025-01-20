@@ -1,0 +1,7 @@
+!/db/**/*.sql
+!/spec/support/fixtures/**/*.sql
+
+tmp/*
+private/
+Gemfile.lock
+/config/upload.yml

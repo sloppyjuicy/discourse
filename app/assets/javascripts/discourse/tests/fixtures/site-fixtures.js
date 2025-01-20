@@ -41,6 +41,8 @@ export default {
         "posted",
         "search",
         "bookmarks",
+        "hot",
+        "unseen"
       ],
       periods: ["all", "yearly", "quarterly", "monthly", "weekly", "daily"],
       top_menu_items: [
@@ -51,22 +53,27 @@ export default {
         "read",
         "posted",
         "categories",
-        "top",
+        "hot",
         "bookmarks",
+        "unseen",
       ],
-      anonymous_top_menu_items: ["latest", "top", "categories"],
+      anonymous_top_menu_items: ["latest", "hot", "categories"],
       uncategorized_category_id: 17,
       is_readonly: false,
+      full_name_required_for_signup: false,
+      full_name_visible_in_signup: true,
       categories: [
         {
           id: 3,
           name: "meta",
-          color: "aaa",
+          color: "aaaaaa",
           text_color: "FFFFFF",
           slug: "meta",
           topic_count: 122,
           post_count: 1023,
           description:
+            "Discussion about meta.discourse.org itself, the organization of this forum about Discourse, how it works, and how we can improve this site.",
+          description_text:
             "Discussion about meta.discourse.org itself, the organization of this forum about Discourse, how it works, and how we can improve this site.",
           topic_url: "/t/category-definition-for-meta/24",
           read_restricted: false,
@@ -87,6 +94,8 @@ export default {
           post_count: 1022,
           description:
             "Tutorial topics that describe how to set up, configure, or install Discourse using a specific platform or environment. Topics in this category may only be created by trust level 2 and up. ",
+          description_text:
+            "Tutorial topics that describe how to set up, configure, or install Discourse using a specific platform or environment. Topics in this category may only be created by trust level 2 and up. ",
           topic_url: "/t/category-definition-for-howto/2629",
           read_restricted: false,
           permission: 1,
@@ -105,6 +114,8 @@ export default {
           post_count: 278,
           description:
             "My idea here is to have mini specs for features we would like built but have no bandwidth to build",
+          description_text:
+            "My idea here is to have mini specs for features we would like built but have no bandwidth to build",
           topic_url: "/t/about-the-spec-category/13965",
           read_restricted: false,
           permission: 1,
@@ -122,6 +133,8 @@ export default {
           post_count: 3575,
           description:
             "This category is for topics related to hacking on Discourse: submitting pull requests, configuring development environments, coding conventions, and so forth.",
+          description_text:
+            "This category is for topics related to hacking on Discourse: submitting pull requests, configuring development environments, coding conventions, and so forth.",
           topic_url: "/t/category-definition-for-dev/1026",
           read_restricted: false,
           permission: 1,
@@ -130,6 +143,7 @@ export default {
           show_subcategory_list: true,
           default_view: "latest",
           subcategory_list_style: "boxes_with_featured_topics",
+          has_children: true,
         },
         {
           id: 6,
@@ -141,6 +155,8 @@ export default {
           post_count: 11075,
           description:
             "Support on configuring, using, and installing Discourse. Not for software development related topics, but for admins and end users configuring and using Discourse.",
+          description_text:
+            "Support on configuring, using, and installing Discourse. Not for software development related topics, but for admins and end users configuring and using Discourse.",
           topic_url: "/t/category-definition-for-support/389",
           read_restricted: false,
           permission: 1,
@@ -148,6 +164,7 @@ export default {
           background_url: null,
           show_subcategory_list: false,
           default_view: "latest",
+          has_children: true,
         },
         {
           id: 24,
@@ -158,6 +175,7 @@ export default {
           topic_count: 13,
           post_count: 53,
           description: "An area for staff members to post shared drafts",
+          description_text: "An area for staff members to post shared drafts",
           topic_url: "/t/about-the-shared-drafts-category/13110",
           read_restricted: true,
           permission: 1,
@@ -174,6 +192,8 @@ export default {
           post_count: 33,
           description:
             'This is a special, temporary category to organize work on the <a href="http://www.meetup.com/torontoruby/events/192168702/">Discourse Hack Night</a> in Toronto. ',
+          description_text:
+            "This is a special, temporary category to organize work on the Discourse Hack Night in Toronto.",
           topic_url: "/t/about-the-hack-night-category/17878",
           read_restricted: false,
           permission: 1,
@@ -191,6 +211,8 @@ export default {
           post_count: 827,
           description:
             "This category is for discussion about localizing Discourse.",
+          description_text:
+            "This category is for discussion about localizing Discourse.",
           topic_url: "/t/about-the-translations-category/14549",
           read_restricted: false,
           permission: 1,
@@ -207,6 +229,8 @@ export default {
           topic_count: 48,
           post_count: 501,
           description:
+            "Topics that come up very often when discussing Discourse will eventually be classified into this Frequently Asked Questions category. Should only be added to popular topics.",
+          description_text:
             "Topics that come up very often when discussing Discourse will eventually be classified into this Frequently Asked Questions category. Should only be added to popular topics.",
           topic_url: "/t/category-definition-for-faq/25",
           read_restricted: false,
@@ -226,6 +250,8 @@ export default {
           post_count: 361,
           description:
             "About commercial Discourse related stuff: jobs or paid gigs, plugins, themes, hosting, etc.",
+          description_text:
+            "About commercial Discourse related stuff: jobs or paid gigs, plugins, themes, hosting, etc.",
           topic_url: "/t/category-definition-for-marketplace/5425",
           read_restricted: false,
           permission: 1,
@@ -244,6 +270,8 @@ export default {
           post_count: 164,
           description:
             "Topics about current or future Discourse Hub functionality at discourse.org including nickname registration, global user pages, and the site directory.",
+          description_text:
+            "Topics about current or future Discourse Hub functionality at discourse.org including nickname registration, global user pages, and the site directory.",
           topic_url: "/t/category-definition-for-discourse-hub/3038",
           read_restricted: false,
           permission: 1,
@@ -260,6 +288,8 @@ export default {
           topic_count: 22,
           post_count: 390,
           description:
+            "Discussion topics generated from the official Discourse Blog. These topics are linked from the bottom of each blog entry where the blog comments would normally be.",
+          description_text:
             "Discussion topics generated from the official Discourse Blog. These topics are linked from the bottom of each blog entry where the blog comments would normally be.",
           topic_url: "/t/category-definition-for-blog/5250",
           read_restricted: false,
@@ -278,12 +308,15 @@ export default {
           post_count: 1874,
           description:
             "Topics about extending the functionality of Discourse with plugins, themes, add-ons, or other mechanisms for extensibility.  ",
+          description_text:
+            "Topics about extending the functionality of Discourse with plugins, themes, add-ons, or other mechanisms for extensibility.  ",
           topic_url: "/t/about-the-extensibility-category/28",
           read_restricted: false,
           permission: 1,
           notification_level: null,
           show_subcategory_list: false,
           default_view: "latest",
+          has_children: true,
         },
         {
           id: 11,
@@ -294,6 +327,8 @@ export default {
           topic_count: 48,
           post_count: 357,
           description:
+            "Topics about logging in to Discourse, using any standard third party provider (Twitter, Facebook, Google), traditional username and password, or with a custom plugin.",
+          description_text:
             "Topics about logging in to Discourse, using any standard third party provider (Twitter, Facebook, Google), traditional username and password, or with a custom plugin.",
           topic_url: "/t/category-definition-for-login/2828",
           read_restricted: false,
@@ -312,6 +347,8 @@ export default {
           post_count: 466,
           description:
             "One post per plugin! Only plugin owners should post here. ",
+          description_text:
+            "One post per plugin! Only plugin owners should post here. ",
           topic_url: "/t/about-the-plugin-category/12648",
           read_restricted: false,
           permission: 1,
@@ -328,6 +365,8 @@ export default {
           post_count: 9295,
           description:
             "A bug report means something is broken, preventing normal/typical use of Discourse. Do be sure to search prior to submitting bugs. Include repro steps, and only describe one bug per topic please.",
+          description_text:
+            "A bug report means something is broken, preventing normal/typical use of Discourse. Do be sure to search prior to submitting bugs. Include repro steps, and only describe one bug per topic please.",
           topic_url: "/t/category-definition-for-bug/2",
           read_restricted: false,
           permission: 1,
@@ -335,6 +374,7 @@ export default {
           can_edit: true,
           show_subcategory_list: false,
           default_view: "latest",
+          required_tag_groups: [],
         },
         {
           id: 17,
@@ -345,6 +385,8 @@ export default {
           topic_count: 342,
           post_count: 3090,
           description:
+            "Topics that don't need a category, or don't fit into any other existing category.",
+          description_text:
             "Topics that don't need a category, or don't fit into any other existing category.",
           topic_url: null,
           read_restricted: false,
@@ -363,6 +405,8 @@ export default {
           post_count: 135,
           description:
             'Support for the official Discourse WordPress plugin at <a href="https://github.com/discourse/wp-discourse">https://github.com/discourse/wp-discourse</a>',
+          description_text:
+            "Support for the official Discourse WordPress plugin at https://github.com/discourse/wp-discourse",
           topic_url: "/t/category-definition-for-wordpress/12282",
           read_restricted: false,
           permission: 1,
@@ -378,6 +422,8 @@ export default {
           topic_count: 100,
           post_count: 917,
           description:
+            "Topics about hosting Discourse, either on your own servers, in the cloud, or with specific hosting services.",
+          description_text:
             "Topics about hosting Discourse, either on your own servers, in the cloud, or with specific hosting services.",
           topic_url: "/t/category-definition-for-hosting/2626",
           read_restricted: false,
@@ -396,6 +442,8 @@ export default {
           post_count: 4472,
           description:
             "Discussion about the user interface of Discourse, how features are presented to the user in the client, including language and UI elements.",
+          description_text:
+            "Discussion about the user interface of Discourse, how features are presented to the user in the client, including language and UI elements.",
           topic_url: "/t/category-definition-for-ux/2628",
           read_restricted: false,
           permission: 1,
@@ -413,6 +461,8 @@ export default {
           post_count: 11942,
           description:
             "Discussion about features or potential features of Discourse: how they work, why they work, etc.",
+          description_text:
+            "Discussion about features or potential features of Discourse: how they work, why they work, etc.",
           topic_url: "/t/category-definition-for-feature/11",
           read_restricted: false,
           permission: 1,
@@ -420,6 +470,8 @@ export default {
           show_subcategory_list: true,
           default_view: "latest",
           subcategory_list_style: "boxes",
+          default_list_filter: "all",
+          has_children: true,
         },
         {
           id: 240,
@@ -430,6 +482,7 @@ export default {
           topic_count: 137,
           post_count: 1142,
           description: "关于幸福的讨论",
+          description_text: "关于幸福的讨论",
           topic_url: "/t/category-definition-for-快乐的/11",
           read_restricted: false,
           permission: 1,
@@ -437,6 +490,78 @@ export default {
           show_subcategory_list: true,
           default_view: "latest",
           subcategory_list_style: "boxes",
+        },
+        {
+          id: 2481,
+          name: "Restricted Group",
+          color: "0E78BD",
+          text_color: "FFFFFF",
+          slug: "restricted-group",
+          topic_count: 137,
+          post_count: 1142,
+          description: "A restricted group",
+          description_text: "A restricted group",
+          topic_url: "/t/category-definition-for-restricted-group/11",
+          read_restricted: true,
+          permission: 1,
+          notification_level: null,
+          show_subcategory_list: true,
+          default_view: "latest",
+          subcategory_list_style: "boxes",
+        },
+        {
+          id: 1001,
+          name: "Parent Category",
+          color: "27AA5B",
+          text_color: "FFFFFF",
+          slug: "parent-category",
+          topic_count: 95,
+          post_count: 827,
+          description: "some description",
+          description_text: "some description",
+          topic_url: "/t/some-url",
+          read_restricted: false,
+          permission: 1,
+          parent_category_id: null,
+          notification_level: null,
+          background_url: null,
+          has_children: true,
+          subcategory_count: 2,
+        },
+        {
+          id: 1002,
+          name: "Sub Category",
+          color: "27AA5B",
+          text_color: "FFFFFF",
+          slug: "sub-category",
+          topic_count: 95,
+          post_count: 827,
+          description: "some description",
+          description_text: "some description",
+          topic_url: "/t/some-url",
+          read_restricted: false,
+          permission: 1,
+          parent_category_id: 1001,
+          notification_level: null,
+          background_url: null,
+          has_children: true,
+        },
+        {
+          id: 1003,
+          name: "Sub Sub Category",
+          color: "27AA5B",
+          text_color: "FFFFFF",
+          slug: "sub-sub-category",
+          topic_count: 95,
+          post_count: 827,
+          description: "some description",
+          description_text: "some description",
+          topic_url: "/t/some-url",
+          read_restricted: false,
+          permission: 1,
+          parent_category_id: 1002,
+          notification_level: null,
+          background_url: null,
         },
       ],
       post_action_types: [
@@ -448,7 +573,7 @@ export default {
           is_flag: false,
           icon: null,
           id: 1,
-          is_custom_flag: false,
+          require_message: false,
         },
         {
           name_key: "like",
@@ -458,7 +583,7 @@ export default {
           is_flag: false,
           icon: "heart",
           id: 2,
-          is_custom_flag: false,
+          require_message: false,
         },
         {
           name_key: "off_topic",
@@ -469,7 +594,9 @@ export default {
           is_flag: true,
           icon: null,
           id: 3,
-          is_custom_flag: false,
+          require_message: false,
+          enabled: true,
+          applies_to: ["Post", "Chat::Message"]
         },
         {
           name_key: "inappropriate",
@@ -481,7 +608,9 @@ export default {
           is_flag: true,
           icon: null,
           id: 4,
-          is_custom_flag: false,
+          require_message: false,
+          enabled: true,
+          applies_to: ["Post", "Topic", "Chat::Message"]
         },
         {
           name_key: "vote",
@@ -491,7 +620,8 @@ export default {
           is_flag: false,
           icon: null,
           id: 5,
-          is_custom_flag: false,
+          require_message: false,
+          enabled: true
         },
         {
           name_key: "spam",
@@ -502,7 +632,9 @@ export default {
           is_flag: true,
           icon: null,
           id: 8,
-          is_custom_flag: false,
+          require_message: false,
+          enabled: true,
+          applies_to: ["Post", "Topic", "Chat::Message"]
         },
         {
           name_key: "notify_user",
@@ -514,7 +646,9 @@ export default {
           is_flag: true,
           icon: null,
           id: 6,
-          is_custom_flag: true,
+          require_message: true,
+          enabled: true,
+          applies_to: ["Post", "Topic", "Chat::Message"]
         },
         {
           name_key: "notify_moderators",
@@ -525,7 +659,9 @@ export default {
           is_flag: true,
           icon: null,
           id: 7,
-          is_custom_flag: true,
+          require_message: true,
+          enabled: true,
+          applies_to: ["Post", "Topic", "Chat::Message"]
         },
       ],
       topic_flag_types: [
@@ -537,7 +673,9 @@ export default {
           is_flag: true,
           icon: null,
           id: 4,
-          is_custom_flag: false,
+          require_message: false,
+          enabled: true,
+          applies_to: ["Post", "Topic", "Chat::Message"]
         },
         {
           name_key: "spam",
@@ -547,7 +685,9 @@ export default {
           is_flag: true,
           icon: null,
           id: 8,
-          is_custom_flag: false,
+          require_message: false,
+          enabled: true,
+          applies_to: ["Post", "Topic", "Chat::Message"]
         },
         {
           name_key: "notify_moderators",
@@ -557,7 +697,9 @@ export default {
           is_flag: true,
           icon: null,
           id: 7,
-          is_custom_flag: true,
+          require_message: true,
+          enabled: true,
+          applies_to: ["Post", "Topic", "Chat::Message"]
         },
       ],
       archetypes: [
@@ -582,6 +724,99 @@ export default {
           frame_height: 400,
           can_connect: true,
           can_revoke: true,
+        },
+      ],
+      hashtag_configurations: { "topic-composer": ["category", "tag"] },
+      hashtag_icons: { "category": "folder", "tag": "tag" },
+      anonymous_sidebar_sections: [
+        {
+          id: 111,
+          title: "Community",
+          links: [
+            {
+              id: 329,
+              name: "Topics",
+              value: "/latest",
+              icon: "layer-group",
+              external: false,
+              segment: "primary",
+            },
+            {
+              id: 330,
+              name: "Users",
+              value: "/u",
+              icon: "users",
+              external: false,
+              segment: "secondary",
+            },
+            {
+              id: 331,
+              name: "About",
+              value: "/about",
+              icon: "circle-info",
+              external: false,
+              segment: "secondary",
+            },
+            {
+              id: 332,
+              name: "Faq",
+              value: "/faq",
+              icon: "circle-question",
+              external: false,
+              segment: "secondary",
+            },
+            {
+              id: 333,
+              name: "My Posts",
+              value: "/my/activity",
+              icon: "user",
+              external: false,
+              segment: "primary",
+            },
+            {
+              id: 334,
+              name: "Review",
+              value: "/review",
+              icon: "flag",
+              external: false,
+              segment: "secondary",
+            },
+            {
+              id: 335,
+              name: "Admin",
+              value: "/admin",
+              icon: "wrench",
+              external: false,
+              segment: "primary",
+            },
+            {
+              id: 336,
+              name: "Groups",
+              value: "/g",
+              icon: "user-group",
+              external: false,
+              segment: "secondary",
+            },
+            {
+              id: 337,
+              name: "Badges",
+              value: "/badges",
+              icon: "certificate",
+              external: false,
+              segment: "secondary",
+            },
+            {
+              id: 338,
+              name: "Invite",
+              value: "/new-invite",
+              icon: "paper-plane",
+              external: false,
+              segment: "primary",
+            },
+          ],
+          slug: "community",
+          public: true,
+          section_type: "community",
         },
       ],
     },

@@ -22,3 +22,6 @@ bg:
           title: "Публикация"
         suggested_topics:
           title: "Подобни теми"
+        tooltips:
+          description: "Описание"
+          header: "Хедър"

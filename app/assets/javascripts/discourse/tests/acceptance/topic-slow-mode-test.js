@@ -1,15 +1,13 @@
-import selectKit from "discourse/tests/helpers/select-kit-helper";
-import {
-  acceptance,
-  exists,
-  query,
-  updateCurrentUser,
-} from "discourse/tests/helpers/qunit-helpers";
 import { click, visit } from "@ember/test-helpers";
 import { test } from "qunit";
-import I18n from "I18n";
-import { cloneJSON } from "discourse-common/lib/object";
+import { cloneJSON } from "discourse/lib/object";
 import topicFixtures from "discourse/tests/fixtures/topic";
+import {
+  acceptance,
+  updateCurrentUser,
+} from "discourse/tests/helpers/qunit-helpers";
+import selectKit from "discourse/tests/helpers/select-kit-helper";
+import { i18n } from "discourse-i18n";
 
 acceptance("Topic - Slow Mode - enabled", function (needs) {
   needs.user();
@@ -40,9 +38,9 @@ acceptance("Topic - Slow Mode - enabled", function (needs) {
     await click(".topic-admin-slow-mode button");
 
     const slowModeType = selectKit(".slow-mode-type");
-    assert.equal(
+    assert.strictEqual(
       slowModeType.header().name(),
-      I18n.t("topic.slow_mode_update.durations.10_minutes"),
+      i18n("topic.slow_mode_update.durations.10_minutes"),
       "slow mode interval is rendered"
     );
 
@@ -50,14 +48,15 @@ acceptance("Topic - Slow Mode - enabled", function (needs) {
     // but at least we can make sure that components for choosing date and time are rendered
     // (in case of inactive slow mode it would be only a combo box with text "Select a timeframe",
     // and date picker and time picker wouldn't be rendered)
-    assert.equal(
-      query("div.enabled-until span.name").innerText,
-      I18n.t("topic.auto_update_input.pick_date_and_time"),
-      "enabled until combobox is switched to the option Pick Date and Time"
-    );
+    assert
+      .dom("div.enabled-until span.name")
+      .hasText(
+        i18n("time_shortcut.custom"),
+        "enabled until combobox is switched to the option Pick Date and Time"
+      );
 
-    assert.ok(exists("input.date-picker"), "date picker is rendered");
-    assert.ok(exists("input.time-input"), "time picker is rendered");
+    assert.dom("input.date-picker").exists("date picker is rendered");
+    assert.dom("input.time-input").exists("time picker is rendered");
   });
 
   test("'Enable' button changes to 'Update' button when slow mode is enabled", async function (assert) {
@@ -66,21 +65,23 @@ acceptance("Topic - Slow Mode - enabled", function (needs) {
     await click(".topic-admin-slow-mode button");
     await click(".future-date-input-selector-header");
 
-    assert.equal(
-      query("div.modal-footer button.btn-primary span").innerText,
-      I18n.t("topic.slow_mode_update.enable"),
-      "shows 'Enable' button when slow mode is disabled"
-    );
+    assert
+      .dom("div.d-modal__footer button.btn-primary span")
+      .hasText(
+        i18n("topic.slow_mode_update.enable"),
+        "shows 'Enable' button when slow mode is disabled"
+      );
 
     await visit("/t/a-topic-with-enabled-slow-mode/1");
     await click(".toggle-admin-menu");
     await click(".topic-admin-slow-mode button");
     await click(".future-date-input-selector-header");
 
-    assert.equal(
-      query("div.modal-footer button.btn-primary span").innerText,
-      I18n.t("topic.slow_mode_update.update"),
-      "shows 'Update' button when slow mode is enabled"
-    );
+    assert
+      .dom("div.d-modal__footer button.btn-primary span")
+      .hasText(
+        i18n("topic.slow_mode_update.update"),
+        "shows 'Update' button when slow mode is enabled"
+      );
   });
 });

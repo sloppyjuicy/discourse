@@ -1,37 +1,35 @@
-import {
-  acceptance,
-  count,
-  exists,
-  query,
-} from "discourse/tests/helpers/qunit-helpers";
-import { click, visit } from "@ember/test-helpers";
-import selectKit from "discourse/tests/helpers/select-kit-helper";
-import { skip, test } from "qunit";
+import { click, fillIn, settled, visit } from "@ember/test-helpers";
+import { test } from "qunit";
 import userFixtures from "discourse/tests/fixtures/user-fixtures";
-import { run } from "@ember/runloop";
+import { acceptance, query } from "discourse/tests/helpers/qunit-helpers";
+import selectKit from "discourse/tests/helpers/select-kit-helper";
 
 async function openFlagModal() {
-  if (exists(".topic-post:first-child button.show-more-actions")) {
+  if (
+    document.querySelector(".topic-post:first-child button.show-more-actions")
+  ) {
     await click(".topic-post:first-child button.show-more-actions");
   }
   await click(".topic-post:first-child button.create-flag");
 }
 
-function pressEnter(element, modifier) {
-  const event = document.createEvent("Event");
-  event.initEvent("keydown", true, true);
-  event.key = "Enter";
-  event.keyCode = 13;
-  event[modifier] = true;
-  run(() => element.dispatchEvent(event));
+async function pressEnter(element, modifier) {
+  const event = new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key: "Enter",
+    keyCode: 13,
+    [modifier]: true,
+  });
+  element.dispatchEvent(event);
+  await settled();
 }
 
 acceptance("flagging", function (needs) {
-  needs.user();
+  needs.user({ admin: true });
   needs.pretender((server, helper) => {
-    const userResponse = Object.assign({}, userFixtures["/u/charlie.json"]);
     server.get("/u/uwe_keim.json", () => {
-      return helper.response(userResponse);
+      return helper.response(userFixtures["/u/charlie.json"]);
     });
     server.get("/admin/users/255.json", () => {
       return helper.response({
@@ -55,7 +53,8 @@ acceptance("flagging", function (needs) {
         public_admission: false,
         allow_membership_requests: true,
         membership_request_template: "Please add me",
-        full_name: null,
+        can_be_deleted: true,
+        can_delete_all_posts: true,
       });
     });
     server.get("/admin/users/5.json", () => {
@@ -98,7 +97,7 @@ acceptance("flagging", function (needs) {
   test("Flag modal opening", async function (assert) {
     await visit("/t/internationalization-localization/280");
     await openFlagModal();
-    assert.ok(exists(".flag-modal-body"), "it shows the flag modal");
+    assert.dom(".flag-modal-body").exists("shows the flag modal");
   });
 
   test("Flag take action dropdown exists", async function (assert) {
@@ -106,12 +105,15 @@ acceptance("flagging", function (needs) {
     await openFlagModal();
     await click("#radio_inappropriate");
     await selectKit(".reviewable-action-dropdown").expand();
-    assert.ok(
-      exists("[data-value='agree_and_silence']"),
-      "it shows the silence action option"
-    );
-    await click("[data-value='agree_and_silence']");
-    assert.ok(exists(".silence-user-modal"), "it shows the silence modal");
+    assert
+      .dom("[data-value='agree_and_silence']")
+      .exists("it shows the silence action option");
+    assert
+      .dom("[data-value='agree_and_suspend']")
+      .exists("it shows the suspend action option");
+    assert
+      .dom("[data-value='agree_and_hide']")
+      .exists("it shows the hide action option");
   });
 
   test("Can silence from take action", async function (assert) {
@@ -120,13 +122,40 @@ acceptance("flagging", function (needs) {
     await click("#radio_inappropriate");
     await selectKit(".reviewable-action-dropdown").expand();
     await click("[data-value='agree_and_silence']");
-
+    assert.dom(".silence-user-modal").exists("shows the silence modal");
+    assert.dom(".suspend-message").hasValue("", "penalty message is empty");
     const silenceUntilCombobox = selectKit(".silence-until .combobox");
     await silenceUntilCombobox.expand();
     await silenceUntilCombobox.selectRowByValue("tomorrow");
-    await fillIn(".silence-reason", "for breaking the rules");
-    await click(".perform-silence");
-    assert.ok(!exists(".bootbox.modal:visible"));
+    assert.dom(".d-modal__body").exists();
+    await fillIn("input.silence-reason", "for breaking the rules");
+
+    await click(".perform-penalize");
+    assert.dom(".d-modal__body").doesNotExist();
+  });
+
+  test("Message appears in penalty modal", async function (assert) {
+    this.siteSettings.penalty_include_post_message = true;
+    await visit("/t/internationalization-localization/280");
+    await openFlagModal();
+    await click("#radio_inappropriate");
+    await selectKit(".reviewable-action-dropdown").expand();
+    await click("[data-value='agree_and_silence']");
+    assert.dom(".silence-user-modal").exists("shows the silence modal");
+    assert
+      .dom(".suspend-message")
+      .hasValue(
+        "-------------------\n<p>Any plans to support localization of UI elements, so that I (for example) could set up a completely German speaking forum?</p>\n-------------------",
+        "penalty message is prefilled with post text"
+      );
+  });
+
+  test("Can delete spammer from spam", async function (assert) {
+    await visit("/t/internationalization-localization/280");
+    await openFlagModal();
+    await click("#radio_spam");
+
+    assert.dom(".delete-spammer").exists();
   });
 
   test("Gets dismissable warning from canceling incomplete silence from take action", async function (assert) {
@@ -139,50 +168,48 @@ acceptance("flagging", function (needs) {
     const silenceUntilCombobox = selectKit(".silence-until .combobox");
     await silenceUntilCombobox.expand();
     await silenceUntilCombobox.selectRowByValue("tomorrow");
-    await fillIn(".silence-reason", "for breaking the rules");
+    await fillIn("input.silence-reason", "for breaking the rules");
     await click(".d-modal-cancel");
-    assert.equal(count(".bootbox.modal:visible"), 1);
+    assert.dom(".dialog-body").exists();
 
-    await click(".modal-footer .btn-default");
-    assert.ok(!exists(".bootbox.modal:visible"));
-    assert.ok(exists(".silence-user-modal"), "it shows the silence modal");
+    await click(".dialog-footer .btn-default");
+    assert.dom(".dialog-body").doesNotExist();
+    assert.dom(".silence-user-modal").exists("shows the silence modal");
 
     await click(".d-modal-cancel");
-    assert.equal(count(".bootbox.modal:visible"), 1);
+    assert.dom(".dialog-body").exists();
 
-    await click(".modal-footer .btn-primary");
-    assert.ok(!exists(".bootbox.modal:visible"));
+    await click(".dialog-footer .btn-primary");
+    assert.dom(".dialog-body").doesNotExist();
   });
 
-  skip("CTRL + ENTER accepts the modal", async function (assert) {
+  test("CTRL + ENTER accepts the modal", async function (assert) {
     await visit("/t/internationalization-localization/280");
     await openFlagModal();
 
-    const modal = query("#discourse-modal");
-    pressEnter(modal, "ctrlKey");
-    assert.ok(
-      exists("#discourse-modal:visible"),
-      "The modal wasn't closed because the accept button was disabled"
-    );
+    const modal = query(".d-modal");
+    await pressEnter(modal, "ctrlKey");
+    assert
+      .dom(".d-modal")
+      .exists("The modal wasn't closed because the accept button was disabled");
 
     await click("#radio_inappropriate"); // this enables the accept button
-    pressEnter(modal, "ctrlKey");
-    assert.ok(!exists("#discourse-modal:visible"), "The modal was closed");
+    await pressEnter(modal, "ctrlKey");
+    assert.dom(".d-modal").doesNotExist("The modal was closed");
   });
 
-  skip("CMD or WINDOWS-KEY + ENTER accepts the modal", async function (assert) {
+  test("CMD or WINDOWS-KEY + ENTER accepts the modal", async function (assert) {
     await visit("/t/internationalization-localization/280");
     await openFlagModal();
 
-    const modal = query("#discourse-modal");
-    pressEnter(modal, "metaKey");
-    assert.ok(
-      exists("#discourse-modal:visible"),
-      "The modal wasn't closed because the accept button was disabled"
-    );
+    const modal = query(".d-modal");
+    await pressEnter(modal, "metaKey");
+    assert
+      .dom(".d-modal")
+      .exists("The modal wasn't closed because the accept button was disabled");
 
     await click("#radio_inappropriate"); // this enables the accept button
-    pressEnter(modal, "ctrlKey");
-    assert.ok(!exists("#discourse-modal:visible"), "The modal was closed");
+    await pressEnter(modal, "ctrlKey");
+    assert.dom(".d-modal").doesNotExist("The modal was closed");
   });
 });

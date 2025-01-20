@@ -1,26 +1,29 @@
-import buildStaticRoute from "discourse/routes/build-static-route";
+import { action } from "@ember/object";
 import { next } from "@ember/runloop";
+import { service } from "@ember/service";
+import DiscourseRoute from "discourse/routes/discourse";
 
-const SignupRoute = buildStaticRoute("signup");
+export default class SignupRoute extends DiscourseRoute {
+  @service router;
+  @service siteSettings;
 
-SignupRoute.reopen({
   beforeModel() {
-    let canSignUp = this.controllerFor("application").get("canSignUp");
+    this.showCreateAccount();
+  }
 
-    if (!this.siteSettings.login_required) {
-      this.replaceWith("discovery.latest").then((e) => {
-        if (canSignUp) {
-          next(() => e.send("showCreateAccount"));
-        }
-      });
-    } else {
-      this.replaceWith("login").then((e) => {
-        if (canSignUp) {
-          next(() => e.send("showCreateAccount"));
-        }
-      });
+  @action
+  async showCreateAccount() {
+    const { canSignUp } = this.controllerFor("application");
+    if (canSignUp && this.siteSettings.full_page_login) {
+      return;
     }
-  },
-});
-
-export default SignupRoute;
+    const route = await this.router
+      .replaceWith(
+        this.siteSettings.login_required ? "login" : "discovery.latest"
+      )
+      .followRedirects();
+    if (canSignUp) {
+      next(() => route.send("showCreateAccount"));
+    }
+  }
+}

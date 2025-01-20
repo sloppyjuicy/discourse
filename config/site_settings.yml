@@ -15,36 +15,60 @@
 #                      The key should be as the same as possible value of default_locale.
 #
 #
-# type: email    - Must be a valid email address.
-# type: username - Must match the username of an existing user.
-# type: list     - A list of values, chosen from a set of valid values defined in the choices option.
-# type: enum     - A single value, chosen from a set of valid values in the choices option.
+# type: email                 - Must be a valid email address.
+# type: username              - Must match the username of an existing user.
+# type: list                  - A list of values, chosen from a set of valid values
+#                               defined in the choices option. A type:list setting with the word 'colors' in
+#                               its name will make color values have a bold line of the corresponding color
 #
-# A type:list setting with the word 'colors' in its name will make color values have a bold line of the corresponding color
+# type: enum                  - A single value, chosen from a set of valid values in the choices option.
+# type: json_schema           - The setting value is stored as JSON in the database. Used
+#                               in the format `json_schema: ClassName` where the class implements
+#                               a `.schema` class method and returns a hash in the JSON schema
+#                               format (c.f. https://json-schema.org/)
+# type: host_list             - A list of domain names that does not allow * or ? wildcards.
+# type: category_list         - A list of category ids, which shows a special picker in the UI.
+# type: category              - A single category ID, which shows a special picker in the UI.
+# type: uploaded_image_list   - A list of upload IDs that should be images.
+# type: upload                - A single upload ID.
+# type: group                 - A single group ID.
+# type: group_list            - A list of group IDs.
+# type: tag_list              - A list of tag names.
+# type: emoji_list            - A list of emoji names (e.g. joy, cold_hands)
+# type: tag_group_list        - A list of tag group names.
+# type: file_size_restriction - A file size restriction in bytes.
 #
 required:
   title:
     client: true
     default: "Discourse"
+    area: "about"
   site_description:
     default: ""
+    area: "about"
   short_site_description:
     default: ""
     client: true
+    area: "about"
   contact_email:
     default: ""
     type: email
+    area: "about|notifications|legal"
+    client: true
   contact_url:
     default: ""
+    area: "about|legal"
   notification_email:
     default: "noreply@unconfigured.discourse.org"
     type: email
   site_contact_username:
     default: ""
     type: username
+    area: "about"
   site_contact_group_name:
     default: ""
     type: group
+    area: "about"
   exclude_rel_nofollow_domains:
     client: true
     default: ""
@@ -52,10 +76,13 @@ required:
     list_type: simple
   company_name:
     default: ""
+    area: "about|legal"
   governing_law:
     default: ""
+    area: "about|legal"
   city_for_disputes:
     default: ""
+    area: "about|legal"
 
 branding:
   logo:
@@ -123,6 +150,11 @@ basic:
     default: false
     client: true
     validator: "AllowUserLocaleEnabledValidator"
+  set_locale_from_cookie:
+    default: false
+    hidden: true
+    client: true
+    validator: "AllowUserLocaleEnabledValidator"
   support_mixed_text_direction:
     client: true
     default: false
@@ -145,7 +177,7 @@ basic:
     max: 36500
   ga_version:
     type: enum
-    default: v3_analytics
+    default: v4_gtag
     choices:
       - v3_analytics
       - v4_gtag
@@ -168,8 +200,8 @@ basic:
     client: true
     refresh: true
     type: list
-    list_type: compact
-    default: "latest|new|unread|top|categories"
+    list_type: simple
+    default: "latest|new|unread|hot|categories"
     regex: "latest"
     regex_error: "site_settings.errors.must_include_latest"
     validator: RegexPresenceValidator
@@ -184,24 +216,29 @@ basic:
       - read
       - posted
       - bookmarks
+      - hot
+    area: "navigation"
   post_menu:
     client: true
     type: list
-    default: "read|like|share|flag|edit|bookmark|delete|admin|reply"
+    list_type: simple
+    default: "read|like|copyLink|flag|edit|bookmark|delete|admin|reply"
     allow_any: false
     choices:
       - read
+      - copyLink
+      - share
       - like
       - edit
       - flag
       - delete
-      - share
       - bookmark
       - admin
       - reply
   post_menu_hidden_items:
     client: true
     type: list
+    list_type: simple
     default: "flag|bookmark|edit|delete|admin"
     allow_any: false
     choices:
@@ -216,16 +253,20 @@ basic:
   share_links:
     client: true
     type: list
+    list_type: simple
     default: "twitter|facebook|email"
     allow_any: false
     choices:
       - twitter
       - facebook
       - email
+  allow_username_in_share_links:
+    client: true
+    default: true
   share_quote_visibility:
     client: true
     type: enum
-    default: "anonymous"
+    default: "all"
     choices:
       - none
       - anonymous
@@ -233,6 +274,7 @@ basic:
   share_quote_buttons:
     client: true
     type: list
+    list_type: simple
     default: "twitter|email"
     allow_any: false
     choices:
@@ -243,20 +285,17 @@ basic:
     client: true
     enum: "CategoryPageStyle"
     default: "categories_and_latest_topics"
+    area: "navigation"
+  mobile_category_page_style:
+    client: true
+    enum: "MobileCategoryPageStyle"
+    default: "categories_with_featured_topics"
+    area: "navigation"
   category_colors:
     client: true
     type: list
     list_type: compact
     default: "BF1E2E|F1592A|F7941D|9EB83B|3AB54A|12A89D|25AAE2|0E76BD|652D90|92278F|ED207B|8C6238|231F20|808281|B3B5B4|E45735"
-  category_style:
-    client: true
-    default: "bullet"
-    type: enum
-    choices:
-      - bar
-      - box
-      - bullet
-      - none
   max_category_nesting:
     client: true
     default: 2
@@ -267,14 +306,9 @@ basic:
     client: true
     default: true
     hidden: true
-  enable_experimental_composer_uploader:
-    client: true
-    default: false
-    hidden: true
   enable_direct_s3_uploads:
     client: true
     default: false
-    hidden: true
   enable_upload_debug_mode:
     default: false
     hidden: true
@@ -297,6 +331,7 @@ basic:
     default: 50
     min: 1
   top_page_default_timeframe:
+    client: true
     default: "yearly"
     type: enum
     choices:
@@ -315,6 +350,9 @@ basic:
   enable_badges:
     client: true
     default: true
+  show_badges_in_post_header:
+    client: true
+    default: true
   enable_badge_sql:
     client: true
     default: false
@@ -324,19 +362,36 @@ basic:
     default: 2
     min: 0
     max: 6
-  enable_whispers:
-    client: true
-    default: false
-  enable_bookmarks_with_reminders:
-    client: true
-    default: true
-    hidden: true
+  whispers_allowed_groups:
+    type: group_list
+    list_type: compact
+    default: ""
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
+  hidden_post_visible_groups:
+    type: group_list
+    list_type: compact
+    default: "14"
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   push_notifications_prompt:
     default: true
     client: true
+    area: "notifications"
   push_notifications_icon:
     default: ""
     type: upload
+    area: "notifications"
+  enable_desktop_push_notifications:
+    default: true
+    client: true
+    area: "notifications"
+  push_notification_time_window_mins:
+    default: 1
+    min: 0
+    area: "notifications"
   short_title:
     default: ""
     max: 12
@@ -355,19 +410,75 @@ basic:
     hidden: true
   base_font:
     default: "arial"
-    enum: "BaseFontSetting"
+    choices: "BaseFontSetting.values"
     refresh: true
+    type: list
+    list_type: font
+    area: "fonts"
+    allow_any: false
   heading_font:
     default: "arial"
-    enum: "BaseFontSetting"
+    choices: "BaseFontSetting.values"
     refresh: true
+    type: list
+    list_type: font
+    area: "fonts"
+    allow_any: false
+  enable_sitemap:
+    default: true
+  sitemap_page_size:
+    default: 10000
+  enable_user_tips:
+    client: true
+    default: true
+    refresh: true
+  page_loading_indicator:
+    client: true
+    type: enum
+    default: "slider"
+    choices:
+      - spinner
+      - slider
+    area: "navigation"
+  show_user_menu_avatars:
+    client: true
+    default: false
+  about_page_hidden_groups:
+    default: ""
+    type: group_list
+    area: "group_permissions"
+  adobe_analytics_tags_url:
+    default: ""
+    regex: "assets.adobedtm.com"
+  extended_site_description:
+    default: ""
+    max: 10_000
+    hidden: true
+    area: "about"
+  extended_site_description_cooked:
+    default: ""
+    hidden: true
+    max: 15_000
+  about_banner_image:
+    default: ""
+    type: upload
+    hidden: true
+    area: "about"
+  community_owner:
+    default: ""
+    max: 300
+    hidden: true
+    area: "about"
+  use_legacy_pageviews:
+    default: false
+    hidden: true
+    client: true
 
 login:
   invite_only:
     refresh: true
     client: true
     default: false
-    validator: "EnableInviteOnlyValidator"
   login_required:
     refresh: true
     client: true
@@ -383,6 +494,10 @@ login:
     client: true
     default: true
     validator: "EnableLocalLoginsViaEmailValidator"
+  enable_passkeys:
+    client: true
+    default: true
+    hidden: true
   allow_new_registrations:
     client: true
     default: true
@@ -405,6 +520,13 @@ login:
       - "select_account"
   google_oauth2_hd:
     default: ""
+  google_oauth2_hd_groups_service_account_admin_email:
+    default: ""
+  google_oauth2_hd_groups_service_account_json:
+    default: ""
+    textarea: true
+  google_oauth2_verbose_logging:
+    default: false
   enable_twitter_logins:
     default: false
   twitter_consumer_key:
@@ -444,6 +566,16 @@ login:
     default: ""
     type: list
     list_type: simple
+  enable_linkedin_oidc_logins:
+    default: false
+    validator: "LinkedinOidcCredentialsValidator"
+  linkedin_oidc_client_id:
+    default: ""
+    regex: "^[a-z0-9]+$"
+  linkedin_oidc_client_secret:
+    default: ""
+    regex: "^[a-zA-Z0-9_=\\.]+$"
+    secret: true
   auth_skip_create_confirm:
     default: false
     client: true
@@ -459,7 +591,10 @@ login:
     client: true
     default: false
     validator: "EnableSsoValidator"
-  discourse_connect_allows_all_return_paths: false
+  discourse_connect_allowed_redirect_domains:
+    default: ""
+    type: list
+    list_type: simple
   verbose_discourse_connect_logging: false
   verbose_upload_logging:
     hidden: true
@@ -469,7 +604,7 @@ login:
     default: false
   max_suspicious_distance_km:
     hidden: true
-    default: 500
+    default: 100
   discourse_connect_url:
     default: ""
     regex: '^https?:\/\/.+[^\/]$'
@@ -500,17 +635,21 @@ login:
       value: "sso_provider.value_placeholder"
   blocked_email_domains:
     default: "mailinator.com"
-    type: list
+    type: host_list
     list_type: simple
   allowed_email_domains:
     default: ""
-    type: list
+    type: host_list
     list_type: simple
+  normalize_emails:
+    default: true
   auto_approve_email_domains:
     default: ""
-    type: list
+    type: host_list
     list_type: simple
-  hide_email_address_taken: false
+  hide_email_address_taken:
+    client: true
+    default: true
   log_out_strict: false
   pending_users_reminder_delay_minutes:
     min: -1
@@ -520,18 +659,30 @@ login:
     default: 1440
     min: 1
     max: 175200
+  full_page_login:
+    default: false
+    client: true
+  show_signup_form_email_instructions:
+    client: true
+    default: true
+  show_signup_form_username_instructions:
+    client: true
+    default: false
+  show_signup_form_full_name_instructions:
+    client: true
+    default: false
+  show_signup_form_password_instructions:
+    client: true
+    default: false
+
 users:
   min_username_length:
     client: true
     default: 3
-    min: 1
-    max: 60
     validator: "MinUsernameLengthValidator"
   max_username_length:
     client: true
     default: 20
-    min: 8
-    max: 60
     validator: "MaxUsernameLengthValidator"
   unicode_usernames:
     default: false
@@ -544,29 +695,35 @@ users:
       cs: "[ěščřžýáíéóůúďťňĚŠČŘŽÝÁÍÉÓŮÚĎŤŇ]"
       de: "[äöüßÄÖÜẞ]"
       fi: "[åäöÅÄÖ]"
-      ja: '[\p{Han}\p{Katakana}\p{Hiragana}]'
+      ja: '[\p{Han}\p{Katakana}\p{Hiragana}ー]'
       ko: '\p{Hangul}'
       zh_CN: '\p{Han}'
       zh_TW: '\p{Han}'
   reserved_usernames:
     type: list
     list_type: compact
-    default: "admin|moderator|administrator|mod|sys|system|community|info|you|name|username|user|nickname|discourse|discourseorg|discourseforum|support"
+    default: "admin|moderator|administrator|mod|sys|system|community|info|you|name|username|user|nickname|discourse|discourseorg|discourseforum|support|all|here"
+    mandatory_values: "admin|moderator|administrator|mod|sys|system|you|name|username|user|nickname|discourse|discourseorg|discourseforum|all|here"
   min_password_length:
     client: true
     default: 10
     min: 8
     max: 500
+    requires_confirmation: "simple"
   min_admin_password_length:
     client: true
     default: 15
     min: 8
     max: 500
+    requires_confirmation: "simple"
   password_unique_characters:
     default: 6
     min: 1
     max: 10
-  block_common_passwords: true
+    requires_confirmation: "simple"
+  block_common_passwords:
+    default: true
+    requires_confirmation: "simple"
   username_change_period: 3
   email_editable:
     client: true
@@ -574,14 +731,16 @@ users:
   logout_redirect:
     client: true
     default: ""
-  full_name_required:
-    client: true
-    default: false
+  full_name_requirement:
+    type: enum
+    default: hidden_at_signup
+    enum: "FullNameRequirement"
   enable_names:
     client: true
     default: true
   invite_expiry_days:
-    default: 30
+    default: 90
+    client: true
     max: 36500
   invites_per_page:
     client: true
@@ -621,10 +780,21 @@ users:
   allow_anonymous_posting:
     default: false
     client: true
+  allow_anonymous_likes:
+    default: false
+    client: true
   anonymous_posting_min_trust_level:
     default: 1
     enum: "TrustLevelSetting"
     client: true
+    hidden: true
+  anonymous_posting_allowed_groups:
+    default: "3|11" # auto group staff and trust_level_1
+    type: group_list
+    allow_any: false
+    refresh: true
+    validator: "AtLeastOneGroupValidator"
+    area: "group_permissions"
   anonymous_account_duration_minutes:
     default: 10080
     max: 99000
@@ -634,6 +804,8 @@ users:
   hide_user_profiles_from_public:
     default: false
     client: true
+  hide_new_user_profiles:
+    default: true
   allow_featured_topic_on_user_profiles:
     default: true
     client: true
@@ -669,6 +841,8 @@ users:
     client: true
   max_notifications_per_user:
     default: 10000
+    hidden: true
+    area: "notifications"
   gravatar_name:
     default: Gravatar
     client: true
@@ -682,7 +856,16 @@ users:
     default: 2000
     hidden: true
   use_email_for_username_and_name_suggestions:
-    hidden: true
+    default: false
+  use_name_for_username_suggestions:
+    default: true
+  hide_user_activity_tab:
+    default: false
+    client: true
+  delete_associated_accounts_on_password_reset:
+    default: false
+  enable_user_status:
+    client: true
     default: false
 
 groups:
@@ -780,10 +963,16 @@ posting:
     client: true
     default: 2
     min: 1
-  max_emojis_in_title: 1
+  max_emojis_in_title:
+    default: 1
+    area: "emojis"
+  default_emoji_reactions:
+    type: emoji_list
+    default: +1|heart|tada
+    client: true
   allow_uncategorized_topics:
     client: true
-    default: true
+    default: false
     refresh: true
   allow_duplicate_topic_titles: false
   allow_duplicate_topic_titles_category: false
@@ -794,11 +983,15 @@ posting:
       ja: 4
       zh_CN: 4
       zh_TW: 4
-  enable_personal_messages:
-    default: true
-    client: true
   enable_system_message_replies:
     default: true
+  personal_message_enabled_groups:
+    default: "1|2|11" # auto group admins, moderators, trust_level_1
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   editing_grace_period: 300
   editing_grace_period_max_diff: 100
   editing_grace_period_max_diff_high_trust: 400
@@ -809,6 +1002,14 @@ posting:
   shared_drafts_min_trust_level:
     default: "staff"
     enum: "TrustLevelAndStaffSetting"
+    hidden: true
+  shared_drafts_allowed_groups:
+    default: "3" # auto group staff
+    type: group_list
+    allow_any: false
+    refresh: true
+    validator: "AtLeastOneGroupValidator"
+    area: "group_permissions"
   post_edit_time_limit:
     default: 1440
     max: 10080
@@ -821,6 +1022,9 @@ posting:
   delete_removed_posts_after:
     client: true
     default: 24
+    max: 876000
+  notify_users_after_responses_deleted_on_flagged_post:
+    default: false
   traditional_markdown_linebreaks:
     client: true
     default: false
@@ -835,6 +1039,7 @@ posting:
     type: list
     default: "com|net|org|io|onion|co|tv|ru|cn|us|uk|me|de|fr|fi|gov"
     list_type: compact
+    validator: "MarkdownLinkifyTldsValidator"
   markdown_typographer_quotation_marks:
     client: true
     type: list
@@ -844,9 +1049,6 @@ posting:
     locale_default:
       de: "„|“|‚|‘"
       fr: "«\xA0|\xA0»|‹\xA0|\xA0›"
-  enable_rich_text_paste:
-    client: true
-    default: true
   suppress_reply_directly_below:
     client: true
     default: true
@@ -864,10 +1066,33 @@ posting:
   enable_mentions:
     default: true
     client: true
-  max_mentions_per_post: 10
-  max_users_notified_per_group_mention: 100
+  max_mentions_per_post:
+    default: 10
+    area: "notifications"
+  max_users_notified_per_group_mention:
+    default: 100
+    client: true
+    area: "notifications"
   newuser_max_replies_per_topic: 3
-  newuser_max_mentions_per_post: 2
+  newuser_max_mentions_per_post:
+    default: 2
+    area: "notifications"
+  here_mention:
+    default: "here"
+    validator: "NotUsernameValidator"
+    client: true
+  max_here_mentioned: 10
+  min_trust_level_for_here_mention:
+    default: "2"
+    enum: "TrustLevelAndStaffSetting"
+    hidden: true
+  here_mention_allowed_groups:
+    default: "1|2|12" # auto group admins, moderators, trust_level_2
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   title_max_word_length:
     default: 30
     locale_default:
@@ -899,6 +1124,9 @@ posting:
       ja: 120
       zh_CN: 120
       zh_TW: 120
+  default_subcategory_on_read_only_category:
+    client: true
+    default: false
   show_pinned_excerpt_mobile:
     client: true
     default: true
@@ -924,30 +1152,35 @@ posting:
     client: true
     default: false
   highlighted_languages:
-    default: "apache|bash|cs|cpp|css|coffeescript|diff|xml|http|ini|json|java|javascript|makefile|markdown|nginx|objectivec|ruby|perl|php|python|sql|handlebars"
+    default: "bash|c|cpp|csharp|css|diff|go|graphql|ini|java|javascript|json|kotlin|lua|makefile|markdown|objectivec|perl|php|php-template|plaintext|python|python-repl|r|ruby|rust|scss|shell|sql|swift|typescript|xml|yaml|wasm"
     choices: "HighlightJs.languages"
     type: list
     client: true
     list_type: compact
   show_copy_button_on_codeblocks:
     client: true
-    default: false
+    default: true
+    hidden: true
   delete_old_hidden_posts: true
   enable_emoji:
     default: true
     client: true
+    area: "emojis"
   enable_emoji_shortcuts:
     default: true
     client: true
+    area: "emojis"
   emoji_set:
     default: "twitter"
     client: true
     enum: "EmojiSetSiteSetting"
+    area: "emojis"
   emoji_autocomplete_min_chars:
     client: true
     default: 0
     locale_default:
       fr: 1
+    area: "emojis"
   enable_inline_emoji_translation:
     client: true
     default: false
@@ -956,20 +1189,46 @@ posting:
       zh_TW: true
       ja: true
       ko: true
+    area: "emojis"
+  emoji_deny_list:
+    type: emoji_list
+    default: ""
+    client: true
+    refresh: true
+    area: "emojis"
   approve_post_count:
     default: 0
   approve_unless_trust_level:
     default: 0
     enum: "TrustLevelSetting"
+    hidden: true
+  approve_unless_allowed_groups:
+    default: "1|2|10" # auto groups admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   approve_new_topics_unless_trust_level:
     default: 0
     enum: "TrustLevelSetting"
+    hidden: true
+  approve_new_topics_unless_allowed_groups:
+    default: "1|2|10" # auto groups admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   approve_suspect_users:
     default: true
   approve_unless_staged:
     default: false
   notify_about_queued_posts_after:
+    type: float
     default: 24
+    min: 0
+    area: "notifications"
   auto_close_messages_post_count:
     default: 500
   auto_close_topics_post_count:
@@ -983,13 +1242,30 @@ posting:
     choices:
       - code-fences
       - 4-spaces-indent
-  embed_any_origin: false
-  embed_topics_list: false
-  embed_set_canonical_url: false
-  embed_unlisted: true
-  embed_truncate: true
-  embed_support_markdown: false
-  allowed_embed_selectors: ""
+  embed_any_origin:
+    default: false
+    area: "embedding"
+  embed_topics_list:
+    default: false
+    area: "embedding"
+  embed_set_canonical_url:
+    default: false
+    area: "embedding"
+  embed_unlisted:
+    default: false
+    area: "embedding"
+  import_embed_unlisted:
+    default: true
+    area: "embedding"
+  embed_truncate:
+    default: true
+    area: "embedding"
+  embed_support_markdown:
+    default: false
+    area: "embedding"
+  allowed_embed_selectors:
+    default: ""
+    area: "embedding"
   allowed_href_schemes:
     client: true
     default: ""
@@ -998,17 +1274,20 @@ posting:
   max_allowed_message_recipients:
     default: 30
     min: 1
+  disable_watched_word_checking_in_user_fields:
+    hidden: true
+    default: false
   watched_words_regular_expressions:
     client: true
     default: false
-  enable_advanced_editor_preview_sync:
+  enable_diffhtml_preview:
     hidden: true
     default: false
     client: true
-  enable_diffhtml_preview:
-    default: false
-    client: true
   enable_fast_edit:
+    default: true
+    client: true
+  enable_quote_copy:
     default: true
     client: true
   old_post_notice_days:
@@ -1027,6 +1306,14 @@ posting:
   review_media_unless_trust_level:
     default: 0
     enum: "TrustLevelSetting"
+    hidden: true
+  skip_review_media_groups:
+    default: "1|2|10" # auto groups admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   blur_tl0_flagged_posts_media:
     default: true
     client: true
@@ -1037,6 +1324,24 @@ posting:
   skip_auto_delete_reply_likes: 5
   review_every_post:
     default: false
+  max_draft_length:
+    default: 400_000
+    hidden: true
+  max_drafts_per_user:
+    default: 10_000
+    hidden: true
+  max_form_template_title_length:
+    default: 100
+    min: 5
+    max: 255
+  max_form_template_content_length:
+    default: 5000
+    max: 150000
+  group_pm_user_limit:
+    default: 1000
+    type: integer
+    min: 1
+    hidden: true
 
 email:
   email_time_window_mins:
@@ -1063,10 +1368,13 @@ email:
     min: 0
     max: 20
   suppress_digest_email_after_days:
-    default: 365
+    default: 180
     max: 36500
   digest_suppress_categories:
     type: category_list
+    default: ""
+  digest_suppress_tags:
+    type: tag_list
     default: ""
   disable_digest_emails:
     default: false
@@ -1122,6 +1430,14 @@ email:
   email_in_min_trust:
     default: 2
     enum: "TrustLevelSetting"
+    hidden: true
+  email_in_allowed_groups:
+    default: "1|2|12" # auto group admins, moderators, trust_level_2
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   email_in_authserv_id:
     default: ""
   email_in_spam_header:
@@ -1135,10 +1451,13 @@ email:
   enable_imap:
     default: false
     client: true
+    hidden: true
   enable_imap_write:
     default: false
+    hidden: true
   enable_imap_idle:
     default: false
+    hidden: true
   enable_smtp:
     default: false
     client: true
@@ -1177,6 +1496,9 @@ email:
   max_emails_per_day_per_user: 100
   enable_staged_users: true
   maximum_staged_users_per_email: 10
+  maximum_recipients_per_new_group_email:
+    default: 10
+    min: 1
   auto_generated_allowlist:
     default: ""
     type: list
@@ -1189,6 +1511,21 @@ email:
   mailgun_api_key:
     default: ""
     regex: '^((key-)?\h{32}|\h{32}-\h{8}-\h{8})$'
+    secret: true
+  sendgrid_verification_key:
+    default: ""
+    secret: true
+  mailjet_webhook_token:
+    default: ""
+    secret: true
+  mandrill_authentication_key:
+    default: ""
+    secret: true
+  postmark_webhook_token:
+    default: ""
+    secret: true
+  sparkpost_webhook_token:
+    default: ""
     secret: true
   bounce_score_threshold:
     client: true
@@ -1236,26 +1573,45 @@ email:
   email_total_attachment_size_limit_kb:
     default: 0
     max: 51200
+    type: file_size_restriction
   post_excerpts_in_emails: false
   raw_email_max_length: 220000
   raw_rejected_email_max_length: 4000
   delete_rejected_email_after_days:
     default: 90
-    max: 36500
+    validator: "DeleteRejectedEmailAfterDaysValidator"
   enable_secondary_emails:
     client: true
     default: true
     hidden: true
+  max_participant_names:
+    default: 10
+    hidden: true
+  require_change_email_confirmation: false
+  view_raw_email_allowed_groups:
+    type: group_list
+    list_type: compact
+    default: "1|2"
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
 
 files:
   max_image_size_kb:
     client: true
     default: 4096
     max: 102400
+    type: file_size_restriction
   max_attachment_size_kb:
     client: true
     default: 4096
     max: 1024000
+    type: file_size_restriction
+  system_user_max_attachment_size_kb:
+    default: 0
+    max: 4096000
+    type: file_size_restriction
+    hidden: true
   max_image_megapixels:
     default: 40
     min: 5
@@ -1264,22 +1620,26 @@ files:
     hidden: true
     default: 50000
     max: 1024000
+    type: file_size_restriction
   theme_authorized_extensions:
-    default: "jpg|jpeg|png|woff|woff2|svg|eot|ttf|otf|gif|webp|js"
+    default: "wasm|jpg|jpeg|png|woff|woff2|svg|eot|ttf|otf|gif|webp|avif|js"
     type: list
-    list_type: compact
+    list_type: file_types
+  theme_download_screenshots:
+    default: false
+    hidden: true
   authorized_extensions:
     client: true
-    default: "jpg|jpeg|png|gif|heic|heif|webp"
+    default: "jpg|jpeg|png|gif|heic|heif|webp|avif"
     refresh: true
     type: list
-    list_type: compact
+    list_type: file_types
   authorized_extensions_for_staff:
     client: true
     default: ""
     refresh: true
     type: list
-    list_type: compact
+    list_type: file_types
   export_authorized_extensions:
     hidden: true
     default: "zip"
@@ -1302,27 +1662,43 @@ files:
     type: list
     list_type: simple
     default: ""
+  block_hotlinked_media:
+    default: false
+  block_hotlinked_media_exceptions:
+    default: ""
+    type: list
+    regex: '\A((https?:\/\/.+)(\|https?:\/\/.+[|$])*)?\z'
   create_thumbnails: true
   clean_up_uploads: true
-  clean_orphan_uploads_grace_period_hours: 48
+  clean_orphan_uploads_grace_period_hours:
+    default: 48
+    max: 168
   purge_deleted_uploads_grace_period_days:
     default: 30
     max: 36500
   prevent_anons_from_downloading_files:
     default: false
     client: true
-  secure_media:
+  secure_uploads:
     default: false
     client: true
-  secure_media_allow_embed_images_in_emails:
+  secure_uploads_allow_embed_images_in_emails:
     default: true
-  secure_media_max_email_embed_image_size_kb:
+  secure_uploads_max_email_embed_image_size_kb:
     default: 1024
     min: 1
     max: 10240
+    type: file_size_restriction
+  secure_uploads_pm_only:
+    default: false
+    hidden: true
+    client: true
   enable_s3_uploads:
     default: false
     client: true
+  enable_s3_transfer_acceleration:
+    default: false
+    hidden: true
   s3_use_iam_profile:
     default: false
   s3_access_key_id:
@@ -1349,13 +1725,17 @@ files:
   s3_cdn_url:
     default: ""
     regex: '^https?:\/\/.+[^\/]$'
+  s3_use_cdn_url_for_all_uploads:
+    default: false
   s3_configure_tombstone_policy:
     default: true
-  enable_s3_inventory:
-    default: false
-  s3_configure_inventory_policy:
+  s3_use_acls:
     default: true
+  s3_presigned_get_url_expires_after_seconds:
+    default: 300
     hidden: true
+    min: 60
+    max: 604800
   allow_profile_backgrounds:
     client: true
     default: true
@@ -1364,14 +1744,22 @@ files:
     client: true
     default: "0"
     enum: "TrustLevelAndStaffAndDisabledSetting"
+    hidden: true
+  uploaded_avatars_allowed_groups:
+    default: "10"
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   default_avatars:
     default: ""
     type: url_list
     client: true
   avatar_sizes:
-    default: "20|25|32|45|60|120"
+    default: "24|48|72|96|144|288"
     type: list
     list_type: compact
+    client: true
   external_system_avatars_enabled:
     default: true
     client: true
@@ -1383,15 +1771,26 @@ files:
   external_emoji_url:
     default: ""
     client: true
+    area: "emojis"
   restrict_letter_avatar_colors:
     default: ""
     type: list
     list_type: compact
     validator: "ColorListValidator"
-  selectable_avatars_enabled:
-    default: false
+  selectable_avatars_mode:
+    default: disabled
     client: true
-    validator: "SelectableAvatarsEnabledValidator"
+    type: enum
+    choices:
+      - disabled
+      - everyone
+      - tl1
+      - tl2
+      - tl3
+      - tl4
+      - staff
+      - no_one
+    validator: "SelectableAvatarsModeValidator"
   selectable_avatars:
     default: ""
     client: true
@@ -1415,7 +1814,7 @@ files:
   strip_image_metadata: true
   min_ratio_to_crop:
     type: float
-    default: 0.45 # 90% of 18:9
+    default: 0.22
     min: 0
     max: 1
   simultaneous_uploads:
@@ -1456,114 +1855,277 @@ files:
     default: false
     client: true
     hidden: true
+  composer_ios_media_optimisation_image_enabled:
+    default: false
+    client: true
+    hidden: true
+  video_thumbnails_enabled:
+    default: true
+    client: true
+    hidden: true
 
 trust:
   default_trust_level:
     default: 0
     enum: "TrustLevelSetting"
+    area: "trust_levels"
   default_invitee_trust_level:
     default: 1
     enum: "TrustLevelSetting"
+    area: "trust_levels"
   min_trust_to_create_topic:
     default: 0
     enum: "TrustLevelSetting"
+    hidden: true
+  create_topic_allowed_groups:
+    default: "1|2|10" # auto group admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_to_edit_wiki_post:
     default: 1
     enum: "TrustLevelSetting"
+    hidden: true
+  edit_wiki_post_allowed_groups:
+    default: "1|2|11" # auto group admins, moderators, trust_level_1
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_to_edit_post:
     default: 0
     enum: "TrustLevelSetting"
+    hidden: true
+  edit_post_allowed_groups:
+    default: "1|2|10" # auto group admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_to_allow_self_wiki:
     default: 3
     enum: "TrustLevelSetting"
-  min_trust_to_send_messages:
-    default: 1
-    enum: "TrustLevelSetting"
+    hidden: true
+  self_wiki_allowed_groups:
+    default: "1|2|13" # auto group admins, moderators, trust_level_3
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_to_send_email_messages:
     default: "4"
     enum: "TrustLevelAndStaffSetting"
+    hidden: true
+  send_email_messages_allowed_groups:
+    default: "1|2|14" # auto group admins, moderators, trust_level_4
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_to_flag_posts:
     default: 1
     enum: "TrustLevelSetting"
+    hidden: true
+  flag_post_allowed_groups:
+    default: "1|2|11" # auto group admins, moderators, trust_level_1
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
+  allow_tl0_and_anonymous_users_to_flag_illegal_content:
+    default: false
+    area: "flags"
+    client: true
+  email_address_to_report_illegal_content:
+    default: ""
+    area: "flags"
+    client: true
   min_trust_to_post_links:
     default: 0
     enum: "TrustLevelSetting"
+    hidden: true
+  post_links_allowed_groups:
+    default: "1|2|10" # auto group admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_to_post_embedded_media:
     default: 0
     enum: "TrustLevelSetting"
+    hidden: true
+  embedded_media_post_allowed_groups:
+    default: "1|2|10" # auto group admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_level_to_allow_profile_background:
     default: 0
     client: true
     enum: "TrustLevelSetting"
+    hidden: true
+  profile_background_allowed_groups:
+    default: "1|2|10" # auto group admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_level_to_allow_user_card_background:
     default: 0
     client: true
     enum: "TrustLevelSetting"
+    hidden: true
+  user_card_background_allowed_groups:
+    default: "1|2|10" # auto group admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_level_to_allow_invite:
     default: 2
     enum: "TrustLevelSetting"
+    hidden: true
+  invite_allowed_groups:
+    default: "1|2|12" # auto group admins, moderators, trust_level_2
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_level_to_allow_ignore:
     default: 2
     enum: "TrustLevelSetting"
     client: true
+    hidden: true
+  ignore_allowed_groups:
+    default: "1|2|12" # auto group admins, moderators, trust_level_2
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   allow_flagging_staff: true
   send_tl1_welcome_message: true
   send_tl2_promotion_message: true
-  tl1_requires_topics_entered: 5
+  tl1_requires_topics_entered:
+    default: 5
+    area: "trust_levels"
   tl1_requires_read_posts:
     default: 30
     client: true
-  tl1_requires_time_spent_mins: 10
-  tl2_requires_topics_entered: 20
-  tl2_requires_read_posts: 100
-  tl2_requires_time_spent_mins: 60
+    area: "trust_levels"
+  tl1_requires_time_spent_mins:
+    default: 10
+    area: "trust_levels"
+  tl2_requires_topics_entered:
+    default: 20
+    area: "trust_levels"
+  tl2_requires_read_posts:
+    default: 100
+    area: "trust_levels"
+  tl2_requires_time_spent_mins:
+    default: 60
+    area: "trust_levels"
   tl2_requires_days_visited:
     default: 15
     max: 36500
-  tl2_requires_likes_received: 1
-  tl2_requires_likes_given: 1
-  tl2_requires_topic_reply_count: 3
+    area: "trust_levels"
+  tl2_requires_likes_received:
+    default: 1
+    area: "trust_levels"
+  tl2_requires_likes_given:
+    default: 1
+    area: "trust_levels"
+  tl2_requires_topic_reply_count:
+    default: 3
+    area: "trust_levels"
   tl3_time_period:
     default: 100
     min: 1
     max: 1000000
+    area: "trust_levels"
   tl3_requires_days_visited:
     default: 50
     max: 36500
+    area: "trust_levels"
   tl3_requires_topics_replied_to:
     default: 10
+    area: "trust_levels"
   tl3_requires_topics_viewed:
     default: 25
     max: 100
+    area: "trust_levels"
   tl3_requires_topics_viewed_cap:
     default: 500
+    area: "trust_levels"
   tl3_requires_posts_read:
     default: 25
     max: 100
+    area: "trust_levels"
   tl3_requires_posts_read_cap:
     default: 20000
     max: 99000
+    area: "trust_levels"
   tl3_requires_topics_viewed_all_time:
     default: 200
+    area: "trust_levels"
   tl3_requires_posts_read_all_time:
     default: 500
+    area: "trust_levels"
   tl3_requires_max_flagged:
     default: 5
+    area: "trust_levels"
   tl3_promotion_min_duration:
     default: 14
     max: 10000
+    area: "trust_levels"
   tl3_requires_likes_given:
     default: 30
+    area: "trust_levels"
   tl3_requires_likes_received:
     default: 20
+    area: "trust_levels"
   tl3_links_no_follow:
     default: false
     client: true
-  trusted_users_can_edit_others:
-    default: true
+    area: "trust_levels"
+  tl4_delete_posts_and_topics:
+    default: false
+    client: true
+    hidden: true
+    area: "trust_levels"
+  delete_all_posts_and_topics_allowed_groups:
+    default: ""
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
+  edit_all_topic_groups:
+    default: "13"
+    type: group_list
+    area: "group_permissions"
+  edit_all_post_groups:
+    default: "14"
+    type: group_list
+    area: "group_permissions"
 
 security:
   detailed_404: false
+  enforce_second_factor_on_external_auth:
+    client: true
+    default: true
   enforce_second_factor:
     client: true
     type: enum
@@ -1576,6 +2138,7 @@ security:
     default: false
   same_site_cookies:
     default: Lax
+    hidden: true
     type: enum
     choices:
       - Lax
@@ -1585,7 +2148,12 @@ security:
     regex: "^(Lax|Strict|Disabled|None)$"
   enable_escaped_fragments: true
   allow_index_in_robots_txt: true
-  moderators_manage_categories_and_groups: false
+  allow_indexing_non_canonical_urls:
+    default: true
+    hidden: true
+  moderators_manage_categories_and_groups:
+    default: false
+    client: true
   moderators_change_post_ownership:
     client: true
     default: false
@@ -1599,7 +2167,7 @@ security:
     list_type: compact
   crawler_user_agents:
     hidden: true
-    default: "rss|bot|spider|crawler|facebook|archive|wayback|ping|monitor|lighthouse"
+    default: "rss|bot|spider|crawler|facebook|archive|wayback|ping|monitor|lighthouse|google-inspectiontool|gptbot|claudebot|anthropic-ai|brightbot|googleother"
     type: list
     list_type: compact
   browser_update_user_agents:
@@ -1633,10 +2201,11 @@ security:
     allow_any: false
     choices: "['*'] + Onebox::Engine.all_iframe_origins"
   allowed_iframes:
-    default: "https://www.google.com/maps/embed?|https://www.openstreetmap.org/export/embed.html?|https://calendar.google.com/calendar/embed?|https://codepen.io/"
+    default: "https://www.google.com/maps/embed?|https://www.openstreetmap.org/export/embed.html?|https://calendar.google.com/calendar/embed?|https://codepen.io/|https://www.instagram.com/|https://open.spotify.com/"
     type: list
     list_type: simple
     client: true
+    validator: "AllowedIframesValidator"
   allowed_crawler_user_agents:
     type: list
     default: ""
@@ -1647,7 +2216,7 @@ security:
     list_type: compact
   slow_down_crawler_user_agents:
     type: list
-    default: ""
+    default: "gptbot|claudebot|anthropic-ai|brightbot"
     list_type: compact
   slow_down_crawler_rate: 60
   content_security_policy:
@@ -1656,11 +2225,13 @@ security:
     default: false
   content_security_policy_collect_reports:
     default: false
+    hidden: true
   content_security_policy_frame_ancestors:
     default: true
   content_security_policy_script_src:
     type: simple_list
     default: ""
+    validator: "CspScriptSrcValidator"
   invalidate_inactive_admin_email_after_days:
     default: 365
     min: 0
@@ -1676,7 +2247,30 @@ security:
     hidden: true
   can_permanently_delete:
     default: false
+    client: true
     hidden: true
+  suppress_secured_categories_from_admin:
+    default: false
+  include_secure_categories_in_tag_counts:
+    default: false
+  display_personal_messages_tag_counts:
+    default: false
+  cross_origin_opener_policy_header:
+    default: "same-origin-allow-popups"
+    type: enum
+    choices:
+      - "unsafe-none"
+      - "same-origin"
+      - "same-origin-allow-popups"
+    hidden: true
+  cross_origin_opener_unsafe_none_groups:
+    type: group_list
+    list_type: compact
+    default: ""
+    allow_any: false
+    refresh: true
+    hidden: true
+    area: "group_permissions"
 
 onebox:
   post_onebox_maxlength:
@@ -1687,7 +2281,7 @@ onebox:
       zh_TW: 200
   blocked_onebox_domains:
     default: ""
-    type: list
+    type: host_list
     list_type: compact
   max_oneboxes_per_post:
     default: 50
@@ -1698,6 +2292,13 @@ onebox:
     list_type: compact
   enable_inline_onebox_on_all_domains:
     default: true
+  onebox_user_agent:
+    default: ""
+    hidden: true
+  onebox_locale:
+    default: ""
+    type: enum
+    enum: "OneboxLocaleSiteSetting"
   force_custom_user_agent_hosts:
     default: "http://codepen.io"
     type: list
@@ -1708,6 +2309,8 @@ onebox:
   facebook_app_access_token:
     default: ""
     secret: true
+  block_onebox_on_redirect:
+    default: false
   cache_onebox_response_body:
     default: false
     hidden: true
@@ -1718,6 +2321,11 @@ onebox:
   cache_onebox_user_agent:
     default: ""
     hidden: true
+  github_onebox_access_tokens:
+    default: ""
+    type: list
+    secret: true
+    list_type: secret
 spam:
   add_rel_nofollow_to_user_content: true
   hide_post_sensitivity:
@@ -1729,9 +2337,14 @@ spam:
     type: enum
     enum: "ReviewableSensitivitySetting"
     default: 3
-  num_users_to_silence_new_user: 3
+    area: "flags"
+  num_users_to_silence_new_user:
+    default: 3
+    area: "flags"
   notify_mods_when_user_silenced: false
-  flag_sockpuppets: false
+  flag_sockpuppets:
+    default: false
+    area: "flags"
   newuser_spam_host_threshold: 3
   allowed_spam_host_domains:
     default: ""
@@ -1744,7 +2357,9 @@ spam:
   min_ban_entries_for_roll_up: 5
   max_age_unmatched_emails: 365
   max_age_unmatched_ips: 365
-  num_flaggers_to_close_topic: 5
+  num_flaggers_to_close_topic:
+    default: 5
+    area: "flags"
   auto_close_topic_sensitivity:
     type: enum
     enum: "ReviewableSensitivitySetting"
@@ -1752,12 +2367,18 @@ spam:
   num_hours_to_close_topic:
     default: 4
     min: 1
-  auto_respond_to_flag_actions: true
+  auto_respond_to_flag_actions:
+    default: true
+    area: "flags"
   min_first_post_typing_time: 3000
   auto_silence_fast_typers_on_first_post: true
-  auto_silence_fast_typers_max_trust_level: 0
+  auto_silence_fast_typers_max_trust_level:
+    default: 0
+    enum: "TrustLevelSetting"
   auto_silence_first_post_regex: ""
-  high_trust_flaggers_auto_hide_posts: true
+  high_trust_flaggers_auto_hide_posts:
+    default: true
+    area: "flags"
   cooldown_hours_until_reflag:
     default: 24
     min: 0
@@ -1783,19 +2404,28 @@ spam:
   reviewable_low_priority_threshold:
     default: 0
     min: 0
+  reviewable_revision_reasons:
+    default: "Duplicate|Does not meet posting guidelines"
+    type: list
+    client: true
 
 rate_limits:
   unique_posts_mins: 5
   rate_limit_create_topic: 15
   rate_limit_create_post: 5
-  rate_limit_new_user_create_topic: 120
   rate_limit_new_user_create_post: 30
-  rate_limit_search_anon_global:
+  rate_limit_search_anon_global_per_minute:
     hidden: true
     default: 150
-  rate_limit_search_anon_user:
+  rate_limit_search_anon_user_per_minute:
     hidden: true
     default: 15
+  rate_limit_search_anon_global_per_second:
+    hidden: true
+    default: 8
+  rate_limit_search_anon_user_per_second:
+    hidden: true
+    default: 2
   rate_limit_search_user:
     hidden: true
     default: 30
@@ -1803,10 +2433,13 @@ rate_limits:
   max_personal_messages_per_day: 20
   max_likes_per_day: 50
   max_bookmarks_per_day: 20
-  max_flags_per_day: 20
+  max_flags_per_day:
+    default: 20
+    area: "flags"
   max_edits_per_day: 30
   max_invites_per_day: 10
   max_topic_invitations_per_day: 30
+  max_topic_invitations_per_minute: 5
   max_topics_in_first_day: 3
   max_replies_in_first_day: 10
   tl2_additional_likes_per_day_multiplier: 1.5
@@ -1815,6 +2448,15 @@ rate_limits:
   tl2_additional_edits_per_day_multiplier: 1.5
   tl3_additional_edits_per_day_multiplier: 2
   tl4_additional_edits_per_day_multiplier: 3
+  tl2_additional_flags_per_day_multiplier:
+    default: 1.5
+    area: "flags"
+  tl3_additional_flags_per_day_multiplier:
+    default: 2
+    area: "flags"
+  tl4_additional_flags_per_day_multiplier:
+    default: 3
+    area: "flags"
   alert_admins_if_errors_per_minute:
     client: true
     default: 0
@@ -1824,6 +2466,7 @@ rate_limits:
   max_prints_per_hour_per_user:
     default: 5
     client: true
+    min: 0
   max_logins_per_ip_per_hour:
     min: 1
     default: 30
@@ -1849,6 +2492,27 @@ rate_limits:
   max_allowed_secondary_emails:
     default: 10
     hidden: true
+    client: true
+  max_batch_presign_multipart_per_minute:
+    default: 20
+    hidden: true
+  max_presigned_put_per_minute:
+    default: 10
+    hidden: true
+  max_create_multipart_per_minute:
+    default: 10
+    hidden: true
+  max_complete_multipart_per_minute:
+    default: 10
+    hidden: true
+  max_uploads_per_minute:
+    default: 10
+    hidden: true
+  user_api_key_clients_create_per_day:
+    default: 3
+    min: 1
+    max: 10
+    hidden: true
 
 developer:
   force_hostname:
@@ -1857,29 +2521,28 @@ developer:
   port:
     hidden: true
     default: ""
-  enable_long_polling:
-    client: true
-    default: true
   enable_chunked_encoding:
+    hidden: true
     client: true
     default: true
-  long_polling_interval:
-    default: 25000
-    max: 25000
   long_polling_base_url:
+    hidden: true
     client: true
     default: "/"
   background_polling_interval:
+    hidden: true
     client: true
     default: 60000
     max: 99000
   polling_interval:
+    hidden: true
     client: true
     default: 3000
     max: 99000
   anon_polling_interval:
+    hidden: true
     client: true
-    default: 30000
+    default: 25000
     max: 99000
   flush_timings_secs:
     client: true
@@ -1911,19 +2574,66 @@ developer:
   bypass_wizard_check:
     default: false
     hidden: true
-  logging_provider:
-    hidden: true
-    default: "default"
-    type: "list"
-    choices:
-      - "default"
-      - "lograge"
   bootstrap_error_pages:
     hidden: true
     default: false
   enable_safe_mode:
     default: true
     client: true
+  include_associated_account_ids:
+    default: false
+    hidden: true
+  max_sidebar_section_links:
+    default: 50
+    hidden: true
+  instrument_gc_stat_per_request:
+    default: false
+    hidden: true
+  warn_critical_js_deprecations:
+    default: true
+    client: true
+    hidden: true
+  warn_critical_js_deprecations_message:
+    default: ""
+    client: true
+    hidden: true
+  custom_flags_limit:
+    default: 50
+    hidden: true
+    client: true
+
+navigation:
+  navigation_menu:
+    client: true
+    default: "sidebar"
+    type: enum
+    enum: "NavigationMenuSiteSetting"
+    area: "navigation"
+  default_navigation_menu_categories:
+    type: category_list
+    default: ""
+    client: true
+    area: "navigation"
+  default_navigation_menu_tags:
+    type: tag_list
+    default: ""
+    client: true
+    area: "navigation"
+  default_sidebar_switch_panel_position:
+    default: "bottom"
+    type: enum
+    client: true
+    choices:
+      - "top"
+      - "bottom"
+    area: "navigation"
+  admin_sidebar_enabled_groups:
+    type: group_list
+    list_type: compact
+    default: "1|2"
+    allow_any: false
+    refresh: true
+    area: "group_permissions|navigation"
 
 embedding:
   embed_by_username:
@@ -1950,14 +2660,22 @@ legal:
   tos_url:
     client: true
     default: ""
+    area: "legal"
   privacy_policy_url:
     client: true
     default: ""
+    area: "legal"
   faq_url:
     client: true
     default: ""
+    area: "legal"
   log_anonymizer_details:
     default: true
+    area: "legal"
+  display_eu_visitor_stats:
+    default: false
+    client: true
+    area: "legal"
 
 backups:
   enable_backups:
@@ -1973,6 +2691,9 @@ backups:
   maximum_backups:
     client: true
     default: 5
+  remove_older_backups:
+    client: true
+    default: ""
   automatic_backups_enabled:
     default: true
   backup_frequency:
@@ -1982,6 +2703,13 @@ backups:
   s3_backup_bucket:
     default: ""
     regex: '^[a-z0-9\-\/]+$' # can't use '.' when using HTTPS
+  s3_inventory_bucket:
+    hidden: true
+    default: ""
+    regex: '^[a-z0-9\-\/_]+$' # can't use '.' when using HTTPS
+  s3_inventory_bucket_region:
+    hidden: true
+    default: ""
   s3_disable_cleanup:
     default: false
   backup_time_of_day:
@@ -1997,15 +2725,29 @@ backups:
   include_s3_uploads_in_backups:
     default: false
     hidden: true
+    client: true
 
 search:
+  prioritize_exact_search_title_match:
+    default: true
+    hidden: true
+  max_duplicate_search_index_terms:
+    default: 6
+    hidden: true
   use_pg_headlines_for_excerpt:
     default: false
     hidden: true
     client: true
+  search_max_indexed_word_length:
+    default: 100
+    hidden: true
   search_ranking_normalization:
     default: "0"
     hidden: true
+  search_ranking_weights:
+    default: ""
+    hidden: true
+    validator: "SearchRankingWeightsValidator"
   min_search_term_length:
     client: true
     default: 3
@@ -2014,7 +2756,12 @@ search:
       zh_TW: 1
       ko: 1
       ja: 1
-  search_tokenize_chinese_japanese_korean: false
+  search_tokenize_chinese:
+    default: false
+    validator: "SearchTokenizeChineseValidator"
+  search_tokenize_japanese:
+    default: false
+    validator: "SearchTokenizeJapaneseValidator"
   search_prefer_recent_posts: false
   search_recent_posts_size:
     default: 1000000
@@ -2058,11 +2805,21 @@ search:
     default: 1.2
     hidden: true
     validator: "CategorySearchPriorityWeightsValidator"
+  search_page_size:
+    default: 50
+    hidden: true
+  search_default_sort_order:
+    default: 0 # "relevance"
+    client: true
+    type: enum
+    enum: "SearchSortOrderSiteSetting"
 
 uncategorized:
   version_checks:
     client: true
     default: true
+  include_in_discourse_discover:
+    default: false
   new_version_emails: true
   send_welcome_message: true
 
@@ -2073,6 +2830,7 @@ uncategorized:
   header_dropdown_category_count:
     client: true
     default: 8
+    area: "navigation"
 
   slug_generation_method:
     default: "ascii"
@@ -2087,6 +2845,8 @@ uncategorized:
     default: ""
     type: list
     list_type: simple
+    validator: "RegexpListValidator"
+    area: "permalinks"
 
   max_similar_results: 5
   minimum_topics_similar: 50
@@ -2159,8 +2919,10 @@ uncategorized:
   educate_until_posts: 2
   sequential_replies_threshold: 2
   get_a_room_threshold: 3
-  dominating_topic_minimum_percent: 20
+  dont_feed_the_trolls_threshold: 2
+  dominating_topic_minimum_percent: 40
   disable_avatar_education_message: false
+  pm_warn_user_last_seen_months_ago: 24
 
   global_notice:
     default: ""
@@ -2176,9 +2938,10 @@ uncategorized:
     hidden: true
 
   # Category IDs
-  lounge_category_id:
+  general_category_id:
     default: -1
     hidden: true
+    client: true
   meta_category_id:
     default: -1
     hidden: true
@@ -2188,16 +2951,15 @@ uncategorized:
   uncategorized_category_id:
     default: -1
     hidden: true
-
-  notify_about_flags_after: 48
-
-  show_create_topics_notice:
+  default_composer_category:
     client: true
-    default: true
+    type: category
+    default: ""
+    validator: "DefaultComposerCategoryValidator"
 
-  enable_system_avatars:
-    hidden: true
-    default: true
+  notify_about_reviewable_item_after:
+    type: float
+    default: 48
 
   use_site_small_logo_as_system_avatar:
     default: true
@@ -2205,18 +2967,32 @@ uncategorized:
   enable_listing_suspended_users_on_search:
     default: false
 
-  disable_system_edit_notifications: true
+  disable_system_edit_notifications:
+    default: true
+    area: "notifications"
 
   disable_category_edit_notifications:
     default: false
+    area: "notifications"
+
+  disable_tags_edit_notifications:
+    default: false
+    area: "notifications"
 
   notification_consolidation_threshold:
     default: 3
     min: 0
+    area: "notifications"
 
   likes_notification_consolidation_window_mins:
     default: 120
     min: 1
+    area: "notifications"
+
+  linked_notification_consolidation_window_mins:
+    default: 120
+    min: 1
+    area: "notifications"
 
   delete_drafts_older_than_n_days:
     default: 180
@@ -2224,11 +3000,16 @@ uncategorized:
 
   delete_merged_stub_topics_after_days:
     default: 7
-    min: 0
+    min: -1
 
   backup_drafts_to_pm_length:
     default: 0
     hidden: true
+
+  view_user_route:
+    default: "summary"
+    hidden: true
+    client: true
 
   tos_topic_id:
     default: -1
@@ -2242,12 +3023,10 @@ uncategorized:
   welcome_topic_id:
     default: -1
     hidden: true
-  lounge_welcome_topic_id:
-    default: -1
-    hidden: true
   admin_quick_start_topic_id:
     default: -1
     hidden: true
+    client: true
 
   bootstrap_mode_min_users:
     default: 50
@@ -2257,10 +3036,6 @@ uncategorized:
   bootstrap_mode_enabled:
     default: false
     client: true
-    hidden: true
-
-  check_for_new_features:
-    default: false
     hidden: true
 
   automatically_unpin_topics:
@@ -2305,6 +3080,10 @@ uncategorized:
 
   share_anonymized_statistics: true
 
+  enable_powered_by_discourse:
+    default: true
+    client: true
+
   auto_handle_queued_age:
     default: 60
     min: 0
@@ -2313,6 +3092,10 @@ uncategorized:
     default: "24|72|168|720"
     type: "list"
     list_type: "compact"
+
+  penalty_include_post_message:
+    default: false
+    client: true
 
   svg_icon_subset:
     default: ""
@@ -2324,8 +3107,20 @@ uncategorized:
     default: false
     hidden: true
 
+  allow_bulk_invite:
+    default: true
+    client: true
+
   max_bulk_invites:
     default: 50000
+    hidden: true
+
+  skip_email_bulk_invites:
+    default: false
+    hidden: true
+
+  max_api_invites:
+    default: 200
     hidden: true
 
   overridden_robots_txt:
@@ -2334,11 +3129,32 @@ uncategorized:
   show_category_definitions_in_topic_lists:
     default: false
     hidden: true
+    client: true
 
   create_revision_on_bulk_topic_moves:
     default: true
 
   allow_changing_staged_user_tracking: false
+
+  use_polymorphic_bookmarks:
+    client: true
+    default: true
+    hidden: true
+
+  splash_screen:
+    default: true
+
+  suggest_weekends_in_date_pickers:
+    client: true
+    default: true
+
+  show_bottom_topic_map:
+    client: true
+    default: true
+
+  show_topic_map_in_topics_without_replies:
+    client: true
+    default: true
 
 user_preferences:
   default_email_digest_frequency:
@@ -2363,24 +3179,30 @@ user_preferences:
     default: 2
   default_email_in_reply_to:
     default: false
-
+  default_hide_profile:
+    default: false
+  default_hide_presence:
+    default: false
   default_other_new_topic_duration_minutes:
     enum: "NewTopicDurationSiteSetting"
     default: 2880
   default_other_auto_track_topics_after_msecs:
     enum: "AutoTrackDurationSiteSetting"
-    default: 240000
+    default: 300000
   default_other_notification_level_when_replying:
     enum: "NotificationLevelWhenReplyingSiteSetting"
     default: 2
+    area: "notifications"
   default_other_external_links_in_new_tab: false
   default_other_enable_quoting: true
   default_other_enable_defer: false
+  default_other_enable_smart_lists: true
   default_other_dynamic_favicon: false
   default_other_skip_new_user_tips: false
   default_other_like_notification_frequency:
     enum: "LikeNotificationFrequencySiteSetting"
     default: 1
+    area: "notifications"
 
   default_topics_automatic_unpin:
     default: true
@@ -2398,7 +3220,7 @@ user_preferences:
   default_categories_watching_first_post:
     type: category_list
     default: ""
-  default_categories_regular:
+  default_categories_normal:
     type: category_list
     default: ""
   mute_all_categories_by_default:
@@ -2426,6 +3248,7 @@ user_preferences:
       - normal
       - larger
       - largest
+    area: "fonts"
 
   default_title_count_mode:
     type: enum
@@ -2433,40 +3256,80 @@ user_preferences:
     choices:
       - notifications
       - contextual
+  enable_offline_indicator:
+    default: false
+    client: true
+  default_sidebar_link_to_filtered_list:
+    default: false
+    area: "navigation"
+  default_sidebar_show_count_of_new_items:
+    default: false
+    area: "navigation"
+
 api:
   retain_web_hook_events_period_days:
     default: 30
+    max: 36500
+  retain_web_hook_events_aggregate_days:
+    default: 720
     max: 36500
   retry_web_hook_events:
     default: false
   api_key_last_used_epoch:
     default: "" # Value is added in a migration
     hidden: true
-  revoke_api_keys_days:
+  revoke_api_keys_unused_days:
     default: 180
     max: 36500
+  revoke_api_keys_maxlife_days:
+    default: 0
+    max: 36500
+    hidden: true
 
 user_api:
-  allow_user_api_keys:
-    default: true
   allow_user_api_key_scopes:
     default: "read|write|message_bus|push|notifications|session_info|one_time_password"
     type: list
+  allow_user_api_key_client_scopes:
+    default: ""
+    type: list
+    hidden: true
   push_api_secret_key:
     default: ""
     hidden: true
   min_trust_level_for_user_api_key:
     default: 0
     enum: "TrustLevelSetting"
+    hidden: true
+  user_api_key_allowed_groups:
+    default: "1|2|10" # auto group admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   allowed_user_api_push_urls:
     default: ""
     type: list
+    hidden: true
   allowed_user_api_auth_redirects:
     default: "https://api.discourse.org/api/auth_redirect|discourse://auth_redirect"
     type: list
-  expire_user_api_keys_days:
+  revoke_user_api_keys_unused_days:
     default: 180
     max: 36500
+  revoke_user_api_keys_maxlife_days:
+    default: 0
+    max: 36500
+    hidden: true
+  unused_registered_user_api_key_clients_days:
+    default: 30
+    max: 36500
+    hidden: true
+  create_user_api_key_client_ip_rate_limit_override_ips:
+    default: ""
+    type: list
+    hidden: true
 
 tags:
   tagging_enabled:
@@ -2485,16 +3348,41 @@ tags:
   max_tags_per_topic:
     default: 5
     client: true
+  enable_max_tags_per_email_subject:
+    default: false
+    client: true
+  max_tags_per_email_subject:
+    default: 5
+    client: true
+    min: 0
   max_tag_length:
     default: 20
     client: true
   min_trust_to_create_tag:
     default: "3"
+    type: enum
     enum: "TrustLevelAndStaffSetting"
+    hidden: true
+  create_tag_allowed_groups:
+    default: "1|2|13" # auto group admins, moderators, trust_level_3
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   min_trust_level_to_tag_topics:
     default: "0"
     enum: "TrustLevelAndStaffSetting"
     client: true
+    hidden: true
+  tag_topic_allowed_groups:
+    default: "1|2|10" # auto group admins, moderators, trust_level_0
+    mandatory_values: "1|2" # auto group admins, moderators
+    type: group_list
+    allow_any: false
+    refresh: true
+    client: true
+    area: "group_permissions"
   max_tag_search_results:
     client: true
     default: 5
@@ -2511,8 +3399,13 @@ tags:
   tags_listed_by_group:
     client: true
     default: false
-  allow_staff_to_tag_pms:
-    default: false
+  pm_tags_allowed_for_groups:
+    type: group_list
+    list_type: compact
+    default: ""
+    allow_any: false
+    refresh: true
+    area: "group_permissions"
   suppress_overlapping_tags_in_list:
     default: false
     client: true
@@ -2521,9 +3414,17 @@ tags:
     type: enum
     default: always
     enum: RemoveMutedTagsFromLatestSiteSetting
+  watched_precedence_over_muted:
+    client: true
+    default: false
+
   force_lowercase_tags:
     default: true
     client: true
+  create_post_for_category_and_tag_changes:
+    default: false
+  automatically_clean_unused_tags:
+    default: false
 
 dashboard:
   dashboard_hidden_reports:
@@ -2536,12 +3437,13 @@ dashboard:
     client: true
     type: list
     list_type: compact
-    default: "moderation|security|reports"
+    default: "moderation|security|reports|features"
     allow_any: false
     choices:
       - moderation
       - security
       - reports
+      - features
   dashboard_general_tab_activity_metrics:
     client: true
     type: list
@@ -2556,3 +3458,68 @@ dashboard:
       - flags
       - user_to_user_private_messages_with_replies
       - signups
+  verbose_user_stat_count_logging:
+    hidden: true
+    default: false
+  hot_topics_gravity:
+    hidden: true
+    default: 1.2
+  hot_topics_recent_days:
+    hidden: true
+    default: 7
+  admin_allow_filter_untranslated_text:
+    hidden: true
+    default: false
+    client: true
+
+experimental:
+  experimental_rename_faq_to_guidelines:
+    default: false
+    hidden: true
+    client: true
+  experimental_hashtag_search_result_limit:
+    default: 20
+    client: true
+    hidden: true
+  experimental_form_templates:
+    client: true
+    default: false
+  experimental_new_new_view_groups:
+    client: true
+    type: group_list
+    list_type: compact
+    default: ""
+    allow_any: false
+    refresh: true
+    area: "group_permissions|navigation"
+  glimmer_topic_list_mode:
+    client: true
+    type: enum
+    choices:
+      - disabled
+      - auto
+      - enabled
+    default: auto
+  glimmer_post_menu_mode:
+    client: true
+    type: enum
+    choices:
+      - disabled
+      - auto
+      - enabled
+    default: auto
+  enable_experimental_lightbox:
+    default: false
+    client: true
+    hidden: true
+  enable_rich_text_paste:
+    client: true
+    default: true
+  google_oauth2_hd_groups:
+    default: false
+    validator: GoogleOauth2HdGroupsValidator
+  lazy_load_categories_groups:
+    default: ""
+    type: group_list
+    list_type: compact
+    area: "group_permissions"

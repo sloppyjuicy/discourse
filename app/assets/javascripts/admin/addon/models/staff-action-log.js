@@ -1,23 +1,46 @@
-import AdminUser from "admin/models/admin-user";
-import I18n from "I18n";
-import RestModel from "discourse/models/rest";
 import { ajax } from "discourse/lib/ajax";
-import discourseComputed from "discourse-common/utils/decorators";
+import discourseComputed from "discourse/lib/decorators";
 import { escapeExpression } from "discourse/lib/utilities";
+import RestModel from "discourse/models/rest";
+import { i18n } from "discourse-i18n";
+import AdminUser from "admin/models/admin-user";
 
 function format(label, value, escape = true) {
   return value
-    ? `<b>${I18n.t(label)}</b>: ${escape ? escapeExpression(value) : value}`
+    ? `<b>${i18n(label)}</b>: ${escape ? escapeExpression(value) : value}`
     : "";
 }
 
-const StaffActionLog = RestModel.extend({
-  showFullDetails: false,
+export default class StaffActionLog extends RestModel {
+  static munge(json) {
+    if (json.acting_user) {
+      json.acting_user = AdminUser.create(json.acting_user);
+    }
+    if (json.target_user) {
+      json.target_user = AdminUser.create(json.target_user);
+    }
+    return json;
+  }
+
+  static findAll(data) {
+    return ajax("/admin/logs/staff_action_logs.json", { data }).then(
+      (result) => {
+        return {
+          staff_action_logs: result.staff_action_logs.map((s) =>
+            StaffActionLog.create(s)
+          ),
+          user_history_actions: result.user_history_actions,
+        };
+      }
+    );
+  }
+
+  showFullDetails = false;
 
   @discourseComputed("action_name")
   actionName(actionName) {
-    return I18n.t(`admin.logs.staff_actions.actions.${actionName}`);
-  },
+    return i18n(`admin.logs.staff_actions.actions.${actionName}`);
+  }
 
   @discourseComputed(
     "email",
@@ -72,42 +95,21 @@ const StaffActionLog = RestModel.extend({
 
     const formatted = lines.filter((l) => l.length > 0).join("<br/>");
     return formatted.length > 0 ? formatted + "<br/>" : "";
-  },
+  }
 
   @discourseComputed("details")
   useModalForDetails(details) {
     return details && details.length > 100;
-  },
+  }
 
   @discourseComputed("action_name")
   useCustomModalForDetails(actionName) {
-    return ["change_theme", "delete_theme"].includes(actionName);
-  },
-});
-
-StaffActionLog.reopenClass({
-  munge(json) {
-    if (json.acting_user) {
-      json.acting_user = AdminUser.create(json.acting_user);
-    }
-    if (json.target_user) {
-      json.target_user = AdminUser.create(json.target_user);
-    }
-    return json;
-  },
-
-  findAll(data) {
-    return ajax("/admin/logs/staff_action_logs.json", { data }).then(
-      (result) => {
-        return {
-          staff_action_logs: result.staff_action_logs.map((s) =>
-            StaffActionLog.create(s)
-          ),
-          user_history_actions: result.user_history_actions,
-        };
-      }
-    );
-  },
-});
-
-export default StaffActionLog;
+    return [
+      "change_theme",
+      "delete_theme",
+      "tag_group_create",
+      "tag_group_destroy",
+      "tag_group_change",
+    ].includes(actionName);
+  }
+}

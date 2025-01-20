@@ -37,34 +37,53 @@
     text-align: right;
 
     .value {
-      font-size: $font-up-1;
+      font-size: var(--font-up-1);
       font-weight: bold;
     }
     .unit {
-      font-size: $font-down-1;
+      font-size: var(--font-down-1);
     }
     .badge-notification {
       display: block;
       text-align: right;
       padding-right: 0;
-      margin-top: 5px;
+      &:first-child {
+        margin-top: 0.75em;
+      }
     }
   }
 
   .subcategories {
-    margin-top: 0.25em;
-    clear: both;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15em 0.75em;
+    margin-top: 0.5em;
     .subcategory {
       display: inline-flex;
       align-items: baseline;
-      margin-right: 0.3em;
+      gap: 0.25em;
+      @include ellipsis;
+      .badge-category {
+        min-width: 0;
+      }
     }
-    .badge-wrapper {
-      margin-right: 0.5em;
+    .category__badges {
+      display: flex;
+      gap: 0.25em;
+      .badge-notification {
+        top: 0;
+        padding: 0;
+      }
     }
     .badge-notification.unread-posts {
       display: block;
       padding: 0;
+    }
+    &__more-subcategories {
+      font-size: var(--font-down-1);
+      a {
+        color: var(--primary-high);
+      }
     }
   }
 
@@ -77,7 +96,7 @@
     }
     a.last-posted-at,
     a.last-posted-at:visited {
-      font-size: $font-down-1;
+      font-size: var(--font-down-1);
       color: var(--primary-med-or-secondary-high);
     }
     .title {
@@ -88,25 +107,31 @@
     .title {
       margin-right: 5px;
     }
+
+    &.--glimmer button.-trigger {
+      background: transparent;
+      border: none;
+      padding: 0;
+    }
   }
 
   tbody {
     .category {
-      border-left: 6px solid;
+      border-left: 6px solid var(--category-badge-color, var(--primary-low));
       h3,
       h4 {
-        line-height: $line-height-medium;
+        line-height: var(--line-height-medium);
         a[href] {
           color: var(--primary);
         }
       }
 
       h3 {
-        font-size: $font-up-2;
+        font-size: var(--font-up-2);
       }
 
       h4 {
-        font-size: $font-up-1;
+        font-size: var(--font-up-1);
       }
     }
 
@@ -141,12 +166,8 @@
 
   .discourse-tags {
     .discourse-tag {
-      font-size: $font-down-1;
+      font-size: var(--font-down-1);
     }
-  }
-
-  .topic-featured-link {
-    padding-left: 8px;
   }
 
   .subcategories-with-subcategories {

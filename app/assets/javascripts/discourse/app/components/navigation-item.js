@@ -1,20 +1,34 @@
+import { tracked } from "@glimmer/tracking";
 import Component from "@ember/component";
-import FilterModeMixin from "discourse/mixins/filter-mode";
-import discourseComputed from "discourse-common/utils/decorators";
+import { dependentKeyCompat } from "@ember/object/compat";
+import {
+  attributeBindings,
+  classNameBindings,
+  tagName,
+} from "@ember-decorators/component";
+import discourseComputed from "discourse/lib/decorators";
+import { filterTypeForMode } from "discourse/lib/filter-mode";
 
-export default Component.extend(FilterModeMixin, {
-  tagName: "li",
-  classNameBindings: [
-    "active",
-    "content.hasIcon:has-icon",
-    "content.classNames",
-    "isHidden:hidden",
-  ],
-  attributeBindings: ["content.title:title"],
-  hidden: false,
-  rerenderTriggers: ["content.count"],
-  activeClass: "",
-  hrefLink: null,
+@tagName("li")
+@classNameBindings(
+  "active",
+  "content.hasIcon:has-icon",
+  "content.classNames",
+  "isHidden:hidden",
+  "content.name"
+)
+@attributeBindings("content.title:title")
+export default class NavigationItem extends Component {
+  @tracked filterMode;
+
+  hidden = false;
+  activeClass = "";
+  hrefLink = null;
+
+  @dependentKeyCompat
+  get filterType() {
+    return filterTypeForMode(this.filterMode);
+  }
 
   @discourseComputed("content.filterType", "filterType", "content.active")
   active(contentFilterType, filterType, active) {
@@ -22,32 +36,34 @@ export default Component.extend(FilterModeMixin, {
       return active;
     }
     return contentFilterType === filterType;
-  },
+  }
 
-  @discourseComputed("content.count")
-  isHidden(count) {
+  @discourseComputed("content.count", "content.name")
+  isHidden(count, name) {
     return (
       !this.active &&
       this.currentUser &&
+      !this.currentUser.new_new_view_enabled &&
       this.currentUser.trust_level > 0 &&
-      (this.content.get("name") === "new" ||
-        this.content.get("name") === "unread") &&
+      (name === "new" || name === "unread") &&
       count < 1
     );
-  },
+  }
 
   didReceiveAttrs() {
-    this._super(...arguments);
+    super.didReceiveAttrs(...arguments);
     const content = this.content;
 
-    let href = content.get("href");
-    let queryParams = [];
+    let [href, searchParams] = content.get("href")?.split("?") || [];
+
+    let urlSearchParams = new URLSearchParams(searchParams);
+    let addParamsEvenIfEmpty = false;
 
     // Include the category id if the option is present
     if (content.get("includeCategoryId")) {
       let categoryId = this.get("content.category.id");
       if (categoryId) {
-        queryParams.push(`category_id=${categoryId}`);
+        urlSearchParams.set("category_id", categoryId);
       }
     }
 
@@ -56,17 +72,28 @@ export default Component.extend(FilterModeMixin, {
     // appended to the URL.
     if (content.currentRouteQueryParams) {
       if (content.currentRouteQueryParams.filter) {
-        if (queryParams.length === 0) {
-          queryParams.push("");
-        }
+        addParamsEvenIfEmpty = true;
+      }
+
+      if (content.currentRouteQueryParams.f) {
+        urlSearchParams.set("f", content.currentRouteQueryParams.f);
       }
     }
 
-    if (queryParams.length) {
-      href += `?${queryParams.join("&")}`;
+    if (
+      this.siteSettings.desktop_category_page_style ===
+        "categories_and_latest_topics_created_date" &&
+      urlSearchParams.get("order") == null
+    ) {
+      urlSearchParams.set("order", "created");
+    }
+
+    const queryString = urlSearchParams.toString();
+    if (addParamsEvenIfEmpty || (queryString && href)) {
+      href = (href || "") + `?${queryString}`;
     }
     this.set("hrefLink", href);
 
     this.set("activeClass", this.active ? "active" : "");
-  },
-});
+  }
+}

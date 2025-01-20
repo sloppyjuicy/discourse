@@ -1,12 +1,16 @@
-import DiscourseRoute from "discourse/routes/discourse";
-import I18n from "I18n";
+import { service } from "@ember/service";
+import { ajax } from "discourse/lib/ajax";
+import { deepMerge } from "discourse/lib/object";
 import PreloadStore from "discourse/lib/preload-store";
-import { deepMerge } from "discourse-common/lib/object";
+import DiscourseRoute from "discourse/routes/discourse";
+import { i18n } from "discourse-i18n";
 
-export default DiscourseRoute.extend({
+export default class InvitesShow extends DiscourseRoute {
+  @service siteSettings;
+
   titleToken() {
-    return I18n.t("invites.accept_title");
-  },
+    return i18n("invites.accept_title");
+  }
 
   model(params) {
     if (PreloadStore.get("invite_info")) {
@@ -14,12 +18,34 @@ export default DiscourseRoute.extend({
         deepMerge(params, json)
       );
     } else {
-      return {};
+      return ajax(`/invites/${params.token}`).then((json) =>
+        deepMerge(params, json)
+      );
     }
-  },
+  }
+
+  activate() {
+    super.activate(...arguments);
+
+    if (this.siteSettings.login_required) {
+      this.controllerFor("application").setProperties({
+        showSiteHeader: false,
+      });
+    }
+  }
+
+  deactivate() {
+    super.deactivate(...arguments);
+
+    if (this.siteSettings.login_required) {
+      this.controllerFor("application").setProperties({
+        showSiteHeader: true,
+      });
+    }
+  }
 
   setupController(controller, model) {
-    this._super(...arguments);
+    super.setupController(...arguments);
 
     if (model.user_fields) {
       controller.userFields.forEach((userField) => {
@@ -28,5 +54,5 @@ export default DiscourseRoute.extend({
         }
       });
     }
-  },
-});
+  }
+}

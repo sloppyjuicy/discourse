@@ -1,7 +1,8 @@
 import Helper from "@ember/component/helper";
-import { iconHTML } from "discourse-common/lib/icon-library";
+import { htmlSafe } from "@ember/template";
+import { iconHTML } from "discourse/lib/icon-library";
 
-export default Helper.extend({
+export default class DispositionIcon extends Helper {
   compute([disposition]) {
     if (!disposition) {
       return null;
@@ -10,7 +11,7 @@ export default Helper.extend({
     let title = "admin.flags.dispositions." + disposition;
     switch (disposition) {
       case "deferred": {
-        icon = "external-link-alt";
+        icon = "up-right-from-square";
         break;
       }
       case "agreed": {
@@ -22,6 +23,6 @@ export default Helper.extend({
         break;
       }
     }
-    return iconHTML(icon, { title }).htmlSafe();
-  },
-});
+    return htmlSafe(iconHTML(icon, { title }));
+  }
+}

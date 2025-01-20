@@ -1,19 +1,21 @@
-import Controller, { inject as controller } from "@ember/controller";
-import I18n from "I18n";
-import { INPUT_DELAY } from "discourse-common/config/environment";
+import Controller from "@ember/controller";
 import { action } from "@ember/object";
-import discourseComputed from "discourse-common/utils/decorators";
-import discourseDebounce from "discourse-common/lib/debounce";
+import { service } from "@ember/service";
+import discourseDebounce from "discourse/lib/debounce";
+import discourseComputed from "discourse/lib/decorators";
+import { INPUT_DELAY } from "discourse/lib/environment";
+import { i18n } from "discourse-i18n";
 
-export default Controller.extend({
-  application: controller(),
-  queryParams: ["order", "asc", "filter", "type"],
-  order: null,
-  asc: null,
-  filter: "",
-  type: null,
-  groups: null,
-  isLoading: false,
+export default class GroupsIndexController extends Controller {
+  @service router;
+
+  queryParams = ["order", "asc", "filter", "type"];
+  order = null;
+  asc = null;
+  filter = "";
+  type = null;
+  groups = null;
+  isLoading = false;
 
   @discourseComputed("groups.extras.type_filters")
   types(typeFilters) {
@@ -21,44 +23,29 @@ export default Controller.extend({
 
     if (typeFilters) {
       typeFilters.forEach((type) =>
-        types.push({ id: type, name: I18n.t(`groups.index.${type}_groups`) })
+        types.push({ id: type, name: i18n(`groups.index.${type}_groups`) })
       );
     }
 
     return types;
-  },
-
-  loadGroups(params) {
-    this.set("isLoading", true);
-
-    this.store
-      .findAll("group", params)
-      .then((groups) => {
-        this.set("groups", groups);
-
-        if (groups.canLoadMore) {
-          this.set("application.showFooter", !groups.canLoadMore);
-        }
-      })
-      .finally(() => this.set("isLoading", false));
-  },
+  }
 
   @action
   onFilterChanged(filter) {
     discourseDebounce(this, this._debouncedFilter, filter, INPUT_DELAY);
-  },
+  }
 
   @action
   loadMore() {
     this.groups && this.groups.loadMore();
-  },
+  }
 
   @action
   new() {
-    this.transitionToRoute("groups.new");
-  },
+    this.router.transitionTo("groups.new");
+  }
 
   _debouncedFilter(filter) {
     this.set("filter", filter);
-  },
-});
+  }
+}

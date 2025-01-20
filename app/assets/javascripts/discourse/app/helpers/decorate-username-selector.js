@@ -1,5 +1,5 @@
 import { htmlSafe } from "@ember/template";
-import { registerUnbound } from "discourse-common/lib/helpers";
+import { registerRawHelper } from "discourse/lib/helpers";
 
 let usernameDecorators = [];
 export function addUsernameSelectorDecorator(decorator) {
@@ -10,7 +10,7 @@ export function resetUsernameDecorators() {
   usernameDecorators = [];
 }
 
-export default registerUnbound("decorate-username-selector", (username) => {
+export function decorateUsername(username) {
   const decorations = [];
 
   usernameDecorators.forEach((decorator) => {
@@ -18,4 +18,10 @@ export default registerUnbound("decorate-username-selector", (username) => {
   });
 
   return decorations.length ? htmlSafe(decorations.join("")) : "";
-});
+}
+
+registerRawHelper("decorate-username-selector", decorateUsernameSelector);
+
+export default function decorateUsernameSelector(username) {
+  return decorateUsername(username);
+}

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
-require 'json_schemer'
+require "json_schemer"
 
 # Require schema files
 Dir["./spec/requests/api/schemas/*.rb"].each { |file| require file }
@@ -14,7 +13,7 @@ def load_spec_schema(name)
 end
 
 def api_docs_description
-  <<~HEREDOC
+  <<~MD
     This page contains the documentation on how to use Discourse through API calls.
 
     > Note: For any endpoints not listed you can follow the
@@ -71,57 +70,70 @@ def api_docs_description
 
     If an endpoint accepts a boolean be sure to specify it as a lowercase
     `true` or `false` value unless noted otherwise.
-  HEREDOC
+  MD
+end
+
+def direct_uploads_disclaimer
+  <<~MD
+    You must have the correct permissions and CORS settings configured in your
+    external provider. We support AWS S3 as the default. See:
+
+    https://meta.discourse.org/t/-/210469#s3-multipart-direct-uploads-4.
+
+    An external file store must be set up and `enable_direct_s3_uploads` must
+    be set to true for this endpoint to function.
+  MD
 end
 
 RSpec.configure do |config|
   # Specify a root folder where Swagger JSON files are generated
   # NOTE: If you're using the rswag-api to serve API descriptions, you'll need
   # to ensure that it's configured to serve Swagger from the same folder
-  config.swagger_root = Rails.root.join('openapi').to_s
+  config.openapi_root = Rails.root.join("openapi").to_s
 
   # Define one or more Swagger documents and provide global metadata for each one
   # When you run the 'rswag:specs:swaggerize' rake task, the complete Swagger will
-  # be generated at the provided relative path under swagger_root
+  # be generated at the provided relative path under openapi_root
   # By default, the operations defined in spec files are added to the first
-  # document below. You can override this behavior by adding a swagger_doc tag to the
-  # the root example_group in your specs, e.g. describe '...', swagger_doc: 'v2/swagger.json'
-  config.swagger_docs = {
-    'openapi.yaml' => {
-      openapi: '3.1.0',
+  # document below. You can override this behavior by adding a openapi_spec tag to the
+  # the root example_group in your specs, e.g. describe '...', openapi_spec: 'v2/swagger.json'
+  config.openapi_specs = {
+    "openapi.yaml" => {
+      openapi: "3.1.0",
       info: {
-        title: 'Discourse API Documentation',
-        'x-logo': {
-          url: 'https://discourse-meta.s3-us-west-1.amazonaws.com/optimized/3X/9/d/9d543e92b15b06924249654667a81441a55867eb_1_690x184.png',
+        title: "Discourse API Documentation",
+        "x-logo": {
+          url: "https://docs.discourse.org/logo.svg",
         },
-        version: 'latest',
+        version: "latest",
         description: api_docs_description,
         license: {
-          name: 'MIT',
-          url: 'https://docs.discourse.org/LICENSE.txt'
-        }
+          name: "MIT",
+          url: "https://docs.discourse.org/LICENSE.txt",
+        },
       },
-      paths: {},
+      paths: {
+      },
       servers: [
         {
-          url: 'https://{defaultHost}',
+          url: "https://{defaultHost}",
           variables: {
             defaultHost: {
-              default: 'discourse.example.com'
-            }
-          }
-        }
+              default: "discourse.example.com",
+            },
+          },
+        },
       ],
       components: {
         schemas: {
-        }
-      }
-    }
+        },
+      },
+    },
   }
 
   # Specify the format of the output Swagger file when running 'rswag:specs:swaggerize'.
   # The swagger_docs configuration option has the filename including format in
   # the key, this may want to be changed to avoid putting yaml in json files.
   # Defaults to json. Accepts ':json' and ':yaml'.
-  config.swagger_format = :yaml
+  config.openapi_format = :yaml
 end

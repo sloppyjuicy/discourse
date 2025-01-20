@@ -1,4 +1,3 @@
-/*jshint maxlen:10000000 */
 import { NOTIFICATION_TYPES } from "./concerns/notification-types";
 
 export default {
@@ -7,26 +6,38 @@ export default {
       {
         id: 5340,
         notification_type: NOTIFICATION_TYPES.edited,
+        acting_user_avatar_template: "/letter_avatar_proxy/v4/letter/o/f05b48/{size}.png",
         read: false,
         post_number: 1,
         topic_id: 130,
         slug: "lorem-ipsum-dolor-sit-amet",
-        data: { topic_title: "edited topic 443", display_username: "velesin", revision_number: 1, original_post_id: 133, original_post_type: 1, original_username: "velesin" },
+        fancy_title: "edited topic 443",
+        data: {
+          topic_title: "edited topic 443",
+          display_username: "velesin",
+          revision_number: 1,
+          original_post_id: 133,
+          original_post_type: 1,
+          original_username: "velesin",
+        },
       },
       {
         id: 123,
         notification_type: NOTIFICATION_TYPES.replied,
+        acting_user_avatar_template: "/letter_avatar_proxy/v4/letter/o/f05b48/{size}.png",
         read: false,
-        post_number: 2,
+        post_number: 1,
         topic_id: 1234,
         slug: "a-slug",
+        fancy_title: "some title",
         data: { topic_title: "some title", display_username: "velesin" },
       },
       {
         id: 456,
         notification_type: NOTIFICATION_TYPES.liked_consolidated,
+        acting_user_avatar_template: "/letter_avatar_proxy/v4/letter/o/f05b48/{size}.png",
         read: false,
-        data: { display_username: "aquaman", count: "5" },
+        data: { username: "aquaman", display_username: "aquaman", count: 5 },
       },
       {
         id: 789,
@@ -45,6 +56,7 @@ export default {
       {
         id: 1234,
         notification_type: NOTIFICATION_TYPES.invitee_accepted,
+        acting_user_avatar_template: "/letter_avatar_proxy/v4/letter/o/f05b48/{size}.png",
         read: false,
         post_number: null,
         topic_id: null,
@@ -54,6 +66,7 @@ export default {
       {
         id: 5678,
         notification_type: NOTIFICATION_TYPES.membership_request_accepted,
+        acting_user_avatar_template: "/letter_avatar_proxy/v4/letter/o/f05b48/{size}.png",
         read: false,
         post_number: null,
         topic_id: null,

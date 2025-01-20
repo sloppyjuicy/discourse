@@ -1,27 +1,37 @@
+import { tracked } from "@glimmer/tracking";
 import EmberObject from "@ember/object";
-import RestModel from "discourse/models/rest";
-import User from "discourse/models/user";
+import { service } from "@ember/service";
 import { ajax } from "discourse/lib/ajax";
+import RestModel from "discourse/models/rest";
 
 /**
   A model representing a Topic's details that aren't always present, such as a list of participants.
   When showing topics in lists and such this information should not be required.
 **/
 
-const TopicDetails = RestModel.extend({
-  loaded: false,
+export default class TopicDetails extends RestModel {
+  @service store;
+
+  @tracked can_delete;
+  @tracked can_edit_staff_notes;
+  @tracked can_permanently_delete;
+  @tracked can_publish_page;
+  @tracked created_by;
+  @tracked notification_level;
+
+  loaded = false;
 
   updateFromJson(details) {
     const topic = this.topic;
 
     if (details.allowed_users) {
-      details.allowed_users = details.allowed_users.map(function (u) {
-        return User.create(u);
-      });
+      details.allowed_users = details.allowed_users.map((u) =>
+        this.store.createRecord("user", u)
+      );
     }
 
     if (details.participants) {
-      details.participants = details.participants.map(function (p) {
+      details.participants = details.participants.map((p) => {
         p.topic = topic;
         return EmberObject.create(p);
       });
@@ -29,7 +39,7 @@ const TopicDetails = RestModel.extend({
 
     this.setProperties(details);
     this.set("loaded", true);
-  },
+  }
 
   updateNotifications(level) {
     return ajax(`/t/${this.get("topic.id")}/notifications`, {
@@ -41,7 +51,7 @@ const TopicDetails = RestModel.extend({
         notifications_reason_id: null,
       });
     });
-  },
+  }
 
   removeAllowedGroup(group) {
     const groups = this.allowed_groups;
@@ -49,11 +59,11 @@ const TopicDetails = RestModel.extend({
 
     return ajax("/t/" + this.get("topic.id") + "/remove-allowed-group", {
       type: "PUT",
-      data: { name: name },
+      data: { name },
     }).then(() => {
       groups.removeObject(groups.findBy("name", name));
     });
-  },
+  }
 
   removeAllowedUser(user) {
     const users = this.allowed_users;
@@ -61,11 +71,9 @@ const TopicDetails = RestModel.extend({
 
     return ajax("/t/" + this.get("topic.id") + "/remove-allowed-user", {
       type: "PUT",
-      data: { username: username },
+      data: { username },
     }).then(() => {
       users.removeObject(users.findBy("username", username));
     });
-  },
-});
-
-export default TopicDetails;
+  }
+}

@@ -1,9 +1,12 @@
-import RestrictedUserRoute from "discourse/routes/restricted-user";
+import { action } from "@ember/object";
+import { service } from "@ember/service";
+import AvatarSelectorModal from "discourse/components/modal/avatar-selector";
 import UserBadge from "discourse/models/user-badge";
-import showModal from "discourse/lib/show-modal";
+import RestrictedUserRoute from "discourse/routes/restricted-user";
+import { i18n } from "discourse-i18n";
 
-export default RestrictedUserRoute.extend({
-  showFooter: true,
+export default class PreferencesAccount extends RestrictedUserRoute {
+  @service modal;
 
   model() {
     const user = this.modelFor("user");
@@ -20,7 +23,7 @@ export default RestrictedUserRoute.extend({
     } else {
       return user;
     }
-  },
+  }
 
   setupController(controller, user) {
     controller.reset();
@@ -30,12 +33,15 @@ export default RestrictedUserRoute.extend({
       newTitleInput: user.get("title"),
       newPrimaryGroupInput: user.get("primary_group_id"),
       newFlairGroupId: user.get("flair_group_id"),
+      newStatus: user.status,
+      subpageTitle: i18n("user.preferences_nav.account"),
     });
-  },
+  }
 
-  actions: {
-    showAvatarSelector(user) {
-      showModal("avatar-selector").setProperties({ user });
-    },
-  },
-});
+  @action
+  showAvatarSelector(user) {
+    this.modal.show(AvatarSelectorModal, {
+      model: { user },
+    });
+  }
+}

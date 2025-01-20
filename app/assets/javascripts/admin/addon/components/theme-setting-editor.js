@@ -1,20 +1,10 @@
-import BufferedContent from "discourse/mixins/buffered-content";
-import Component from "@ember/component";
-import SettingComponent from "admin/mixins/setting-component";
-import { ajax } from "discourse/lib/ajax";
-import { url } from "discourse/lib/computed";
+import SiteSettingComponent from "./site-setting";
 
-export default Component.extend(BufferedContent, SettingComponent, {
-  layoutName: "admin/templates/components/site-setting",
-  updateUrl: url("model.id", "/admin/themes/%@/setting"),
-
+export default class extends SiteSettingComponent {
   _save() {
-    return ajax(this.updateUrl, {
-      type: "PUT",
-      data: {
-        name: this.setting.setting,
-        value: this.get("buffered.value"),
-      },
-    });
-  },
-});
+    return this.setting.updateSetting(
+      this.model.id,
+      this.get("buffered.value")
+    );
+  }
+}
